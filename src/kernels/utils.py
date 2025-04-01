@@ -5,7 +5,7 @@ from torch import nn
 
 
 class LearnedCovs2D(nn.Module):
-    """A utility class that parameterises a series of 2D covariance matrices using std1, std2 and corr12"""
+    """A utility class that parameterises 2D covariance matrices using stds and corr"""
 
     def __init__(self, in_channels: int, out_channels: int, init: str = "zero"):
         super().__init__()
@@ -39,8 +39,7 @@ class LearnedCovs2D(nn.Module):
 
     def extra_repr(self):
         out_channels, in_channels = self.corr_param.shape
-        kernel_size = self.kernel_size
-        return f"{in_channels}, {out_channels}, {kernel_size=}"
+        return f"{in_channels}, {out_channels}"
 
 
 class LearnedKernel(nn.Module):
@@ -62,9 +61,11 @@ class LearnedKernel(nn.Module):
         return self.kernel
 
 
-def plot_kernels(kernels: torch.Tensor, cut_zero=True, high_cut: float = 0.95) -> None:
+def plot_kernels(
+    kernels: torch.Tensor, cut_zero=True, high_cut: float = 0.95, at_most: int = 4
+) -> None:
     dev_name = "(CPU)" if kernels.get_device() == -1 else "(CUDA)"
-    kernels = kernels.detach().cpu()
+    kernels = kernels.detach().cpu()[:at_most, :at_most]
     high = torch.quantile(kernels.view(-1), torch.tensor([high_cut])).cpu().item()
     low = (
         torch.quantile(kernels.view(-1), torch.tensor([1 - high_cut])).cpu().item()

@@ -1,9 +1,13 @@
+import sys
+
 import matplotlib.pyplot as plt
 import torch
 import torchvision
 from torch import nn
 
-from src.conv import TropicalConv2D
+sys.path.extend(".")
+
+from src.convolutions import TropicalConv2D
 
 
 def try_tropical_conv(kernels: torch.Tensor | list, num_img: int = 0):
@@ -20,12 +24,13 @@ def try_tropical_conv(kernels: torch.Tensor | list, num_img: int = 0):
     ax_unused.set_axis_off()
     ax_original.imshow(img)
     ax_original.set_title("Original")
-    conv_max = TropicalConv2D(is_max=True)(img.unsqueeze(0), kernels)
+    repeat_img = img.unsqueeze(0).repeat((1, out_channels, 1, 1))
+    conv_max = TropicalConv2D(is_max=True)(repeat_img, kernels)[0]
     for i, (ax, img_channel) in enumerate(zip(ax_maxs, conv_max, strict=True), 1):
         ax.set_axis_off()
         ax.imshow(img_channel)
         ax.set_title(f"Max #{i}")
-    conv_min = TropicalConv2D(is_max=False)(img.unsqueeze(0), kernels)
+    conv_min = TropicalConv2D(is_max=False)(repeat_img, kernels)[0]
     for i, (ax, img_channel) in enumerate(zip(ax_mins, conv_min, strict=True), 1):
         ax.set_axis_off()
         ax.imshow(img_channel)

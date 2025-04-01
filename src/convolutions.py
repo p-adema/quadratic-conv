@@ -35,29 +35,29 @@ class TropicalConv2D(nn.Module):
         stride: int = 1,
     ):
         assert len(kernel.shape) == 4, f"Kernel shape seems off: {kernel.shape=}"
-        out_channels, in_channels, kernel_size, _ks = kernel.shape
+        out_channels, kernel_in_ch, kernel_size, _ks = kernel.shape
         assert kernel_size == _ks
+        assert kernel_in_ch == 1, "Max/min kernel should take one channel input"
         xdims = len(x.shape)
         if xdims == 3:
             x = x.unsqueeze(0)
         elif xdims < 3 or xdims > 5:
             raise ValueError(f"Input shape seems off: {x.shape=}")
-        inp_batch, _in_ch, inp_x, inp_y = x.shape
-        assert in_channels == _in_ch
+        inp_batch, img_channels, inp_x, inp_y = x.shape
+        assert img_channels == out_channels, f"{out_channels=} != {img_channels=}"
         new_x = self._output_size(inp_x, kernel_size, dilation, padding, stride)
         new_y = self._output_size(inp_y, kernel_size, dilation, padding, stride)
-        assert new_x > 0 and new_y > 0
+        assert new_x > 0, f"{new_x=}"
+        assert new_y > 0, f"{new_y=}"
 
         stencils = nn.functional.unfold(
             x, (kernel_size, kernel_size), dilation, padding, stride
-        ).unsqueeze(1)
-        weights = kernel.view(
-            1, out_channels, in_channels * kernel_size * kernel_size, 1
-        )
+        ).reshape(inp_batch, out_channels, kernel_size * kernel_size, -1)
+        weights = kernel.view(1, out_channels, kernel_size * kernel_size, 1)
         assert weights.shape[2] == stencils.shape[2]
 
         if self.is_max:
-            # [batch, o, i*k*k, y'*x']
+            # [batch, o, k*k, y'*x']
             vals = stencils - weights
             if self.softmax_temp is None:
                 reduced = torch.max(vals, dim=2).values
@@ -91,3 +91,45 @@ class TropicalConv2D(nn.Module):
         if xdims == 3:
             res = res.squeeze(0)
         return res
+
+
+class GenericConv2D(nn.Module):
+    def __init__(
+        self,
+        kernel: nn.Module,
+        conv: nn.Module,
+    ):
+        super().__init__()
+        self.kernel = kernel
+        self.conv = conv
+
+    def forward(self, x):
+        return self.conv(x, self.kernel())
+
+
+class CoerceImage4D(nn.Module):
+    def __init__(self, img_channels: int):
+        super().__init__()
+        self.img_channels = img_channels
+
+    def forward(self, x: torch.Tensor):
+        x_dims = len(x.shape)
+        if x_dims > 4:
+            raise ValueError(f"Probably invalid image dims {x.shape=}")
+        if x_dims == 4:
+            assert x.shape[1] == self.img_channels, f"Invalid channels {x.shape=}"
+        elif x_dims == 3:
+            if x.shape[0] == self.img_channels:
+                # Probably a single image, unbatched
+                x = x.unsqueeze(0)
+            else:
+                # Must be a single-channel image, batched
+                assert self.img_channels == 1, f"Strange image {x.shape=}"
+                x = x.unsqueeze(1)
+        else:
+            assert x_dims == 2, "not an image?"
+            # Unbatched, single channel image
+            assert self.img_channels == 1, f"Missing channels {x.shape=}"
+            x = x.unsqueeze(0).unsqueeze(1)
+
+        return x
