@@ -50,7 +50,7 @@ def _pool_layer(
     init: str,
     stride: int = 1,
 ):
-    if not hp.Boolean("quadratic-pooling"):
+    if not hp.Boolean("quadratic-pooling", default=True):
         return layers.MaxPool2D(
             data_format="channels_first",
             pool_size=(2, 2),
@@ -64,14 +64,14 @@ def _pool_layer(
     kernel_kind: str = hp.Choice(
         "quadratic-pool-kernel",
         list(kernel_options),
-        parent_name="quadratic-pooling",
-        parent_values=(True,),
+        # parent_name="quadratic-pooling",
+        # parent_values=(True,),
     )
     kernel = kernel_options[kernel_kind]
     if hp.Boolean(
         "quadratic-pool-softpool",
-        parent_name="quadratic-pooling",
-        parent_values=(True,),
+        # parent_name="quadratic-pooling",
+        # parent_values=(True,),
     ):
         soft_temp = hp.Float(
             "quadratic-pool-softpool-temp",
@@ -79,8 +79,8 @@ def _pool_layer(
             16,
             sampling="log",
             step=4,
-            parent_name="quadratic-pool-softpool",
-            parent_values=(True,),
+            # parent_name="quadratic-pool-softpool",
+            # parent_values=(True,),
         )
     else:
         soft_temp = None
@@ -90,8 +90,9 @@ def _pool_layer(
         3,
         5,
         step=2,
-        parent_name="quadratic-pooling",
-        parent_values=(True,),
+        # default=5,
+        # parent_name="quadratic-pooling",
+        # parent_values=(True,),
     )
     return layers.TorchModuleWrapper(
         convolutions.GenericConv2D(
@@ -108,6 +109,8 @@ def _pool_layer(
 def gangoly_cifar(
     img_channels: int = 1, num_classes: int = 10
 ) -> Callable[[keras_tuner.HyperParameters], keras.Model]:
+    """https://shonit2096.medium.com/cnn-on-cifar10-data-set-using-pytorch-34be87e09844"""
+
     def build_model(hp: keras_tuner.HyperParameters = None) -> keras.Model:
         if hp is None:
             hp = keras_tuner.HyperParameters()
@@ -122,26 +125,26 @@ def gangoly_cifar(
         )
 
         model.add(_conv_block(32))
-        model.add(_pool_layer(hp, 1, channels=20, init=init_kind, stride=2))
+        model.add(_pool_layer(hp, 1, channels=32, init=init_kind, stride=2))
 
         model.add(_conv_block(128))
-        model.add(_pool_layer(hp, 1, channels=20, init=init_kind, stride=2))
+        model.add(_pool_layer(hp, 2, channels=128, init=init_kind, stride=2))
 
         model.add(layers.Dropout(0.05))
 
         model.add(_conv_block(256))
-        model.add(_pool_layer(hp, 2, channels=50, init=init_kind))
+        model.add(_pool_layer(hp, 3, channels=256, init=init_kind))
 
         model.add(_fc_block(output_classes=num_classes))
 
         model.compile(
-            optimizer=keras.optimizers.Adam(),
+            optimizer=keras.optimizers.SGD(learning_rate=0.001),
             loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
             metrics=[
                 "accuracy",
                 keras.metrics.SparseTopKCategoricalAccuracy(k=3, name="top3"),
             ],
         )
-        return quiet_model(model)
+        return model  # quiet_model
 
     return build_model

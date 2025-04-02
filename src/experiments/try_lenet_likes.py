@@ -11,7 +11,6 @@ from src import load_data
 from src.models import lenet_like
 
 fixed_hp = keras_tuner.HyperParameters()
-fixed_hp.Fixed("quadratic-pool-softpool", False)
 
 tuner = keras_tuner.GridSearch(
     hypermodel=lenet_like.lenet_like(img_channels=1, num_classes=10),

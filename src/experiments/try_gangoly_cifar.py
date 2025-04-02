@@ -29,7 +29,6 @@ tuner.search(
     batch_size=2**8,
     epochs=30,
     validation_split=0.3,
-    validation_batch_size=2**13,
 )
 
 tuner.results_summary()
