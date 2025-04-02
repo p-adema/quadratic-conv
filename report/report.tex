@@ -64,13 +64,63 @@
 \newpage
 
 \section{Introduction}
+\comment{\ldots\ldots}
 \section{Background}
+First, some mathematical formalisms must be covered to understand the concepts discussed in the implementation and results sections, namely fields and subfields, construction of positive definite matrices and efficient calculation of quadratic forms.
+
+\subsection{Convolutional stencil}
+At the core of a convolutional neural network is the convolutional operation $f*g$, where, in practice, $g$ is approximated with a fixed-size discrete kernel. This kernel may be fixed, but most modern machine learning architectures learn the kernel as part of the model's parameters (see \citeA{introconvnets} for an introduction). As such, the calculation for the output of a single pixel is of the form:
+\begin{align*}
+(f*g)[x] = \Sigma_{y\in\mathcal{I}} f[x-y]\cdot g[y]	, \textrm{ where } \mathcal{I} \textrm{ is the set of indices valid for }g,
+\end{align*}
+possibly also summing over multiple input channels. An access pattern such as this, where the new value of a pixel depends on a fixed window of its neighbours, is referred to as a stencil computation \cite{fortranstencils}, and as such, the stencil computation performed by the discrete convolution operator will hereafter be referred to as the convolutional stencil.
+
+\subsection{Fields, subfields and weighted reductions}
+In the convolutional stencil, a part of the image is multiplied element-wise with a kernel, and the resulting values are summed to obtain an activation for that point. However, while we typically use scalar addition and multiplication in this calculation, it is also possible to use different operators in the reduction by defining a different field in which the reduction is done. In this section, we will briefly look at the concept of fields insofar as they are relevant to the reduction in the convolutional stencil.
+
+In mathematics, a field is a set of values with a pair of operators that work on those values: one operator corresponds to the concept of addition, and one operator corresponds to the concept of multiplication. Fields are, in effect, a generalisation of standard addition and multiplication on integers or reals and allow for describing a set of values other than typical scalars or an alternate method for combining typical numbers. Formally, a field can be described as a tuple $(\mathcal{F}, \oplus, \otimes)$, where the operators $\oplus$ and $\otimes$ are of the type $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Furthermore, the operators $\oplus$ and $\otimes$ are both beholden to the field axioms: informally, a set of rules to ensure they act 'similarly' to standard scalar addition and multiplication. These field axioms are as follows \cite{beachy2006abstract}:
+\begin{align}
+\textrm{Associativity for both: }& (a\circ b) \circ c = a \circ (b \circ c) \\ 
+\textrm{Commutativity for both: }& a\circ b = a  \circ a \\
+\oplus\textrm{ identity: }& \exists 0'~\forall a\in \mathcal{F}~~ a\oplus 0' = a \\ 
+\otimes\textrm{ identity: }& \exists 1'~\forall a\in \mathcal{F}~~ a\otimes 1' = a \\ 
+\oplus\textrm{ has inverse elements: }& \forall a\in \mathcal{F}~\exists b\in \mathcal{F}~~ a\oplus b = 0'  \\ 
+\otimes\textrm{ has inverse elements: }& \forall a\in \mathcal{F}~\exists b\in \mathcal{F}~~ a\otimes b = 1'  \\ 
+\textrm{Distributivity: }& a\otimes (b \oplus c) = (a\otimes b)\oplus(a\otimes c) \\
+\end{align}
+
+One use case for fields in machine learning is to describe a weighted reduction (as in a kernel-based convolution) more generally. To better understand this, suppose we have a sequence of numbers $A \in \mathcal{F}^N$  (e.g. $[10, 12, 17]$), which we wish to summarise into a single value (as with the image neighbourhood in a convolution stencil). We could accomplish this by repeatedly applying an operator $\oplus$ (e.g. $10 \oplus 12 \oplus 17$): this would then be referred to as a reduction with $\oplus$ and could also be written as $\bigoplus_{i\in \mathcal{I}}A_i$. Typically, we also require that $\oplus$ be associative and commutative (an abelian group, see \citeA{beachy2006abstract}), enabling the parallelisation of the reduction by reassociating the $\oplus$ and performing some operations out of order \cite{ppad}. However, we may also wish to weigh some terms of the sequence more heavily in the summary: for this purpose, we could use a second operator $\otimes$ with a second sequence of weights $W \in \mathcal{F}^N$ (as with the kernel in a convolution) and write $\bigoplus_{i\in \mathcal{I}}A_i \otimes W_i$. 
+
+We can see that a weighted reduction can be implemented on a field $(\mathcal{F}, \oplus, \otimes)$, as the requirements for a weighted reduction are few and a subset of the field axioms. Therefore, defining a field with appropriate operators is a sufficient condition for performing a weighed reduction. However, it is not a necessary condition: as defined above, the field axioms are overly strict compared to what is necessary for the weighted reduction, and we could relax some assumptions to obtain, e.g., a semiring. In practice, though, the operators typically used for reduction fulfil most, if not all, of the requirements for a field. As such, the spaces in which reductions are performed are typically described as a semifield: a field that does not neccesarily have an additive inverse \cite{bellaardaxiomatic}.
+
+Finally, since weighted reduction can be performed in any semifield, we can perform an operation similar to the convolutional stencil in any semifield. Such a convolution (in a semifield other than the linear) is denoted as $\textcircled{$*$}$ to distinguish it from standard convolution, while correlation (convolution with a mirrored kernel) is denoted as $\textcircled{$\star$}$.
+
+\subsection{Nonlinear semifields from computational morphology}
+Knowing that convolutional stencils are weighted reductions and that weighted reductions can be implemented in all semifields, we can examine if there are other semifields in which we can perform a convolution than the standard linear field. For this, we can take inspiration from computational morphology, the mathematics of object and function shapes.
+
+Two core operations from computational morphology are dilation and erosion, where dilation corresponds with 'making a function larger' (scaling the umbra of a function), and erosion is 'making a function smaller'. The result of these operators is shown in FIGURE1. Examining the local effects of dilation more closely, we can see that it is somewhat similar to taking a local maximum. This similarity can be made more concrete by understanding the formula for dilation: $$f \boxplus g$$
+
+Here, $f$ is the function (or object or image) to be dilated, and $g$ is a concave structuring function describing how the dilation will occur. The dilation for a single point can then be calculated as $(f \boxplus g)(x) = \max_y \left(f(x+y) - g(y)\right)$. An intuitive explanation would be to see the structuring function $g$ as a distance function and dilation $\boxplus$ as the operation that takes the highest value also 'close' to $x$. If $g$ is a step function with a value zero near its centre and infinity outside (FIG2), we can see that this is precisely taking the maximum value within the range specified by $g$. However, we may also wish to use a quadratic (FIG3) or other concave function as $g$, which would result in different interpretations of the resulting dilation.
+
+Looking at the operation performed by dilation more closely, we can see that it is, in effect, a maximum operation weighted by a distance function. Similarities with what was discussed in the previous section may lead us to believe that this can also be seen as a weighted reduction in an appropriate subspace, and this is indeed the case. By defining $\oplus=\max$ and $\otimes=+$, we obtain the tropical max semifield $T_+=(\mathbb{R}\cup\{-\infty\},\max,+)$ with neutral elements $(-\infty, 0)$ respectively \cite{bellaardaxiomatic}. Dilation, as described above, is then equivalent to a correlation $f ~\textcircled{$\star$}~ (-g)$ in $T_+$. \comment{I write -g here, but g is a function. Should I be more precise? And, do I need to give more steps for why it is equivalent to a correlation?}
+
+This result is interesting because we can see the standard max pooling layer in a convolutional neural network as a dilation with a fixed, step-function-like $g$ \comment{\ldots\ldots}
+
+It can also be shown that erosion ('shrinking a function') corresponds with a minimum weighted by a distance function. Using similar logic as above, erosion $\boxminus$ can be shown to also correspond with a correlation $f ~\textcircled{$\star$}~ g$ in the tropical min subfield $T_-=(\mathbb{R}\cup\{\infty\},\min,+)$ with neutral elements $(\infty, 0)$.
+
+\subsection{Other nonlinear fields}
+Log and root \cite{bellaardaxiomatic} \comment{\ldots\ldots}
+
+\subsection{Quadratic distance functions}
+In general, we may wish to weigh dimensions differently. \comment{\ldots\ldots}
 
 
-Amongst others, \begin{enumerate}
-	\item \citeA{bellaardaxiomatic} and \citeA{smetspde} for general reading about morphological operators
-	\item \citeA{thierrybsc} for the previous thesis
-\end{enumerate}
+\subsection{Learning positive definite matrices}
+\comment{\ldots\ldots}
+
+\subsubsection{Efficient quadratic calculation}
+Tri-solve \comment{\ldots\ldots}
+
 \bibliography{references}
 \bibliographystyle{apacite}
 
