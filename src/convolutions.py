@@ -98,13 +98,25 @@ class GenericConv2D(nn.Module):
         self,
         kernel: nn.Module,
         conv: nn.Module,
+        dilation: int = 1,
+        padding: int = 0,
+        stride: int = 1,
     ):
         super().__init__()
+        self.padding = padding
+        self.stride = stride
+        self.dilation = dilation
         self.kernel = kernel
         self.conv = conv
 
     def forward(self, x):
-        return self.conv(x, self.kernel())
+        return self.conv(
+            x,
+            self.kernel(),
+            dilation=self.dilation,
+            padding=self.padding,
+            stride=self.stride,
+        )
 
 
 class CoerceImage4D(nn.Module):
