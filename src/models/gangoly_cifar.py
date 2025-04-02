@@ -68,27 +68,27 @@ def _pool_layer(
         # parent_values=(True,),
     )
     kernel = kernel_options[kernel_kind]
-    if hp.Boolean(
-        "quadratic-pool-softpool",
-        # parent_name="quadratic-pooling",
-        # parent_values=(True,),
-    ):
-        soft_temp = hp.Float(
-            "quadratic-pool-softpool-temp",
-            1,
-            16,
-            sampling="log",
-            step=4,
-            # parent_name="quadratic-pool-softpool",
-            # parent_values=(True,),
-        )
-    else:
-        soft_temp = None
+    # if hp.Boolean(
+    #     "quadratic-pool-softpool",
+    #     # parent_name="quadratic-pooling",
+    #     # parent_values=(True,),
+    # ):
+    #     soft_temp = hp.Float(
+    #         "quadratic-pool-softpool-temp",
+    #         1,
+    #         16,
+    #         sampling="log",
+    #         step=4,
+    #         # parent_name="quadratic-pool-softpool",
+    #         # parent_values=(True,),
+    #     )
+    # else:
+    soft_temp = None
 
     pool_size = hp.Int(
         "quadratic-pool-size",
         3,
-        5,
+        3,  # can be higher
         step=2,
         # default=5,
         # parent_name="quadratic-pooling",
@@ -115,7 +115,7 @@ def gangoly_cifar(
         if hp is None:
             hp = keras_tuner.HyperParameters()
 
-        init_kind = hp.Choice("init_kind", ["normal"])
+        init_kind = "normal"  # hp.Choice("init_kind", ["normal"])
 
         model = keras.Sequential()
         model.add(
