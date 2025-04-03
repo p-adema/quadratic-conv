@@ -84,7 +84,7 @@ def _pool_layer(
     #     )
     # else:
     #     soft_temp = None
-    soft_temp = 100
+    soft_temp = 0.01
 
     pool_size = hp.Int(
         "quadratic-pool-size",

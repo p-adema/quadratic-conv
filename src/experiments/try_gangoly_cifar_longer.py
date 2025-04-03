@@ -14,7 +14,7 @@ tuner = keras_tuner.GridSearch(
     hypermodel=gangoly_cifar.gangoly_cifar(img_channels=3, num_classes=10),
     objective="val_accuracy",
     seed=0,
-    executions_per_trial=3,
+    executions_per_trial=2,
     overwrite=False,
     directory="checkpoints",
     project_name="gangoly_cifar_longer_soft",

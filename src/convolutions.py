@@ -62,10 +62,10 @@ class TropicalConv2D(nn.Module):
             if self.softmax_temp is None:
                 reduced = torch.max(vals, dim=2).values
             else:
-                # I looked at using logsumexp here, but the limits in temperature of logsumexp are
+                # I looked at using logsumexp here, but the limits of logsumexp are
                 # t=0 gives val=inf, t=inf gives val=max
                 # while the limits in temperature of softmax * x are
-                # t=0 gives val=mean, t=inf gives val=max
+                # t->0 gives val=max, t->inf gives val=mean
 
                 # dot product
                 reduced = torch.einsum(
