@@ -6,6 +6,7 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{apacite}
+\usepackage{caption}
 
 \usepackage{geometry}
 \geometry{a4paper, textwidth=400.0pt, textheight=740.0pt}
@@ -98,15 +99,23 @@ Finally, since weighted reduction can be performed in any semifield, we can perf
 \subsection{Nonlinear semifields from computational morphology}
 Knowing that convolutional stencils are weighted reductions and that weighted reductions can be implemented in all semifields, we can examine if there are other semifields in which we can perform a convolution than the standard linear field. For this, we can take inspiration from computational morphology, the mathematics of object and function shapes.
 
-Two core operations from computational morphology are dilation and erosion, where dilation corresponds with 'making a function larger' (scaling the umbra of a function), and erosion is 'making a function smaller'. The result of these operators is shown in FIGURE1. Examining the local effects of dilation more closely, we can see that it is somewhat similar to taking a local maximum. This similarity can be made more concrete by understanding the formula for dilation: $$f \boxplus g$$
+Two core operations from computational morphology are dilation and erosion, where dilation corresponds with 'making a function larger' (scaling the umbra of a function), and erosion is 'making a function smaller'. The result of these operators is shown in Fig. \ref{fig:dil-illust}. Examining the local effects of dilation more closely, we can see that it is somewhat similar to taking a local maximum. This similarity can be made more concrete by understanding the formula for dilation: 
+$$f \boxplus g \textrm{, where }(f \boxplus g)(x) = \max_y \left(f(x+y) + g(y)\right)$$
 
-Here, $f$ is the function (or object or image) to be dilated, and $g$ is a concave structuring function describing how the dilation will occur. The dilation for a single point can then be calculated as $(f \boxplus g)(x) = \max_y \left(f(x+y) - g(y)\right)$. An intuitive explanation would be to see the structuring function $g$ as a distance function and dilation $\boxplus$ as the operation that takes the highest value also 'close' to $x$. If $g$ is a step function with a value zero near its centre and infinity outside (FIG2), we can see that this is precisely taking the maximum value within the range specified by $g$. However, we may also wish to use a quadratic (FIG3) or other concave function as $g$, which would result in different interpretations of the resulting dilation.
+Here, $f$ is the function (or object or image) to be dilated, and $g$ is a concave structuring function describing how the dilation will occur. An intuitive explanation would be to see the structuring function $g$ as a (negated) distance function and dilation $\boxplus$ as the operation that takes the highest value also 'close' to $x$. If $g$ is a step function with a value zero near its centre and $-\infty$ outside (Fig. \ref{fig:dil-illust}, first row), we can see that this is precisely taking the maximum value within the range specified by $g$. However, we may also wish to use a quadratic (Fig. \ref{fig:dil-illust}, second row) or other concave function as $g$. Depending on $f$, we may still be able to perform the dilation with an arbitrary $g$ (using algebraic solutions), but to compute the dilation in the general case we may wish to clip all functions $g$ to be above $-\infty$ in only a constrained domain (Fig. \ref{fig:dil-illust}, third row). The dilation with the clipped version of $f\boxplus g_{clipped}$ could then be seen as an approximation of the dilation $f\boxplus g$ with the full (unclipped) $g$.
 
-Looking at the operation performed by dilation more closely, we can see that it is, in effect, a maximum operation weighted by a distance function. Similarities with what was discussed in the previous section may lead us to believe that this can also be seen as a weighted reduction in an appropriate subspace, and this is indeed the case. By defining $\oplus=\max$ and $\otimes=+$, we obtain the tropical max semifield $T_+=(\mathbb{R}\cup\{-\infty\},\max,+)$ with neutral elements $(-\infty, 0)$ respectively \cite{bellaardaxiomatic}. Dilation, as described above, is then equivalent to a correlation $f ~\textcircled{$\star$}~ (-g)$ in $T_+$. \comment{I write -g here, but g is a function. Should I be more precise? And, do I need to give more steps for why it is equivalent to a correlation?}
+\begin{figure}[h!]
+  \includegraphics[width=\textwidth]{figures/dilation_illustration.png}
+  \caption{Illustration of the effects of dilation with three kernels on a sinusoidal $f$. $g_{step}=0$ in a region of size 0.5, $-\infty$ outside. $g_{quad}=-5x^2$, and $g_{qclip}=g_{quad}+g_{step}$. \\An alternative intuition for dilation is also illustrated, corresponding with 'lowering' a negated version of $g'$ down towards the point $x$ until it intersects $f$, and taking the value of the lowered and flipped $g'(x)$ as the result of the dilation at point $x$.}
+  \label{fig:dil-illust}
+\end{figure}
 
-This result is interesting because we can see the standard max pooling layer in a convolutional neural network as a dilation with a fixed, step-function-like $g$ \comment{\ldots\ldots}
 
-It can also be shown that erosion ('shrinking a function') corresponds with a minimum weighted by a distance function. Using similar logic as above, erosion $\boxminus$ can be shown to also correspond with a correlation $f ~\textcircled{$\star$}~ g$ in the tropical min subfield $T_-=(\mathbb{R}\cup\{\infty\},\min,+)$ with neutral elements $(\infty, 0)$.
+Looking at the operation performed by dilation more closely, we can see that it is, in effect, a maximum operation weighted by a distance function. Similarities with what was discussed in the previous section may lead us to believe that this can also be seen as a weighted reduction in an appropriate subspace, and this is indeed the case. By defining $\oplus=\max$ and $\otimes=+$, we obtain the tropical max semifield $T_+=(\mathbb{R}\cup\{-\infty\},\max,+)$ with neutral elements $(-\infty, 0)$ respectively \cite{bellaardaxiomatic}. Dilation, as described above, is then equivalent to a correlation $f ~\textcircled{$\star$}~ (-g)$ in $T_+$. \comment{Does this need more steps? Probably does \ldots}
+
+This result is interesting because we can see the standard max pooling layer in a convolutional neural network as a dilation with a fixed, step-function-like $g$ (a 2D version of $g_{step}$ from Fig. \ref{fig:dil-illust}). A logical next step might then be to examine the effects of using a different structuring function for the pooling layer, and in subsequent sections we will do exactly that for the 2D quadratic structuring function.
+
+It can also be shown that erosion ('shrinking a function') corresponds with a minimum weighted by a distance function. Using similar logic as above, erosion $\boxminus$ can be shown to also correspond with a correlation $f ~\textcircled{$\star$}~ (-g)$ in the tropical min subfield $T_-=(\mathbb{R}\cup\{\infty\},\min,+)$ with neutral elements $(\infty, 0)$. \comment{I write -g here, but g is a function. Should I be more precise?}
 
 \subsection{Other nonlinear fields}
 Log and root \cite{bellaardaxiomatic} \comment{\ldots\ldots}
