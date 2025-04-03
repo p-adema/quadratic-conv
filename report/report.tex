@@ -125,9 +125,49 @@ In general, we may wish to weigh dimensions differently. \comment{\ldots\ldots}
 
 
 \subsection{Learning positive definite matrices}
+We can parametrise any $2\times2$ positive definite matrix using the same variables as a $2\times2$ covariance matrix (which also helps with interpretability). The relevant constraints are then:
+\begin{align}
+	\sigma_1 > 0& \textrm{, so we can use } \sigma_1 = \exp(\theta_1)\\
+	\sigma_2 > 0& \textrm{, so we can use } \sigma_2 = \exp(\theta_2)\\
+	\rho \in (-1, 1) & \textrm{, so we can use } \rho = \tanh(\theta_3)\\
+\end{align}
+\begin{align*}
+	\textrm{Suppose $\Sigma$}&\textrm{$\in\mathbb{R}^{2\times2}$ is a positive definite matrix, then for some } \sigma_1, \sigma_2, \rho:\\
+	\Sigma &= \begin{bmatrix}
+ \sigma_1^2 & \sigma_1\sigma_2\rho \\
+  \sigma_1\sigma_2\rho & \sigma_2^2 \\
+\end{bmatrix}\textrm{, but also for some lower diagonal }L\in\mathbb{R}^{2\times2}:\\
+\Sigma &= LL^T = \begin{bmatrix}
+ l_{11} & 0 \\
+  l_{21} & l_{22} \\
+\end{bmatrix}\begin{bmatrix}
+ l_{11} & l_{21} \\
+  0 & l_{22} \\
+\end{bmatrix}\\
+&=\begin{bmatrix}
+ l_{11}^2 &  \\
+  l_{11}l_{21} & l_{21}^2 + l_{22}^2 \\
+\end{bmatrix}\\
+\textrm{As such,}&\textrm{ we know that:}\\
+	l_{11} &= \sqrt{\sigma_1^2} =\sigma_1\\
+	l_{21} &= \frac{\sigma_1\sigma_2\rho}{\sigma_1}=\sigma_1\sigma_2\rho \\
+%	l_{21}^2 + l_{22}^2 &= \sigma_2^2 \textrm{, so}\\
+	l_{22} &= \sqrt{\sigma_2^2 - \sigma_1\sigma_2\rho}
+\end{align*}
+	
 \comment{\ldots\ldots}
 
 \subsubsection{Efficient quadratic calculation}
+\begin{align*}
+	\mathbf{x}^T\Sigma^{-1}\mathbf{x}
+	&= \mathbf{x}^T(LL^T)^{-1}\mathbf{x}\\
+	&= \mathbf{x}^T(L^T)^{-1}L^{-1}\mathbf{x}\\
+	&= (L^{-1}\mathbf{x})\cdot(L^{-1}\mathbf{x})\\
+\textrm{Suppose }\mathbf{b}&=L^{-1}\mathbf{x},\\
+	L\mathbf{b}&=\mathbf{x}, \textrm{ so}\\
+	\mathbf{b}&= \textsc{solve-triangular}(L, \mathbf{x})\\
+	\mathbf{x}^T\Sigma^{-1}\mathbf{x} &= \mathbf{b}\cdot\mathbf{b}
+\end{align*}
 Tri-solve \comment{\ldots\ldots}
 
 \bibliography{references}
