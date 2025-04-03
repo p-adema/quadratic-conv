@@ -17,13 +17,11 @@ dependencies = [
     "scipy>=1.15.2",
     "seaborn>=0.13.2",
     "torch>=2.6.0 ; sys_platform != 'linux' or platform_machine != 'x86_64' ",
-    "torch>=2.7.0 ; sys_platform == 'linux' and platform_machine == 'x86_64' ",
+    "torch>=2.8.0.dev20250331 ; sys_platform == 'linux' and platform_machine == 'x86_64' ",
     "torchvision>=0.21.0",
-    "pytorch-triton>=3 ; sys_platform == 'linux' and platform_machine == 'x86_64'"
+    "torchvision>=0.22.0.dev20250331 ; sys_platform == 'linux' and platform_machine == 'x86_64' ",
+    "pytorch-triton>=3.3.0 ; sys_platform == 'linux' and platform_machine == 'x86_64'",
 ]
-
-[tool.uv]
-prerelease = "allow"
 
 [[tool.uv.index]]
 name = "torch-cu128"
