@@ -17,7 +17,7 @@ tuner = keras_tuner.GridSearch(
     executions_per_trial=3,
     overwrite=False,
     directory="checkpoints",
-    project_name="gangoly_cifar_longer",
+    project_name="gangoly_cifar_longer_soft",
 )
 
 tuner.search_space_summary()

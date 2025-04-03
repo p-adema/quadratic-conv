@@ -64,8 +64,8 @@ def _pool_layer(
     kernel_kind: str = hp.Choice(
         "quadratic-pool-kernel",
         list(kernel_options),
-        # parent_name="quadratic-pooling",
-        # parent_values=(True,),
+        parent_name="quadratic-pooling",
+        parent_values=(True,),
     )
     kernel = kernel_options[kernel_kind]
     # if hp.Boolean(
@@ -83,7 +83,8 @@ def _pool_layer(
     #         # parent_values=(True,),
     #     )
     # else:
-    soft_temp = None
+    #     soft_temp = None
+    soft_temp = 100
 
     pool_size = hp.Int(
         "quadratic-pool-size",
