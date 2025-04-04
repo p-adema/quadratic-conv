@@ -10,6 +10,8 @@ from keras import layers
 from src import convolutions, kernels
 from src.models.utils import quiet_model
 
+_sentinel = object()
+
 
 def _conv_block(channels: int, kernel_size: int = 3):
     block = keras.Sequential(name=f"convs-{channels}")
@@ -49,6 +51,7 @@ def _pool_layer(
     channels: int,
     init: str,
     stride: int = 1,
+    force_temp=_sentinel,
 ):
     if not hp.Boolean("quadratic-pooling", default=True):
         return layers.MaxPool2D(
@@ -68,28 +71,30 @@ def _pool_layer(
         parent_values=(True,),
     )
     kernel = kernel_options[kernel_kind]
-    # if hp.Boolean(
-    #     "quadratic-pool-softpool",
-    #     # parent_name="quadratic-pooling",
-    #     # parent_values=(True,),
-    # ):
-    #     soft_temp = hp.Float(
-    #         "quadratic-pool-softpool-temp",
-    #         1,
-    #         16,
-    #         sampling="log",
-    #         step=4,
-    #         # parent_name="quadratic-pool-softpool",
-    #         # parent_values=(True,),
-    #     )
-    # else:
-    #     soft_temp = None
-    soft_temp = 0.01
+    if force_temp is _sentinel:
+        if hp.Boolean(
+            "quadratic-pool-softpool",
+            # parent_name="quadratic-pooling",
+            # parent_values=(True,),
+        ):
+            soft_temp = hp.Float(
+                "quadratic-pool-softpool-temp",
+                1,
+                16,
+                sampling="log",
+                step=4,
+                # parent_name="quadratic-pool-softpool",
+                # parent_values=(True,),
+            )
+        else:
+            soft_temp = None
+    else:
+        soft_temp = force_temp
 
     pool_size = hp.Int(
         "quadratic-pool-size",
         3,
-        3,  # can be higher
+        5,  # can be higher
         step=2,
         # default=5,
         # parent_name="quadratic-pooling",
@@ -108,7 +113,7 @@ def _pool_layer(
 
 
 def gangoly_cifar(
-    img_channels: int = 1, num_classes: int = 10
+    img_channels: int = 1, num_classes: int = 10, force_temp=_sentinel
 ) -> Callable[[keras_tuner.HyperParameters], keras.Model]:
     """https://shonit2096.medium.com/cnn-on-cifar10-data-set-using-pytorch-34be87e09844"""
 
@@ -116,7 +121,7 @@ def gangoly_cifar(
         if hp is None:
             hp = keras_tuner.HyperParameters()
 
-        init_kind = "normal"  # hp.Choice("init_kind", ["normal"])
+        init_kind = hp.Choice("init_kind", ["normal"])
 
         model = keras.Sequential()
         model.add(
@@ -126,15 +131,25 @@ def gangoly_cifar(
         )
 
         model.add(_conv_block(32))
-        model.add(_pool_layer(hp, 1, channels=32, init=init_kind, stride=2))
+        model.add(
+            _pool_layer(
+                hp, 1, channels=32, init=init_kind, stride=2, force_temp=force_temp
+            )
+        )
 
         model.add(_conv_block(128))
-        model.add(_pool_layer(hp, 2, channels=128, init=init_kind, stride=2))
+        model.add(
+            _pool_layer(
+                hp, 2, channels=128, init=init_kind, stride=2, force_temp=force_temp
+            )
+        )
 
         model.add(layers.Dropout(0.05))
 
         model.add(_conv_block(256))
-        model.add(_pool_layer(hp, 3, channels=256, init=init_kind))
+        model.add(
+            _pool_layer(hp, 3, channels=256, init=init_kind, force_temp=force_temp)
+        )
 
         model.add(_fc_block(output_classes=num_classes))
 
