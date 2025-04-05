@@ -10,7 +10,7 @@ dependencies = [
     "keras>=3.9.1",
     "keras-tuner>=1.4.7",
     "matplotlib>=3.10.1",
-    "numpy>=2.2.4",
+    "numpy>=2.1",
     "pandas>=2.2.3",
     "protobuf>=6.30.2", # required by keras-tuner
     "scikit-learn>=1.6.1",
@@ -21,6 +21,7 @@ dependencies = [
     "torchvision>=0.21.0",
     "torchvision>=0.22.0.dev20250331 ; sys_platform == 'linux' and platform_machine == 'x86_64' ",
     "pytorch-triton>=3.3.0 ; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "numba>=0.61.0",
 ]
 
 [[tool.uv.index]]

@@ -23,11 +23,15 @@ def _mnist_like_normalisation(
     test: torchvision.datasets.VisionDataset,
     has_channels: bool,
 ) -> Dataset:
-    x_train = torch.as_tensor(train.data, dtype=torch.float32) / 256 - 0.5
+    x_train_unnorm = torch.as_tensor(train.data, dtype=torch.float32)
+    stds, means = torch.std_mean(
+        torch.as_tensor(x_train_unnorm), (0, 1, 2), keepdim=True
+    )
+    print("normalisation:", means, stds)
+    x_train = (x_train_unnorm - means) / stds
     y_train = np.asarray(train.targets)
-    # Not entirely proper, to normalise x_test with advance knowledge, but
-    # it shouldn't matter much
-    x_test = torch.as_tensor(test.data, dtype=torch.float32) / 256 - 0.5
+
+    x_test = (torch.as_tensor(test.data, dtype=torch.float32) - means) / stds
     if has_channels:
         x_train = x_train.movedim(3, 1)
         x_test = x_test.movedim(3, 1)

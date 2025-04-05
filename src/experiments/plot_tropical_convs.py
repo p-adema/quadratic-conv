@@ -7,15 +7,14 @@ from torch import nn
 
 sys.path.extend(".")
 
+from src import load_data
 from src.convolutions import TropicalConv2D
 
 
 def try_tropical_conv(kernels: torch.Tensor | list, num_img: int = 0):
     kernels = torch.as_tensor(kernels, dtype=torch.float32)
-    img = torch.as_tensor(
-        torchvision.datasets.MNIST(root="./data", download=True).data[num_img]
-    )
-    img = nn.functional.normalize(img.float())
+    img = torch.as_tensor(load_data.mnist().x_train[num_img])
+    # img = nn.functional.normalize(img.float())
     out_channels = kernels.shape[0]
     _, ((ax_original, *ax_maxs), (ax_unused, *ax_mins)) = plt.subplots(
         2, 1 + out_channels, layout="compressed"
@@ -40,20 +39,22 @@ def try_tropical_conv(kernels: torch.Tensor | list, num_img: int = 0):
 
 if __name__ == "__main__":
     INF = float("inf")
-    test_kernels = [
-        # 1: Does nothing
-        [[[INF, INF, INF], [INF, 0, INF], [INF, INF, INF]]],
-        # 2: Vertical max
-        [[[INF, 0, INF], [INF, 0, INF], [INF, 0, INF]]],
-        # 3: Horizontal max
-        [[[INF, INF, INF], [0, 0, 0], [INF, INF, INF]]],
-        # 4: 3x3 max
-        [[[0, 0, 0], [0, 0, 0], [0, 0, 0]]],
-        # 5: small quadratic max, isotropic
-        [[[0.4, 0.1, 0.4], [0.1, 0, 0.1], [0.4, 0.1, 0.4]]],
-        # 6: small quadratic max, wide horizontally
-        [[[0.5, 0.2, 0.5], [0.05, 0, 0.05], [0.5, 0.2, 0.5]]],
-    ]
+    test_kernels = -torch.asarray(
+        [
+            # 1: Does nothing
+            [[[INF, INF, INF], [INF, 0, INF], [INF, INF, INF]]],
+            # 2: Vertical max
+            [[[INF, 0, INF], [INF, 0, INF], [INF, 0, INF]]],
+            # 3: Horizontal max
+            [[[INF, INF, INF], [0, 0, 0], [INF, INF, INF]]],
+            # 4: 3x3 max
+            [[[0, 0, 0], [0, 0, 0], [0, 0, 0]]],
+            # 5: small quadratic max, isotropic
+            [[[0.4, 0.1, 0.4], [0.1, 0, 0.1], [0.4, 0.1, 0.4]]],
+            # 6: small quadratic max, wide horizontally
+            [[[0.5, 0.2, 0.5], [0.05, 0, 0.05], [0.5, 0.2, 0.5]]],
+        ]
+    )
     for num in range(3):
         try_tropical_conv(
             test_kernels,

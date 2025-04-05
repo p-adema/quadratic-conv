@@ -1,4 +1,5 @@
 import math
+import typing
 
 import torch
 from torch import nn
@@ -11,7 +12,8 @@ class LinearConv2D(nn.Module):
 
 
 class TropicalConv2D(nn.Module):
-    """A convolution in the tropical-max or tropical-min subfield, also known as dilation or erosion"""
+    """A convolution in the tropical-max or tropical-min subfield,
+    also known as dilation or erosion"""
 
     def __init__(self, *, is_max: bool, softmax_temp: float | None = None):
         super().__init__()
@@ -58,7 +60,7 @@ class TropicalConv2D(nn.Module):
 
         if self.is_max:
             # [batch, o, k*k, y'*x']
-            vals = stencils - weights
+            vals = stencils + weights
             if self.softmax_temp is None:
                 reduced = torch.max(vals, dim=2).values
             else:
@@ -74,7 +76,7 @@ class TropicalConv2D(nn.Module):
                     vals,
                 )
         else:
-            vals = stencils + weights
+            vals = stencils - weights
             if self.softmax_temp is None:
                 reduced = torch.min(vals, dim=2).values
             else:
@@ -91,6 +93,9 @@ class TropicalConv2D(nn.Module):
         if xdims == 3:
             res = res.squeeze(0)
         return res
+
+    if typing.TYPE_CHECKING:
+        __call__ = forward
 
 
 class GenericConv2D(nn.Module):
