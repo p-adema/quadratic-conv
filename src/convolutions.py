@@ -22,7 +22,7 @@ class TropicalConv2D(nn.Module):
 
     @staticmethod
     def _output_size(
-        input_size: int, kernel_size: int, dilation: int, padding: int, stride: int
+        input_size: int, kernel_size: int, stride: int, padding: int, dilation: int
     ):
         return math.floor(
             (input_size + 2 * padding - dilation * (kernel_size - 1) - 1) / stride + 1
@@ -32,9 +32,9 @@ class TropicalConv2D(nn.Module):
         self,
         x: torch.Tensor,
         kernel: torch.Tensor,
-        dilation: int = 1,
-        padding: int = 0,
         stride: int = 1,
+        padding: int = 0,
+        dilation: int = 1,
     ):
         assert len(kernel.shape) == 4, f"Kernel shape seems off: {kernel.shape=}"
         out_channels, kernel_in_ch, kernel_size, _ks = kernel.shape
@@ -47,13 +47,15 @@ class TropicalConv2D(nn.Module):
             raise ValueError(f"Input shape seems off: {x.shape=}")
         inp_batch, img_channels, inp_x, inp_y = x.shape
         assert img_channels == out_channels, f"{out_channels=} != {img_channels=}"
-        new_x = self._output_size(inp_x, kernel_size, dilation, padding, stride)
-        new_y = self._output_size(inp_y, kernel_size, dilation, padding, stride)
+        new_x = self._output_size(inp_x, kernel_size, stride, padding, dilation)
+        new_y = self._output_size(inp_y, kernel_size, stride, padding, dilation)
         assert new_x > 0, f"{new_x=}"
         assert new_y > 0, f"{new_y=}"
+        neutral = -torch.inf if self.is_max else torch.inf
+        x_pad = torch.constant_pad_nd(x, (padding, padding, padding, padding), neutral)
 
         stencils = nn.functional.unfold(
-            x, (kernel_size, kernel_size), dilation, padding, stride
+            x_pad, (kernel_size, kernel_size), dilation, 0, stride
         ).reshape(inp_batch, out_channels, kernel_size * kernel_size, -1)
         weights = kernel.view(1, out_channels, kernel_size * kernel_size, 1)
         assert weights.shape[2] == stencils.shape[2]
@@ -61,6 +63,10 @@ class TropicalConv2D(nn.Module):
         if self.is_max:
             # [batch, o, k*k, y'*x']
             vals = stencils + weights
+            # Pad with a neutral at the start, so that if all elements are
+            # neutral, then the gradient flows into the void instead of into
+            # the top-left element
+            vals = torch.constant_pad_nd(vals, (0, 0, 1, 0), neutral)
             if self.softmax_temp is None:
                 reduced = torch.max(vals, dim=2).values
             else:
@@ -77,6 +83,10 @@ class TropicalConv2D(nn.Module):
                 )
         else:
             vals = stencils - weights
+            # Pad with a neutral at the start, so that if all elements are
+            # neutral, then the gradient flows into the void instead of into
+            # the top-left element
+            vals = torch.constant_pad_nd(vals, (0, 0, 1, 0), neutral)
             if self.softmax_temp is None:
                 reduced = torch.min(vals, dim=2).values
             else:
