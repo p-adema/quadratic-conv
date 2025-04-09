@@ -72,7 +72,7 @@ class SelectSemifield(NamedTuple):
             groups,
             group_broadcasting,
         )
-        prov_t = _ProvType.from_krn_cs(meta.krn_cs)
+        prov_t = _ProvType.smallest_required(meta)
         op_id = uuid.uuid4().hex
         cmp_semi = _CompiledSelectSemifield.compile(self)
 
@@ -179,12 +179,21 @@ class _ProvType(NamedTuple):
     maxval: int
 
     @classmethod
-    def from_krn_cs(cls, krn_cs: int):
-        if krn_cs < np.iinfo(np.uint8).max:
+    def smallest_required(cls, meta: ConvMeta):
+        largest = max(meta.krn_xs, meta.krn_ys, meta.krn_cs)
+        if largest < np.iinfo(np.uint8).max:
             return cls("uint8", np.iinfo(np.uint8).max)
 
-        assert krn_cs < np.iinfo(np.uint16).max, "That's not going to fit in memory"
+        assert largest < np.iinfo(np.uint16).max, "That's not going to fit in memory"
         return cls("uint16", np.iinfo(np.uint16).max)
+
+    def torch_type(self):
+        if self.typename == "uint8":
+            return torch.uint8
+        if self.typename == "uint16":
+            return torch.uint16
+
+        raise ValueError
 
 
 def _compile_forwards(
@@ -259,7 +268,7 @@ def _compile_forwards(
             out_prov[b, o_c, o_y, o_x, 2] = prov_group_idx
 
     fowards_bindings = _torch_bindings_forwards(
-        forwards, meta, op_id, thread_block_size, debug
+        forwards, meta, prov_t, op_id, thread_block_size, debug
     )
 
     return fowards_bindings
@@ -373,6 +382,7 @@ def _compile_backwards(
 def _torch_bindings_forwards(
     forwards: Callable,
     meta: ConvMeta,
+    prov_t: _ProvType,
     op_id: str,
     thread_block_size: int = 256,
     debug: bool = False,
@@ -398,7 +408,7 @@ def _torch_bindings_forwards(
         )
         out_img = img.new_empty(out_img_shape)
         out_prov = img.new_empty(
-            (*out_img_shape, 3 if meta.krn_cs > 1 else 2), dtype=torch.uint8
+            (*out_img_shape, 3 if meta.krn_cs > 1 else 2), dtype=prov_t.torch_type()
         )
         n_blocks = math.ceil(out_img.nelement() / thread_block_size)
         forwards[n_blocks, thread_block_size](img, kernel, out_img, out_prov)
@@ -416,7 +426,7 @@ def _torch_bindings_forwards(
         return (
             img.new_empty(out_img_shape),
             kernel.new_empty(
-                (*out_img_shape, 3 if meta.krn_cs > 1 else 2), dtype=torch.uint8
+                (*out_img_shape, 3 if meta.krn_cs > 1 else 2), dtype=prov_t.torch_type()
             ),
         )
 
