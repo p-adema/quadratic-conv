@@ -11,14 +11,16 @@ import numpy as np
 import torch
 from numba import cuda
 from numba.cuda.dispatcher import CUDADispatcher
+from torch import nn
+
+from .utils import ConvMeta
 
 warnings.simplefilter("ignore", numba.NumbaPerformanceWarning, 536)
-UINT8_MAX = np.iinfo(np.uint8).max
 
 
 class SelectSemifield(NamedTuple):
-    select_right: Callable[[float, float], bool]
-    times: Callable[[float, float], float]
+    add_select: Callable[[float, float], bool]  # Return True if we should pick right
+    times: Callable[[float, float], float]  # (img_val, krn_val) -> multiplied_val
     d_times_d_img: Callable[[float, float], float]
     d_times_d_kernel: Callable[[float, float], float]
     neutral: float
@@ -26,7 +28,7 @@ class SelectSemifield(NamedTuple):
     @classmethod
     def tropical_max(cls) -> SelectSemifield:
         return cls(
-            select_right=lambda left, right: left < right,
+            add_select=lambda left, right: left < right,
             times=lambda img_val, kernel_val: img_val + kernel_val,
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: 1.0,
@@ -36,13 +38,15 @@ class SelectSemifield(NamedTuple):
     @classmethod
     def tropical_min(cls) -> SelectSemifield:
         return cls(
-            select_right=lambda left, right: left > right,
+            add_select=lambda left, right: left > right,
             times=lambda img_val, kernel_val: img_val - kernel_val,
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: -1.0,
             neutral=float("inf"),
         )
 
+    # The torch compiler doesn't understand the Numba compiler
+    @torch.compiler.disable
     def compile(
         self,
         example_imgs: torch.Tensor,
@@ -55,18 +59,27 @@ class SelectSemifield(NamedTuple):
         group_broadcasting: bool = False,
         thread_block_size: int = 256,
         debug: bool = False,
-    ):
-        params = _ConvParams(stride, padding, dilation, groups)
-        shapes = _ShapeInfo.infer(
-            example_imgs, example_kernels, params, group_broadcasting
+    ) -> tuple[
+        ConvMeta,
+        Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]],
+    ]:
+        meta = ConvMeta.infer(
+            example_imgs,
+            example_kernels,
+            stride,
+            padding,
+            dilation,
+            groups,
+            group_broadcasting,
         )
+        prov_t = _ProvType.from_krn_cs(meta.krn_cs)
         op_id = uuid.uuid4().hex
         cmp_semi = _CompiledSelectSemifield.compile(self)
 
         forwards = _compile_forwards(
             semifield=cmp_semi,
-            shapes=shapes,
-            params=params,
+            meta=meta,
+            prov_t=prov_t,
             op_id=op_id,
             group_broadcasting=group_broadcasting,
             thread_block_size=thread_block_size,
@@ -74,8 +87,8 @@ class SelectSemifield(NamedTuple):
         )
         backwards, backwards_setup = _compile_backwards(
             semifield=cmp_semi,
-            shapes=shapes,
-            params=params,
+            meta=meta,
+            prov_t=prov_t,
             op_id=op_id,
             group_broadcasting=group_broadcasting,
             thread_block_size=thread_block_size,
@@ -84,110 +97,67 @@ class SelectSemifield(NamedTuple):
         forwards.register_autograd(backwards, setup_context=backwards_setup)
 
         if debug:
-            _debug_tests(forwards, example_imgs, example_kernels, shapes)
+            _debug_tests(forwards, example_imgs, example_kernels, meta)
         # Nothing should capture these, but delete anyway for safety's sake
         del example_imgs, example_kernels
 
-        conv = _entrypoint(params, forwards)
+        return meta, forwards
 
-        return conv
-
-
-class _ConvParams(NamedTuple):
-    stride: int
-    padding: int
-    dilation: int
-    groups: int
-
-    def output_size(self, input_size: int, kernel_size: int):
-        return math.floor(
-            (input_size + 2 * self.padding - self.dilation * (kernel_size - 1) - 1)
-            / self.stride
-            + 1
-        )
+    def module(self, max_compilations: int = 1) -> SelectConv:
+        return SelectConv(self, max_compilations)
 
 
-class _ShapeInfo(NamedTuple):
-    img_cs: int  # Image channels
-    img_ys: int  # Image y-size
-    img_xs: int  # Image x-size
-    krn_o_group_size: int  # Size of a convolution group in kernel output channels
-    krn_os: int  # Kernel output channels
-    krn_cs: int  # Kernel input channels. Therefore, also equal to image group size
-    krn_ys: int  # Kernel y-size
-    krn_xs: int  # Kernel x-size
-    out_cs: int  # Output image channels. Equal to krn_os, except when group broacasting
-    out_ys: int  # Output image y-size
-    out_xs: int  # Output image x-size
+class SelectConv(nn.Module):
+    def __init__(self, semifield: SelectSemifield, max_compilations: int):
+        super().__init__()
+        self.semifield = semifield
+        self.compilations: list[tuple[ConvMeta, Callable]] = []
+        self.max_compilations = max_compilations
 
-    @classmethod
-    def infer(
-        cls,
-        imgs: torch.Tensor,
+    def forward(
+        self,
+        img: torch.Tensor,
         kernel: torch.Tensor,
-        params: _ConvParams,
-        group_broadcasting: bool,
-    ) -> _ShapeInfo:
-        # === Check imgs
-        assert imgs.dtype == torch.float32, f"{imgs.dtype=}"
-        assert kernel.dtype == torch.float32, f"{kernel.dtype=}"
-        assert len(imgs.shape) == 4, f"{imgs.shape=} needs to be BCHW"
-        img_cs, img_ys, img_xs = imgs.shape[1:]
-        assert img_cs % params.groups == 0, (
-            f"{img_cs=} not a multiple of {params.groups=}"
-        )
-        img_group_size = img_cs // params.groups
-        # === Check kernels
-        assert len(kernel.shape) == 4, f"{kernel.shape=} needs to be OIHW"
-        krn_os, krn_cs, krn_ys, krn_xs = kernel.shape
-        assert krn_cs == img_group_size, f"Groups: {krn_cs=} != {img_group_size}"
-        if not group_broadcasting:
-            # If we *are* group-broadcasting, then we effectively multiply
-            # krn_os by params.groups
-            assert krn_os % params.groups == 0, (
-                f"{krn_os=} not a multiple of {params.groups=}"
-            )
-            krn_o_group_size = krn_os // params.groups
+        stride: int = 1,
+        padding: int = 0,
+        dilation: int = 1,
+        groups: int = 1,
+        group_broadcasting: bool = False,
+        thread_block_size: int = 256,
+        debug: bool = False,
+    ):
+        for meta, maybe_fwd in self.compilations:
+            if meta.check_matches(
+                img, kernel, stride, padding, dilation, groups, group_broadcasting
+            ):
+                fwd = maybe_fwd
+                break
         else:
-            krn_o_group_size = krn_os
+            if len(self.compilations) >= self.max_compilations:
+                raise ValueError(
+                    f"Need to recompile, but at {self.max_compilations}\n"
+                    f"{self.compilations=}"
+                )
 
-        # We reserve u8::MAX for marking invalid provenances
-        assert krn_ys < UINT8_MAX, f"Provenance represented as u8, but {krn_ys=}"
-        assert krn_xs < UINT8_MAX, f"Provenances represented as u8, but {krn_xs=}"
-        assert krn_cs < UINT8_MAX, f"Provenances represented as u8, but {krn_cs=}"
-        out_xs = params.output_size(img_xs, krn_xs)
-        out_ys = params.output_size(img_ys, krn_ys)
-        assert out_xs > 0, f"Output image collapsed in x-direction: {out_xs=}"
-        assert out_ys > 0, f"Output image collapsed in y-direction: {out_ys=}"
-        out_cs = krn_os if not group_broadcasting else krn_os * params.groups
-        shape = cls(
-            img_cs=img_cs,
-            img_ys=img_ys,
-            img_xs=img_xs,
-            krn_o_group_size=krn_o_group_size,
-            krn_os=krn_os,
-            krn_cs=krn_cs,
-            krn_ys=krn_ys,
-            krn_xs=krn_xs,
-            out_cs=out_cs,
-            out_ys=out_ys,
-            out_xs=out_xs,
-        )
-        assert all(s > 0 for s in shape), f"Invalid value in {shape=}"
-        return shape
+            new_meta, fwd = self.semifield.compile(
+                img,
+                kernel,
+                stride=stride,
+                padding=padding,
+                dilation=dilation,
+                groups=groups,
+                group_broadcasting=group_broadcasting,
+                thread_block_size=thread_block_size,
+                debug=debug,
+            )
+            self.compilations.append((new_meta, fwd))
 
-    def assert_matches(self, img: torch.Tensor, kernel: torch.Tensor):
-        assert img.shape[1] == self.img_cs, f"Wrong image channels: {img.shape=}"
-        assert img.shape[2] == self.img_ys, f"Wrong image ys: {img.shape=}"
-        assert img.shape[3] == self.img_xs, f"Wrong image xs: {img.shape=}"
-        assert kernel.shape[0] == self.krn_os, f"Wrong kernel outs: {kernel.shape=}"
-        assert kernel.shape[1] == self.krn_cs, f"Wrong kernel channels: {kernel.shape=}"
-        assert kernel.shape[2] == self.krn_ys, f"Wrong kernel ys: {kernel.shape=}"
-        assert kernel.shape[3] == self.krn_xs, f"Wrong kernel xs: {kernel.shape=}"
+        res, _prov = fwd(img, kernel)
+        return res
 
 
 class _CompiledSelectSemifield(NamedTuple):
-    select_right: CUDADispatcher
+    add_select: CUDADispatcher
     times: CUDADispatcher
     d_times_d_img: CUDADispatcher
     d_times_d_kernel: CUDADispatcher
@@ -196,7 +166,7 @@ class _CompiledSelectSemifield(NamedTuple):
     @classmethod
     def compile(cls, semifield: SelectSemifield) -> _CompiledSelectSemifield:
         return _CompiledSelectSemifield(
-            cuda.jit(semifield.select_right, device=True, inline="always"),
+            cuda.jit(semifield.add_select, device=True, inline="always"),
             cuda.jit(semifield.times, device=True, inline="always"),
             cuda.jit(semifield.d_times_d_img, device=True, inline="always"),
             cuda.jit(semifield.d_times_d_kernel, device=True, inline="always"),
@@ -204,28 +174,23 @@ class _CompiledSelectSemifield(NamedTuple):
         )
 
 
-def _entrypoint(params: _ConvParams, conv_op: Callable):
-    def conv(
-        img: torch.Tensor,
-        kernel: torch.Tensor,
-        stride: int = params.stride,
-        padding: int = params.padding,
-        dilation: int = params.dilation,
-        groups: int = params.groups,
-    ):
-        if (stride, padding, dilation, groups) != params:
-            raise ValueError("Cannot change params after compilation")
+class _ProvType(NamedTuple):
+    typename: str
+    maxval: int
 
-        out_img, _out_prov = conv_op(img, kernel)
-        return out_img
+    @classmethod
+    def from_krn_cs(cls, krn_cs: int):
+        if krn_cs < np.iinfo(np.uint8).max:
+            return cls("uint8", np.iinfo(np.uint8).max)
 
-    return conv
+        assert krn_cs < np.iinfo(np.uint16).max, "That's not going to fit in memory"
+        return cls("uint16", np.iinfo(np.uint16).max)
 
 
 def _compile_forwards(
     semifield: _CompiledSelectSemifield,
-    shapes: _ShapeInfo,
-    params: _ConvParams,
+    meta: ConvMeta,
+    prov_t: _ProvType,
     op_id: str,
     group_broadcasting: bool = False,
     thread_block_size: int = 256,
@@ -236,71 +201,65 @@ def _compile_forwards(
         "void(float32[:, :, :, :],"  # img: [Batch, Channel, Img-Y, Img-X]
         " float32[:, :, :, :],"  # kernel: [Out-chan, Group-chan, Kernel-Y, Kernel-X]
         " float32[:, :, :, :],"  # out_img: [Batch, Out-chan, Out-Y, Out-X]
-        " uint8[:, :, :, :, :])",  # out_prov: [B, O-chan, O-Y, O-X, 2 / 3 (y, x[, gi])]
+        # out_prov: [B, O-chan, O-Y, O-X, 2 / 3 (y, x[, gi])]
+        f" {prov_t.typename}[:, :, :, :, :])",
         debug=debug,
         opt=not debug,
     )
     def forwards(img, kernel, out_img, out_prov):
-        rem, o_x = divmod(cuda.grid(1), shapes.out_xs)
-        rem, o_y = divmod(rem, shapes.out_ys)
-        b, o_c = divmod(rem, shapes.img_cs)
+        rem, o_x = divmod(cuda.grid(1), meta.out_xs)
+        rem, o_y = divmod(rem, meta.out_ys)
+        b, o_c = divmod(rem, meta.out_cs)
         if b >= img.shape[0]:
             return
 
-        i_top_y = o_y * params.stride - params.padding
-        i_left_x = o_x * params.stride - params.padding
+        i_top_y = o_y * meta.stride - meta.padding
+        i_left_x = o_x * meta.stride - meta.padding
 
-        prov_x = prov_y = prov_group_idx = UINT8_MAX
+        prov_x = prov_y = prov_group_idx = prov_t.maxval
         selected_val = semifield.neutral
 
-        group_number = o_c // shapes.krn_o_group_size
+        group_number = o_c // meta.krn_o_group_size
         # If we're not broadcasting, then we have a separate kernel
         # for every output channel. If we are broadcasting, we instead loop
         # around the kernels every k_os (which == krn_group_size)
-        k_o = o_c if not group_broadcasting else o_c % shapes.krn_o_group_size
+        k_o = o_c if not group_broadcasting else o_c % meta.krn_o_group_size
 
         # For a pooling, we have only one input channel, so group_idx is always 0
-        for group_idx in range(shapes.krn_cs):
+        for group_idx in range(meta.krn_cs):
             for k_y, i_y in enumerate(
-                range(
-                    i_top_y, i_top_y + shapes.krn_ys * params.dilation, params.dilation
-                )
+                range(i_top_y, i_top_y + meta.krn_ys * meta.dilation, meta.dilation)
             ):
                 for k_x, i_x in enumerate(
                     range(
                         i_left_x,
-                        i_left_x + shapes.krn_xs * params.dilation,
-                        params.dilation,
+                        i_left_x + meta.krn_xs * meta.dilation,
+                        meta.dilation,
                     )
                 ):
-                    if (
-                        i_x < 0
-                        or i_x >= shapes.img_xs
-                        or i_y < 0
-                        or i_y >= shapes.img_ys
-                    ):
+                    if i_x < 0 or i_x >= meta.img_xs or i_y < 0 or i_y >= meta.img_ys:
                         continue
-                    i_c = group_number * shapes.krn_cs + group_idx
+                    i_c = group_number * meta.krn_cs + group_idx
                     img_val = img[b, i_c, i_y, i_x]
                     kernel_val = kernel[k_o, group_idx, k_y, k_x]
 
                     val = semifield.times(img_val, kernel_val)
-                    if semifield.select_right(selected_val, val):
+                    if semifield.add_select(selected_val, val):
                         selected_val = val
                         prov_y, prov_x = k_y, k_x
-                        if shapes.krn_cs > 1:
+                        if meta.krn_cs > 1:
                             prov_group_idx = group_idx
 
         out_img[b, o_c, o_y, o_x] = selected_val
 
         out_prov[b, o_c, o_y, o_x, 0] = prov_y
         out_prov[b, o_c, o_y, o_x, 1] = prov_x
-        if shapes.krn_cs > 1:
+        if meta.krn_cs > 1:
             # out_prov is only size 3 if we require an index within the group
             out_prov[b, o_c, o_y, o_x, 2] = prov_group_idx
 
     fowards_bindings = _torch_bindings_forwards(
-        forwards, shapes, op_id, thread_block_size, debug
+        forwards, meta, op_id, thread_block_size, debug
     )
 
     return fowards_bindings
@@ -308,8 +267,8 @@ def _compile_forwards(
 
 def _compile_backwards(
     semifield: _CompiledSelectSemifield,
-    shapes: _ShapeInfo,
-    params: _ConvParams,
+    meta: ConvMeta,
+    prov_t: _ProvType,
     op_id: str,
     group_broadcasting: bool = False,
     thread_block_size: int = 256,
@@ -321,39 +280,40 @@ def _compile_backwards(
         "void(float32[:, :, :, :],"  # img: [Batch, Channel, Img-Y, Img-X]
         " float32[:, :, :, :],"  # kernel: [Out-chan, Group-chan, Kernel_Y, Kernel_X]
         " float32[:, :, :, :],"  # gradient: [Batch, Out-chan, Out-Y, Out-X]
-        " uint8[:, :, :, :, :],"  # prov: [B, O-chan, O-Y, O-X, 2 / 3 (y, x[, gi])]
+        # prov: [B, O-chan, O-Y, O-X, 2 / 3 (y, x[, gi])]
+        f" {prov_t.typename}[:, :, :, :, :],"
         " float32[:, :, :, :],"  # out_img_grad: [Batch, Channel, Img-Y, Img-X]
         " float32[:, :, :, :])",  # out_kernel_grad: [Out-chan, Group-chan, K-Y, K-X]
         debug=debug,
         opt=not debug,
     )
     def backwards(img, kernel, gradient, prov, out_img_grad, out_kernel_grad):
-        rem, o_x = divmod(cuda.grid(1), shapes.out_xs)
-        rem, o_y = divmod(rem, shapes.out_ys)
-        b, o_c = divmod(rem, shapes.img_cs)
+        rem, o_x = divmod(cuda.grid(1), meta.out_xs)
+        rem, o_y = divmod(rem, meta.out_ys)
+        b, o_c = divmod(rem, meta.out_cs)
         if b >= img.shape[0]:
             return
 
-        group_number = o_c // shapes.krn_o_group_size
-        k_o = o_c if not group_broadcasting else o_c % shapes.krn_o_group_size
+        group_number = o_c // meta.krn_o_group_size
+        k_o = o_c if not group_broadcasting else o_c % meta.krn_o_group_size
 
         grad_val = gradient[b, o_c, o_y, o_x]
         k_prov_y = prov[b, o_c, o_y, o_x, 0]
         k_prov_x = prov[b, o_c, o_y, o_x, 1]
         # Index within our group, for which of the channels we ended up picking
         # If krn_cs == 1, we can only pick the singular channel we have: always 0
-        prov_group_idx = prov[b, o_c, o_y, o_x, 2] if shapes.krn_cs > 1 else 0
+        prov_group_idx = prov[b, o_c, o_y, o_x, 2] if meta.krn_cs > 1 else 0
 
-        if k_prov_y == UINT8_MAX:
+        if k_prov_y == prov_t.maxval:
             # We kept the original neutral element,
             # so our gradient can't be related to the image
             return
 
-        i_top_y = o_y * params.stride - params.padding
-        i_left_x = o_x * params.stride - params.padding
-        i_prov_c = group_number * shapes.krn_cs + prov_group_idx
-        i_prov_y = i_top_y + params.dilation * k_prov_y
-        i_prov_x = i_left_x + params.dilation * k_prov_x
+        i_top_y = o_y * meta.stride - meta.padding
+        i_left_x = o_x * meta.stride - meta.padding
+        i_prov_c = group_number * meta.krn_cs + prov_group_idx
+        i_prov_y = i_top_y + meta.dilation * k_prov_y
+        i_prov_x = i_left_x + meta.dilation * k_prov_x
         # if (
         #     i_prov_x < 0
         #     or i_prov_x >= shapes.img_xs
@@ -412,7 +372,7 @@ def _compile_backwards(
 
 def _torch_bindings_forwards(
     forwards: Callable,
-    shapes: _ShapeInfo,
+    meta: ConvMeta,
     op_id: str,
     thread_block_size: int = 256,
     debug: bool = False,
@@ -426,20 +386,19 @@ def _torch_bindings_forwards(
         img, kernel = img.detach(), kernel.detach()
         assert img.dtype == torch.float32, f"Wrong {img.dtype=}"
         assert kernel.dtype == torch.float32, f"Wrong {kernel.dtype=}"
-        shapes.assert_matches(img, kernel)
         if debug:
             print("Warning: running CUDA kernel in debug mode")
         batch_size = img.shape[0]
 
         out_img_shape = (
             batch_size,
-            shapes.out_cs,
-            shapes.out_ys,
-            shapes.out_xs,
+            meta.out_cs,
+            meta.out_ys,
+            meta.out_xs,
         )
         out_img = img.new_empty(out_img_shape)
         out_prov = img.new_empty(
-            (*out_img_shape, 3 if shapes.krn_cs > 1 else 2), dtype=torch.uint8
+            (*out_img_shape, 3 if meta.krn_cs > 1 else 2), dtype=torch.uint8
         )
         n_blocks = math.ceil(out_img.nelement() / thread_block_size)
         forwards[n_blocks, thread_block_size](img, kernel, out_img, out_prov)
@@ -450,14 +409,14 @@ def _torch_bindings_forwards(
         batch_size = img.shape[0]
         out_img_shape = (
             batch_size,
-            shapes.out_cs,
-            shapes.out_ys,
-            shapes.out_xs,
+            meta.out_cs,
+            meta.out_ys,
+            meta.out_xs,
         )
         return (
             img.new_empty(out_img_shape),
             kernel.new_empty(
-                (*out_img_shape, 3 if shapes.krn_cs > 1 else 2), dtype=torch.uint8
+                (*out_img_shape, 3 if meta.krn_cs > 1 else 2), dtype=torch.uint8
             ),
         )
 
@@ -468,11 +427,21 @@ def _debug_tests(
     forwards_wrapper: Callable,
     example_imgs: torch.Tensor,
     example_kernels: torch.Tensor,
-    shapes: _ShapeInfo,
+    meta: ConvMeta,
 ):
-    print("Calculated output shape", shapes.out_cs, shapes.out_ys, shapes.out_xs)
+    print(f"Inferred {meta=}")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         with torch.autograd.detect_anomaly():
             # noinspection PyTypeChecker
-            torch.library.opcheck(forwards_wrapper, (example_imgs, example_kernels))
+            torch.library.opcheck(
+                forwards_wrapper,
+                (example_imgs, example_kernels),
+                # kwargs={
+                #     "stride": meta.stride,
+                #     "padding": meta.padding,
+                #     "dilation": meta.dilation,
+                #     "groups": meta.groups,
+                #     "group_broadcasting": meta.group_broadcasting,
+                # },
+            )
