@@ -61,7 +61,7 @@ class GaussKernelMulti2D(nn.Module):
         self, in_channels: int, out_channels: int, kernel_size: int, init: str = "zero"
     ):
         super().__init__()
-        self.covs = utils.LearnedCovs2D(in_channels, out_channels, init)
+        self.covs = utils.LearnedCholesky2D(in_channels, out_channels, init)
         self.kernel_size = kernel_size
         self.out_channels = out_channels
         self.in_channels = in_channels

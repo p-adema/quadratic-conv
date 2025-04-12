@@ -4,7 +4,7 @@ import math
 import uuid
 import warnings
 from collections.abc import Callable
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import numba
 import numpy as np
@@ -12,6 +12,7 @@ import torch
 from numba import cuda
 from numba.cuda.dispatcher import CUDADispatcher
 from torch import nn
+from torch.nn.modules.lazy import LazyModuleMixin
 
 from .utils import ConvMeta
 
@@ -24,6 +25,7 @@ class SelectSemifield(NamedTuple):
     d_times_d_img: Callable[[float, float], float]
     d_times_d_kernel: Callable[[float, float], float]
     neutral: float
+    kind: Literal["conv", "corr"]  # Whether the kernel should be mirrored (conv) or not
 
     @classmethod
     def tropical_max(cls) -> SelectSemifield:
@@ -33,6 +35,7 @@ class SelectSemifield(NamedTuple):
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: 1.0,
             neutral=-float("inf"),
+            kind="conv",
         )
 
     @classmethod
@@ -43,6 +46,7 @@ class SelectSemifield(NamedTuple):
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: -1.0,
             neutral=float("inf"),
+            kind="corr",
         )
 
     # The torch compiler doesn't understand the Numba compiler
@@ -51,7 +55,6 @@ class SelectSemifield(NamedTuple):
         self,
         example_imgs: torch.Tensor,
         example_kernels: torch.Tensor,
-        *,
         stride: int = 1,
         padding: int = 0,
         dilation: int = 1,
@@ -71,6 +74,7 @@ class SelectSemifield(NamedTuple):
             dilation,
             groups,
             group_broadcasting,
+            kind=self.kind,
         )
         prov_t = _ProvType.smallest_required(meta)
         op_id = uuid.uuid4().hex
@@ -103,12 +107,26 @@ class SelectSemifield(NamedTuple):
 
         return meta, forwards
 
-    def module(self, max_compilations: int = 1) -> SelectConv:
+    def dynamic(self, max_compilations: int = 3) -> SelectConv:
+        """
+        Use a dynamic module that will recompile if it sees a new ConvMeta, up to
+        `max_compilations` times.
+        Cannot be fully traced
+        """
         return SelectConv(self, max_compilations)
+
+    def lazy_fixed(self) -> SelectConvFixedLazy:
+        """
+        Use a lazy module that will compile exactly once, then ignore all auxilliary
+        arguments (undefined behaviour if future inputs differ in any way other than
+        batch size).
+        Can be fully traced
+        """
+        return SelectConvFixedLazy(self)
 
 
 class SelectConv(nn.Module):
-    def __init__(self, semifield: SelectSemifield, max_compilations: int):
+    def __init__(self, semifield: SelectSemifield, max_compilations: int = 3):
         super().__init__()
         self.semifield = semifield
         self.compilations: list[tuple[ConvMeta, Callable]] = []
@@ -126,10 +144,11 @@ class SelectConv(nn.Module):
         thread_block_size: int = 256,
         debug: bool = False,
     ):
-        for meta, maybe_fwd in self.compilations:
+        for i, (meta, maybe_fwd) in enumerate(self.compilations):
             if meta.check_matches(
                 img, kernel, stride, padding, dilation, groups, group_broadcasting
             ):
+                meta_idx = i
                 fwd = maybe_fwd
                 break
         else:
@@ -150,10 +169,77 @@ class SelectConv(nn.Module):
                 thread_block_size=thread_block_size,
                 debug=debug,
             )
+            meta_idx = len(self.compilations)
             self.compilations.append((new_meta, fwd))
 
+        if meta_idx:
+            # Always place current at the front
+            self.compilations[0], self.compilations[meta_idx] = (
+                self.compilations[meta_idx],
+                self.compilations[0],
+            )
         res, _prov = fwd(img, kernel)
         return res
+
+
+class SelectConvFixed(nn.Module):
+    op: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] | None
+    meta: ConvMeta | None
+    semifield: SelectSemifield
+
+    def forward(
+        self,
+        imgs: torch.Tensor,
+        kernel: torch.Tensor,
+        *_args,
+        debug: bool = False,
+        **_kwargs,
+    ) -> torch.Tensor:
+        if debug:
+            if not self.meta.check_matches(imgs, kernel, *_args, **_kwargs):
+                raise ValueError("Failed to match arguments!")
+            if self.op is None:
+                raise ValueError("Operator not initialised!")
+
+        res, _prov = self.op(imgs, kernel)
+        return res
+
+
+class SelectConvFixedLazy(LazyModuleMixin, SelectConvFixed):
+    cls_to_become = SelectConvFixed
+
+    def __init__(self, semifield: SelectSemifield):
+        super().__init__()
+        self.semifield = semifield
+        self.op = None
+        self.meta = None
+
+    def initialize_parameters(
+        self,
+        imgs: torch.Tensor,
+        kernel: torch.Tensor,
+        stride: int = 1,
+        padding: int = 0,
+        dilation: int = 1,
+        groups: int = 1,
+        group_broadcasting: bool = False,
+        thread_block_size: int = 256,
+        debug: bool = False,
+    ):
+        self.meta, self.op = self.semifield.compile(
+            imgs,
+            kernel,
+            stride,
+            padding,
+            dilation,
+            groups,
+            group_broadcasting,
+            thread_block_size,
+            debug,
+        )
+
+    def has_uninitialized_params(self):
+        return self.op is None
 
 
 class _CompiledSelectSemifield(NamedTuple):
@@ -196,7 +282,7 @@ class _ProvType(NamedTuple):
         raise ValueError
 
 
-def _compile_forwards(
+def _compile_forwards(  # noqa: C901
     semifield: _CompiledSelectSemifield,
     meta: ConvMeta,
     prov_t: _ProvType,
@@ -236,10 +322,10 @@ def _compile_forwards(
 
         # For a pooling, we have only one input channel, so group_idx is always 0
         for group_idx in range(meta.krn_cs):
-            for k_y, i_y in enumerate(
+            for y_step, i_y in enumerate(
                 range(i_top_y, i_top_y + meta.krn_ys * meta.dilation, meta.dilation)
             ):
-                for k_x, i_x in enumerate(
+                for x_step, i_x in enumerate(
                     range(
                         i_left_x,
                         i_left_x + meta.krn_xs * meta.dilation,
@@ -248,6 +334,15 @@ def _compile_forwards(
                 ):
                     if i_x < 0 or i_x >= meta.img_xs or i_y < 0 or i_y >= meta.img_ys:
                         continue
+
+                    # Need to explicitly use seperate variable, due to compiler error
+                    if meta.mirror_kernel:
+                        k_x = meta.krn_xs - 1 - x_step
+                        k_y = meta.krn_ys - 1 - y_step
+                    else:
+                        k_x = x_step
+                        k_y = y_step
+
                     i_c = group_number * meta.krn_cs + group_idx
                     img_val = img[b, i_c, i_y, i_x]
                     kernel_val = kernel[k_o, group_idx, k_y, k_x]
@@ -447,11 +542,4 @@ def _debug_tests(
             torch.library.opcheck(
                 forwards_wrapper,
                 (example_imgs, example_kernels),
-                # kwargs={
-                #     "stride": meta.stride,
-                #     "padding": meta.padding,
-                #     "dilation": meta.dilation,
-                #     "groups": meta.groups,
-                #     "group_broadcasting": meta.group_broadcasting,
-                # },
             )

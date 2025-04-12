@@ -4,8 +4,8 @@ from torch import nn
 from src.kernels import utils
 
 
-class QuadraticKernelMulti2D(nn.Module):
-    """A kernel that evaluates xT S^-1 x, for use in a tropical convolution"""
+class QuadraticKernelSpectral2D(nn.Module):
+    """A kernel that evaluates x^T S^-1 x, with skew parameterised as an angle theta"""
 
     pos_grid: torch.Tensor
 
@@ -13,7 +13,47 @@ class QuadraticKernelMulti2D(nn.Module):
         self, in_channels: int, out_channels: int, kernel_size: int, init: str = "zero"
     ):
         super().__init__()
-        self.covs = utils.LearnedCovs2D(in_channels, out_channels, init)
+        self.covs = utils.LearnedSpectral2D(in_channels, out_channels, init)
+        self.kernel_size = kernel_size
+        self.out_channels = out_channels
+        self.in_channels = in_channels
+        self.register_buffer(
+            "pos_grid",
+            utils.make_pos_grid(kernel_size).reshape(kernel_size * kernel_size, 2),
+        )
+
+    def forward(self):
+        dists = torch.einsum(
+            "kx,oixX,kX->oik", self.pos_grid, self.covs.inverse_cov(), self.pos_grid
+        ).view(
+            (
+                self.out_channels,
+                self.in_channels,
+                self.kernel_size,
+                self.kernel_size,
+            )
+        )
+        return dists
+
+    def extra_repr(self):
+        kernel_size = self.kernel_size
+        return f"{self.in_channels}, {self.out_channels}, {kernel_size=}"
+
+    @torch.no_grad()
+    def plot(self):
+        utils.plot_kernels(self.forward())
+
+
+class QuadraticKernelCholesky2D(nn.Module):
+    """A kernel that evaluates x^T S^-1 x, with skew parameterised as Pearson's R"""
+
+    pos_grid: torch.Tensor
+
+    def __init__(
+        self, in_channels: int, out_channels: int, kernel_size: int, init: str = "zero"
+    ):
+        super().__init__()
+        self.covs = utils.LearnedCholesky2D(in_channels, out_channels, init)
         self.kernel_size = kernel_size
         self.out_channels = out_channels
         self.in_channels = in_channels
@@ -29,7 +69,7 @@ class QuadraticKernelMulti2D(nn.Module):
         dists = (
             bs.pow(2)
             .sum(-2)
-            .reshape(
+            .view(
                 (
                     self.out_channels,
                     self.in_channels,
@@ -50,7 +90,7 @@ class QuadraticKernelMulti2D(nn.Module):
 
 
 class QuadraticKernelIso2D(nn.Module):
-    """A kernel that evaluates xT sI x, for use in a tropical convolution"""
+    """A kernel that evaluates x^T sI x, representing an isotropic quadratic"""
 
     pos_grid: torch.Tensor
 

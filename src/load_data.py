@@ -3,6 +3,7 @@ from typing import NamedTuple
 import numpy as np
 import torch
 import torchvision
+from torch.utils.data import DataLoader, TensorDataset
 
 
 class Dataset(NamedTuple):
@@ -15,6 +16,25 @@ class Dataset(NamedTuple):
         return (
             f"Dataset(x_train={self.x_train.shape}, x_test={self.x_test.shape},"
             f" y_train={self.y_train.shape}, y_test={self.y_test.shape})"
+        )
+
+    def train_loader(self, *, batch_size: int, shuffle_seed: int = 0) -> DataLoader:
+        return DataLoader(
+            TensorDataset(torch.as_tensor(self.x_train), torch.as_tensor(self.y_train)),
+            batch_size=batch_size,
+            shuffle=True,
+            pin_memory=True,
+            generator=torch.Generator().manual_seed(shuffle_seed),
+            drop_last=True,
+        )
+
+    def test_loader(self, *, batch_size: int) -> DataLoader:
+        return DataLoader(
+            TensorDataset(torch.as_tensor(self.x_test), torch.as_tensor(self.y_test)),
+            batch_size=batch_size,
+            shuffle=False,
+            pin_memory=True,
+            drop_last=False,
         )
 
 
@@ -35,6 +55,9 @@ def _mnist_like_normalisation(
     if has_channels:
         x_train = x_train.movedim(3, 1)
         x_test = x_test.movedim(3, 1)
+    else:
+        x_train.unsqueeze_(1)
+        x_test.unsqueeze_(1)
     y_test = np.asarray(test.targets)
     return Dataset(np.asarray(x_train), np.asarray(x_test), y_train, y_test)
 

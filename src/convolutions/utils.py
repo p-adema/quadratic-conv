@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import NamedTuple
+from typing import Literal, NamedTuple
 
 import numpy as np
 import torch
@@ -86,6 +86,7 @@ class ConvMeta(NamedTuple):
     dilation: int  # Dilation in both x and y
     groups: int  # Number of convolutional groups
     group_broadcasting: int  # Whether kernels should be broadcast along groups
+    mirror_kernel: bool  # When true, the kernel is mirrored as in a convolution
 
     @classmethod
     def infer(
@@ -97,6 +98,8 @@ class ConvMeta(NamedTuple):
         dilation: int = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
+        *,
+        kind: Literal["conv", "corr"],
     ) -> ConvMeta:
         # === Check params
         assert stride > 0, f"Cannot have zero {stride=}"
@@ -144,6 +147,7 @@ class ConvMeta(NamedTuple):
             dilation=dilation,
             groups=groups,
             group_broadcasting=group_broadcasting,
+            mirror_kernel=kind == "conv",
         )
         return shape
 

@@ -135,7 +135,7 @@ Science Park 900\\
 \comment{\ldots\ldots}
 
 \chapter{Background}
-First, some mathematical formalisms must be covered to understand the concepts discussed in the implementation and results sections, namely fields and subfields, construction of positive definite matrices and efficient calculation of quadratic forms.
+First, some mathematical formalisms must be covered to understand the concepts discussed in the implementation and results sections, namely fields and semifields, construction of positive definite matrices and efficient calculation of quadratic forms.
 
 \section{Convolutional stencil}
 At the core of a convolutional neural network is the convolutional operation $f*g$, where, save for a handful of separable functions, $g$ is approximated with a fixed-size discrete kernel. This kernel may be fixed, but most modern machine learning architectures learn the kernel as part of the model's parameters (see \cite{introconvnets} for an introduction). As such, the calculation for the output of a single (discrete) pixel is of the form:
@@ -145,7 +145,7 @@ At the core of a convolutional neural network is the convolutional operation $f*
 \comment{I explicitly wanted to discuss the discrete case here, as I wanted to link it to the discrete weighed average. I could also work for the continuous (integral) case for both sections, but considering I never use PDEs or other continuous constructs, do you think it has added value? (might make it harder to follow, but if it's useful\ldots) \\}
 possibly also summing over multiple input channels. An access pattern such as this, where the new value of a pixel depends on a fixed window of its neighbours, is referred to as a stencil computation \cite{fortranstencils}, and as such, the stencil computation performed by the discrete convolution operator will hereafter be referred to as the convolutional stencil, while the discrete version of $g$ will be referred to as the (convolutional) kernel.
 
-\section{Fields, subfields and weighted reductions}
+\section{Fields, semifields and weighted reductions}
 In the convolutional stencil, a part of the image is multiplied element-wise with a kernel, and the resulting values are summed to obtain an activation for that point. However, while we typically use scalar addition and multiplication in this calculation, it is also possible to use different operators in the reduction by defining a different field in which the reduction is done. In this section, we will briefly look at the concept of fields insofar as they are relevant to the reduction in the convolutional stencil.
 
 In mathematics, a field is a set of values with a pair of operators that work on those values: one operator corresponds to the concept of addition, and one operator corresponds to the concept of multiplication. Fields are, in effect, a generalisation of standard addition and multiplication on integers or reals and allow for describing a set of values other than typical scalars or an alternate method for combining typical numbers. Formally, a field can be described as a tuple $(\mathcal{F}, \oplus, \otimes)$, where the operators $\oplus$ and $\otimes$ are of the type $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Furthermore, the operators $\oplus$ and $\otimes$ are both beholden to the field axioms: informally, a set of rules to ensure they act 'similarly' to standard scalar addition and multiplication. These field axioms are as follows (\cite{beachy2006abstract}, page 120):
@@ -169,10 +169,10 @@ Finally, since weighted reduction can be performed in any semifield, we can perf
 \bigoplus_{i\in \mathcal{I}}\mathbf{a}[i] \otimes \mathbf{w}[i]
 &= \bigoplus_{y\in \mathcal{I}}f[x+y] \otimes g[y] \\
 \end{align*}
-This looks very similar to a correlation, and we can therefore chose to define the (discrete) subfield correlation operator $\textcircled{$\star$}$ to mean exactly this:
+This looks very similar to a correlation, and we can therefore chose to define the (discrete) semifield correlation operator $\textcircled{$\star$}$ to mean exactly this:
 \begin{align*}
 	(f \star g)[x] &= \sum_{y\in\mathcal{I}}f[x+y]\; g[y]\\
-	(f ~\textcircled{$\star$}~ g)[x] &=\bigoplus_{y\in \mathcal{I}}f[x+y] \otimes g[y] \textrm{ in some subfield $(\mathcal{F}, \oplus, \otimes)$}
+	(f ~\textcircled{$\star$}~ g)[x] &=\bigoplus_{y\in \mathcal{I}}f[x+y] \otimes g[y] \textrm{ in some semifield $(\mathcal{F}, \oplus, \otimes)$}
 \end{align*}
 \section{Nonlinear semifields from computational morphology}
 Knowing that convolutional stencils are weighted reductions and that weighted reductions can be implemented in all semifields, we can examine if there are other semifields in which we can perform a convolution or correlation than the standard linear field. For this, we can take inspiration from computational morphology, the mathematics of object and function shapes.
@@ -203,7 +203,7 @@ This result is interesting because we can see the standard max pooling layer in 
 
 It can also be shown that erosion ('shrinking a function') corresponds with a minimum weighted by a (negated) distance function: $$(f \boxminus g)[x]=\min{y\in \mathcal{I}}(f[x+y] - g[y])$$ 
 
-Using similar logic as above, we can show that in the corresponding tropical min subfield $T_-=(\mathbb{R}\cup\{\infty\},\min,+)$ with neutral elements $(\mathbb{0}=\infty, \mathbb{1}=0)$, the correlation with $g_{neg}(x)=-g(x)$ is equivalent to erosion:
+Using similar logic as above, we can show that in the corresponding tropical min semifield $T_-=(\mathbb{R}\cup\{\infty\},\min,+)$ with neutral elements $(\mathbb{0}=\infty, \mathbb{1}=0)$, the correlation with $g_{neg}(x)=-g(x)$ is equivalent to erosion:
 \begin{align*}
 	(f ~\textcircled{$\star$}~ g_{neg})[x]
 	&= \bigoplus_{y\in \mathcal{I}}f[x+y] \otimes g_{neg}[y] \\

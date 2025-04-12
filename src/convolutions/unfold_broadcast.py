@@ -4,6 +4,7 @@ import math
 import typing
 import warnings
 from collections.abc import Callable
+from typing import Literal
 
 import torch
 from torch import nn
@@ -17,6 +18,7 @@ class BroadcastSemifield(typing.NamedTuple):
     # (img, krn) -> img (x) krn
     multiply: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     neutral: float
+    kind: Literal["conv", "corr"]
 
     @classmethod
     def tropical_max(cls):
@@ -24,6 +26,7 @@ class BroadcastSemifield(typing.NamedTuple):
             add_reduce=lambda multiplied, dim: torch.max(multiplied, dim=dim).values,
             multiply=lambda img, krn: img + krn,
             neutral=-float("inf"),
+            kind="conv",
         )
 
     @classmethod
@@ -32,6 +35,7 @@ class BroadcastSemifield(typing.NamedTuple):
             add_reduce=lambda multiplied, dim: torch.min(multiplied, dim=dim).values,
             multiply=lambda img, krn: img - krn,
             neutral=float("inf"),
+            kind="corr",
         )
 
     @staticmethod
@@ -64,7 +68,13 @@ class BroadcastConv(nn.Module):
         group_broadcasting: bool = False,
     ) -> torch.Tensor:
         meta = self.get_meta(
-            imgs, kernel, stride, padding, dilation, groups, group_broadcasting
+            imgs,
+            kernel,
+            stride,
+            padding,
+            dilation,
+            groups,
+            group_broadcasting,
         )
 
         imgs_padded = torch.constant_pad_nd(
@@ -86,6 +96,10 @@ class BroadcastConv(nn.Module):
             meta.krn_cs * meta.krn_ys * meta.krn_xs,
             meta.out_ys * meta.out_xs,
         )
+        if self.semifield.kind == "conv":
+            # Very expensive and bad, but this is only a reference implementation
+            kernel = kernel.flip((2, 3))
+
         weights = kernel.view(
             1,  # Broadcast along batch dimension
             1 if group_broadcasting else groups,  # Maybe broadcast along groups
@@ -119,10 +133,17 @@ class BroadcastConv(nn.Module):
             meta = self.last_meta
         else:
             if self.last_meta is not None and self.warn_changing_meta:
-                warnings.warn("Convolution parameters changed", stacklevel=2)
+                warnings.warn("Convolution parameters changed", stacklevel=3)
 
             meta = ConvMeta.infer(
-                imgs, kernel, stride, padding, dilation, groups, group_broadcasting
+                imgs,
+                kernel,
+                stride,
+                padding,
+                dilation,
+                groups,
+                group_broadcasting,
+                kind=self.semifield.kind,
             )
             self.last_meta = meta
         return meta
@@ -179,6 +200,8 @@ class TropicalConv2D(nn.Module):
         stencils = nn.functional.unfold(
             x_pad, (kernel_size, kernel_size), dilation, 0, stride
         ).reshape(inp_batch, out_channels, kernel_size * kernel_size, -1)
+        if self.is_max:
+            kernel = kernel.flip((2, 3))
         weights = kernel.view(1, out_channels, kernel_size * kernel_size, 1)
         assert weights.shape[2] == stencils.shape[2]
 

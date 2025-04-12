@@ -4,18 +4,55 @@ import torch
 from torch import nn
 
 
-class LearnedCovs2D(nn.Module):
-    """A utility class that parameterises 2D covariance matrices using stds and corr"""
+class LearnedSpectral2D(nn.Module):
+    """A utility class that parameterises diagonally decomposed 2D covariance matrices
+    using parameters for standard deviations and the rotation of the principal axes."""
 
     def __init__(self, in_channels: int, out_channels: int, init: str = "zero"):
         super().__init__()
-        self.std_params = nn.Parameter(torch.empty((2, out_channels, in_channels)))
+        self.log_stds = nn.Parameter(torch.empty((out_channels, in_channels, 2)))
+        self.thetas = nn.Parameter(torch.empty((out_channels, in_channels)))
+        if init == "zero":
+            nn.init.zeros_(self.log_stds)
+            nn.init.zeros_(self.thetas)
+        elif init == "normal":
+            nn.init.normal_(self.log_stds)
+            nn.init.normal_(self.thetas)
+        else:
+            raise ValueError(f"Invalid {init=}")
+
+    def inverse_cov(self):
+        rot = torch.stack(
+            [
+                torch.stack([torch.cos(self.thetas), -torch.sin(self.thetas)], dim=-1),
+                torch.stack([torch.sin(self.thetas), torch.cos(self.thetas)], dim=-1),
+            ],
+            dim=-2,
+        )
+        inv_diag = torch.diag_embed(self.log_stds.neg().exp())
+        return torch.einsum("oivd,oidD,oiVD->oivV", rot, inv_diag, rot)
+
+    def cov(self):
+        return torch.linalg.inv(self.inverse_cov())
+
+    def extra_repr(self):
+        out_channels, in_channels = self.thetas.shape
+        return f"{in_channels}, {out_channels}"
+
+
+class LearnedCholesky2D(nn.Module):
+    """A utility class that parameterises Cholesky-decomposed 2D covariance matrices
+    using parameters for standard deviations and for Pearson's R (`corr`)."""
+
+    def __init__(self, in_channels: int, out_channels: int, init: str = "zero"):
+        super().__init__()
+        self.log_stds = nn.Parameter(torch.empty((2, out_channels, in_channels)))
         self.corr_param = nn.Parameter(torch.empty((out_channels, in_channels)))
         if init == "zero":
-            nn.init.zeros_(self.std_params)
+            nn.init.zeros_(self.log_stds)
             nn.init.zeros_(self.corr_param)
         elif init == "normal":
-            nn.init.normal_(self.std_params)
+            nn.init.normal_(self.log_stds)
             nn.init.normal_(self.corr_param)
         else:
             raise ValueError(f"Invalid {init=}")
@@ -23,7 +60,7 @@ class LearnedCovs2D(nn.Module):
     def cholesky(self):
         out_channels, in_channels = self.corr_param.shape
 
-        std = self.std_params.exp()
+        std = self.log_stds.exp()
         corr = self.corr_param.tanh()
         l_cross = corr * std[1]
 
@@ -103,7 +140,11 @@ def make_pos_grid(kernel_size: int, grid_at_end: bool = False) -> torch.Tensor:
         kernel_size // 2 + 1,
     )
     return (
-        torch.cartesian_prod(positions, positions)
-        .unsqueeze(1)  # Broadcast along out_channels
-        .unsqueeze(2)  # Broadcast along in_channels
-    ).movedim(0, -1 if grid_at_end else 0)
+        (
+            torch.cartesian_prod(positions, positions)
+            .unsqueeze(1)  # Broadcast along out_channels
+            .unsqueeze(2)  # Broadcast along in_channels
+        )
+        .movedim(0, -1 if grid_at_end else 0)
+        .float()
+    )
