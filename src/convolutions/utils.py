@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 from typing import Literal, NamedTuple
 
-import numpy as np
 import torch
 from torch import nn
 
@@ -16,6 +15,8 @@ class GenericConv2D(nn.Module):
         dilation: int = 1,
         padding: int = 0,
         stride: int = 1,
+        groups: int = 1,
+        group_broadcasting: bool = False,
     ):
         super().__init__()
         self.padding = padding
@@ -23,6 +24,8 @@ class GenericConv2D(nn.Module):
         self.dilation = dilation
         self.kernel = kernel
         self.conv = conv
+        self.groups = groups
+        self.group_broadcasting = group_broadcasting
 
     def forward(self, x):
         return self.conv(
@@ -31,7 +34,23 @@ class GenericConv2D(nn.Module):
             dilation=self.dilation,
             padding=self.padding,
             stride=self.stride,
+            groups=self.groups,
+            **({"group_broadcasting": True} if self.group_broadcasting else {}),
         )
+
+    def extra_repr(self) -> str:
+        res = []
+        if self.padding:
+            res.append(f"padding={self.padding}")
+        if self.stride != 1:
+            res.append(f"stride={self.stride}")
+        if self.dilation != 1:
+            res.append(f"dilation={self.dilation}")
+        if self.groups != 1:
+            res.append(f"groups={self.groups}")
+        if self.group_broadcasting:
+            res.append(f"group_broadcasting={self.group_broadcasting}")
+        return ", ".join(res)
 
 
 class CoerceImage4D(nn.Module):

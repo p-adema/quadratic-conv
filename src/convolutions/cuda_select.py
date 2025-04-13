@@ -213,6 +213,7 @@ class SelectConvFixedLazy(LazyModuleMixin, SelectConvFixed):
         self.semifield = semifield
         self.op = None
         self.meta = None
+        self.done = False
 
     def initialize_parameters(
         self,
@@ -226,6 +227,7 @@ class SelectConvFixedLazy(LazyModuleMixin, SelectConvFixed):
         thread_block_size: int = 256,
         debug: bool = False,
     ):
+        assert not self.done
         self.meta, self.op = self.semifield.compile(
             imgs,
             kernel,
@@ -237,6 +239,7 @@ class SelectConvFixedLazy(LazyModuleMixin, SelectConvFixed):
             thread_block_size,
             debug,
         )
+        self.done = True
 
     def has_uninitialized_params(self):
         return self.op is None
@@ -413,11 +416,17 @@ def _compile_backwards(
             # so our gradient can't be related to the image
             return
 
+        if meta.mirror_kernel:
+            x_steps = meta.krn_xs - 1 - k_prov_x
+            y_steps = meta.krn_ys - 1 - k_prov_y
+        else:
+            x_steps = k_prov_x
+            y_steps = k_prov_y
         i_top_y = o_y * meta.stride - meta.padding
         i_left_x = o_x * meta.stride - meta.padding
         i_prov_c = group_number * meta.krn_cs + prov_group_idx
-        i_prov_y = i_top_y + meta.dilation * k_prov_y
-        i_prov_x = i_left_x + meta.dilation * k_prov_x
+        i_prov_y = i_top_y + meta.dilation * y_steps
+        i_prov_x = i_left_x + meta.dilation * x_steps
         # if (
         #     i_prov_x < 0
         #     or i_prov_x >= shapes.img_xs

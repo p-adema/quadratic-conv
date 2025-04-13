@@ -89,8 +89,9 @@ class BroadcastConv(nn.Module):
             padding=0,
             stride=stride,
         )
+        # print(windows_flat.shape)
         windows = windows_flat.view(
-            meta.img_bs,
+            imgs.shape[0],
             groups,
             1,  # Broadcast along krn_o_group_size
             meta.krn_cs * meta.krn_ys * meta.krn_xs,
@@ -110,7 +111,7 @@ class BroadcastConv(nn.Module):
         multiplied = self.semifield.multiply(windows, weights)
         reduced = self.semifield.add_reduce(multiplied, 3)
         res = reduced.view(
-            meta.img_bs,
+            imgs.shape[0],
             groups * meta.krn_o_group_size,
             meta.out_ys,
             meta.out_xs,

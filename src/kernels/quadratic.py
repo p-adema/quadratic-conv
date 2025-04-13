@@ -10,7 +10,11 @@ class QuadraticKernelSpectral2D(nn.Module):
     pos_grid: torch.Tensor
 
     def __init__(
-        self, in_channels: int, out_channels: int, kernel_size: int, init: str = "zero"
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        init: str | float = 0.0,
     ):
         super().__init__()
         self.covs = utils.LearnedSpectral2D(in_channels, out_channels, init)
@@ -33,7 +37,7 @@ class QuadraticKernelSpectral2D(nn.Module):
                 self.kernel_size,
             )
         )
-        return dists
+        return dists.mul(-0.25)
 
     def extra_repr(self):
         kernel_size = self.kernel_size
@@ -50,7 +54,11 @@ class QuadraticKernelCholesky2D(nn.Module):
     pos_grid: torch.Tensor
 
     def __init__(
-        self, in_channels: int, out_channels: int, kernel_size: int, init: str = "zero"
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        init: str | float = 0.0,
     ):
         super().__init__()
         self.covs = utils.LearnedCholesky2D(in_channels, out_channels, init)
@@ -78,7 +86,7 @@ class QuadraticKernelCholesky2D(nn.Module):
                 )
             )
         )
-        return dists
+        return dists.mul(-0.25)
 
     def extra_repr(self):
         kernel_size = self.kernel_size
@@ -95,16 +103,24 @@ class QuadraticKernelIso2D(nn.Module):
     pos_grid: torch.Tensor
 
     def __init__(
-        self, in_channels: int, out_channels: int, kernel_size: int, init: str = "zero"
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        init: str | float = 0.0,
     ):
         super().__init__()
-        self.std_param = nn.Parameter(torch.empty((out_channels, in_channels)))
-        if init == "zero":
-            nn.init.zeros_(self.std_param)
+        variances = torch.empty((out_channels, in_channels))
+        if isinstance(init, float):
+            nn.init.constant_(variances, init)
+        elif init == "uniform":
+            nn.init.uniform_(variances, 0.1, 4.0)
         elif init == "normal":
-            nn.init.normal_(self.std_param)
+            nn.init.trunc_normal_(variances, mean=2.0, a=0.1, b=4.0)
         else:
             raise ValueError(f"Invalid {init=}")
+        self.log_std = nn.Parameter(variances.log().mul(0.5))
+
         self.kernel_size = kernel_size
         self.out_channels = out_channels
         self.in_channels = in_channels
@@ -113,7 +129,9 @@ class QuadraticKernelIso2D(nn.Module):
         )
 
     def forward(self):
-        dists = (self.pos_grid.pow(2).sum(-2) / self.std_param.unsqueeze(2)).reshape(
+        dists = (
+            self.pos_grid.pow(2).sum(-2) / (-4 * self.log_std.mul(2).exp().unsqueeze(2))
+        ).reshape(
             self.out_channels, self.in_channels, self.kernel_size, self.kernel_size
         )
         return dists

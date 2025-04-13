@@ -23,6 +23,9 @@ dependencies = [
     "pytorch-triton>=3.3.0 ; sys_platform == 'linux' and platform_machine == 'x86_64'",
     "numba>=0.61.0",
     "uuid>=1.30",
+    "polars>=1.27.1",
+    "altair>=5.4.0",
+    "rich>=14.0.0",
 ]
 
 [[tool.uv.index]]
