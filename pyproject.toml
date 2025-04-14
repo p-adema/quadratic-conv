@@ -26,6 +26,7 @@ dependencies = [
     "polars>=1.27.1",
     "altair>=5.4.0",
     "rich>=14.0.0",
+    "notebook>=7.4.0",
 ]
 
 [[tool.uv.index]]

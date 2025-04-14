@@ -5,16 +5,19 @@ import torch
 import torchvision
 from torch.utils.data import DataLoader, TensorDataset
 
+# When True, normalise to zero-mean, unit variance.
+# When False, normalise to [0, 1]
 STD_NORM = False
 
 
 class Dataset(NamedTuple):
-    x_train: np.ndarray
-    x_test: np.ndarray
-    y_train: np.ndarray
-    y_test: np.ndarray
+    x_train: torch.Tensor
+    x_test: torch.Tensor
+    y_train: torch.Tensor
+    y_test: torch.Tensor
     img_channels: int
     num_classes: int
+    label_names: list[str]
 
     def __repr__(self):
         return (
@@ -41,6 +44,33 @@ class Dataset(NamedTuple):
             drop_last=False,
         )
 
+    def as_cuda(
+        self, except_y_test: bool = False
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        return (
+            self.x_train.cuda(non_blocking=True),
+            self.y_train.cuda(non_blocking=True),
+            self.x_test.cuda(non_blocking=True),
+            self.y_test if except_y_test else self.y_test.cuda(non_blocking=True),
+        )
+
+    def tuning_split(self, val_prop: float = 0.3, seed: int = 0) -> Dataset:
+        gen = torch.Generator("cpu").manual_seed(seed)
+        train_size = self.x_train.shape[0]
+        shuf_idxs = torch.randperm(train_size, generator=gen)
+        val_size = int(train_size * val_prop)
+        val_idxs, train_idxs = torch.split(shuf_idxs, [val_size, train_size - val_size])
+        assert val_size and train_size - val_size
+        return Dataset(
+            self.x_train[train_idxs],
+            self.x_train[val_idxs],
+            self.y_train[train_idxs],
+            self.y_train[val_idxs],
+            self.img_channels,
+            self.num_classes,
+            self.label_names,
+        )
+
 
 def _mnist_like_normalisation(
     train: torchvision.datasets.VisionDataset,
@@ -54,7 +84,6 @@ def _mnist_like_normalisation(
         stds, means = torch.std_mean(
             torch.as_tensor(x_train_unnorm), (0, 1, 2), keepdim=True
         )
-        print("normalisation:", means, stds)
         x_train = (x_train_unnorm - means) / stds
         x_test = (torch.as_tensor(test.data, dtype=torch.float32) - means) / stds
     else:
@@ -62,7 +91,7 @@ def _mnist_like_normalisation(
         low, high = aminmax.min, aminmax.max
         x_train = (x_train_unnorm - low) / (high - low)
         x_test = (torch.as_tensor(test.data, dtype=torch.float32) - low) / (high - low)
-    y_train = np.asarray(train.targets)
+    y_train = torch.asarray(train.targets, dtype=torch.int64)
 
     if has_channels:
         x_train = x_train.movedim(3, 1)
@@ -72,14 +101,15 @@ def _mnist_like_normalisation(
         x_test.unsqueeze_(1)
     assert x_train.shape[1] == img_channels, f"Wrong channels in {x_train.shape=}"
     assert x_test.shape[1] == img_channels, f"Wrong channels in {x_test.shape=}"
-    y_test = np.asarray(test.targets)
+    y_test = torch.as_tensor(test.targets, dtype=torch.int64)
     return Dataset(
-        np.asarray(x_train),
-        np.asarray(x_test),
-        y_train,
-        y_test,
+        x_train.contiguous().cpu().pin_memory(),
+        x_test.contiguous().cpu().pin_memory(),
+        y_train.contiguous().cpu().pin_memory(),
+        y_test.contiguous().cpu().pin_memory(),
         img_channels,
         num_classes,
+        train.classes,
     )
 
 
