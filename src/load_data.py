@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from typing import NamedTuple
 
-import numpy as np
 import torch
 import torchvision
 from torch.utils.data import DataLoader, TensorDataset
@@ -32,7 +33,6 @@ class Dataset(NamedTuple):
             shuffle=True,
             pin_memory=True,
             generator=torch.Generator().manual_seed(shuffle_seed),
-            drop_last=True,
         )
 
     def test_loader(self, *, batch_size: int) -> DataLoader:
@@ -41,7 +41,6 @@ class Dataset(NamedTuple):
             batch_size=batch_size,
             shuffle=False,
             pin_memory=True,
-            drop_last=False,
         )
 
     def as_cuda(
@@ -60,7 +59,8 @@ class Dataset(NamedTuple):
         shuf_idxs = torch.randperm(train_size, generator=gen)
         val_size = int(train_size * val_prop)
         val_idxs, train_idxs = torch.split(shuf_idxs, [val_size, train_size - val_size])
-        assert val_size and train_size - val_size
+        assert val_size
+        assert train_size - val_size
         return Dataset(
             self.x_train[train_idxs],
             self.x_train[val_idxs],
@@ -101,6 +101,7 @@ def _mnist_like_normalisation(
         x_test.unsqueeze_(1)
     assert x_train.shape[1] == img_channels, f"Wrong channels in {x_train.shape=}"
     assert x_test.shape[1] == img_channels, f"Wrong channels in {x_test.shape=}"
+    assert num_classes == len(train.classes), "Classes seem wrong"
     y_test = torch.as_tensor(test.targets, dtype=torch.int64)
     return Dataset(
         x_train.contiguous().cpu().pin_memory(),

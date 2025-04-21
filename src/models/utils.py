@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import collections
 import struct
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import polars as pl
@@ -20,21 +22,19 @@ if TYPE_CHECKING:
 class CheckNan(nn.Module):
     def __init__(self, i: int):
         super().__init__()
-        self.i = i
+        self.nth_module = i
 
     @torch.compiler.disable
     def forward(self, *args):
         for i, arr in enumerate(args, start=1):
-            # noinspection PyProtectedMember
-            torch._check_value(
-                not torch.isnan(arr).any().item(),
-                lambda: f"{self.i}: Item {i}/{len(args)} was NaN",  # noqa: B023
-            )
+            if torch.isnan(arr).any().item():
+                raise ValueError(f"{self.nth_module}: Item {i}/{len(args)} was NaN")
+
             print(
-                f"{self.i}: Item {i}/{len(args)} was OK,"
+                f"{self.nth_module}: Item {i}/{len(args)} was OK,"
                 f" shape={tuple(arr.shape)} min={arr.min()} max={arr.max()}"
             )
-        return tuple(args) if len(args) > 1 else args[0]
+        return args if len(args) > 1 else args[0]
 
 
 def split_seed(size: int, seed: int, groups: int = 1) -> tuple[tuple[int, ...], ...]:
@@ -57,80 +57,95 @@ def reports_to_df(reports: list[dict]) -> pl.DataFrame:
     )
 
 
-def history_callback(data: Dataset | tuple[torch.Tensor, torch.Tensor]):
-    class Hist:
-        def __init__(self):
-            self.losses = []
-            self.reports = []
+class HistoryCallback:
+    def __init__(self, data: Dataset | tuple[torch.Tensor, torch.Tensor]):
+        self.losses = []
+        self.reports = []
+        self.data = data
 
-        def __call__(self, model: Trainer, train_loss: float):
-            self.losses.append(train_loss)
-            self.reports.append(model.evaluate(data))
+    def __call__(self, model: Trainer, train_loss: float):
+        self.losses.append(train_loss)
+        self.reports.append(model.evaluate(self.data))
 
-        def result(self) -> tuple[pl.DataFrame, list[float]]:
-            return reports_to_df(self.reports), self.losses
+    def reset(self):
+        self.losses.clear()
+        self.reports.clear()
 
-    return Hist()
+    def result(self) -> tuple[pl.DataFrame, list[float]]:
+        return reports_to_df(self.reports), self.losses
 
 
 POOLING_JIT = True
-POOLING_FUNCTIONS: dict[str, Callable[[int, str], nn.Module]] = {
-    "standard-2": lambda _, __: nn.MaxPool2d(kernel_size=2, stride=2),
-    "standard-3": lambda _, __: nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
-    "standard-5": lambda _, __: nn.MaxPool2d(kernel_size=5, stride=2, padding=2),
-    "standard-7": lambda _, __: nn.MaxPool2d(kernel_size=7, stride=2, padding=3),
-    "iso-3": lambda c, init: GenericConv2D(
-        kernel=QuadraticKernelIso2D(1, c, kernel_size=3, init=init),
-        conv=SelectSemifield.tropical_max().lazy_fixed()
-        if POOLING_JIT
-        else BroadcastSemifield.tropical_max().module(),
-        padding=1,
-        stride=2,
-        groups=c,
-    ),
-    "iso-5": lambda c, init: GenericConv2D(
-        kernel=QuadraticKernelIso2D(1, c, kernel_size=5, init=init),
-        conv=SelectSemifield.tropical_max().lazy_fixed()
-        if POOLING_JIT
-        else BroadcastSemifield.tropical_max().module(),
-        padding=2,
-        stride=2,
-        groups=c,
-    ),
-    "iso-7": lambda c, init: GenericConv2D(
-        kernel=QuadraticKernelIso2D(1, c, kernel_size=7, init=init),
-        conv=SelectSemifield.tropical_max().lazy_fixed()
-        if POOLING_JIT
-        else BroadcastSemifield.tropical_max().module(),
-        padding=3,
-        stride=2,
-        groups=c,
-    ),
-    "aniso-3": lambda c, init: GenericConv2D(
-        kernel=QuadraticKernelSpectral2D(1, c, kernel_size=3, init=init),
-        conv=SelectSemifield.tropical_max().lazy_fixed()
-        if POOLING_JIT
-        else BroadcastSemifield.tropical_max().module(),
-        padding=1,
-        stride=2,
-        groups=c,
-    ),
-    "aniso-5": lambda c, init: GenericConv2D(
-        kernel=QuadraticKernelSpectral2D(1, c, kernel_size=5, init=init),
-        conv=SelectSemifield.tropical_max().lazy_fixed()
-        if POOLING_JIT
-        else BroadcastSemifield.tropical_max().module(),
-        padding=2,
-        stride=2,
-        groups=c,
-    ),
-    "aniso-7": lambda c, init: GenericConv2D(
-        kernel=QuadraticKernelSpectral2D(1, c, kernel_size=7, init=init),
-        conv=SelectSemifield.tropical_max().lazy_fixed()
-        if POOLING_JIT
-        else BroadcastSemifield.tropical_max().module(),
-        padding=3,
-        stride=2,
-        groups=c,
-    ),
+
+
+def make_pooling_function(
+    kind: Literal["standard", "iso", "aniso"],
+    kernel_size: int,
+    stride: int = 2,
+    padding: int | None = None,
+    groups: int | None = None,
+    group_broadcasting: bool = False,
+    jit: bool = POOLING_JIT,
+) -> Callable[[int, dict], torch.Module]:
+    if padding is None:
+        padding = kernel_size // 2
+
+    def pooling_fn(channels: int, init: dict[str, float | int]) -> nn.Module:
+        grps = channels if groups is None else groups
+        assert channels % grps == 0, f"{channels=} not evenly divided by {grps=}"
+        group_size = channels // grps
+
+        if kind == "standard":
+            assert grps == channels, "Standard max pool doesn't support group sizes > 1"
+            assert not group_broadcasting, "Standard max pool doesn't have parameters"
+            return nn.MaxPool2d(kernel_size=kernel_size, stride=stride, padding=padding)
+
+        if kind == "iso":
+            kernel = QuadraticKernelIso2D(
+                group_size, grps, kernel_size=kernel_size, init=init
+            )
+        elif kind == "aniso":
+            kernel = QuadraticKernelSpectral2D(
+                group_size, grps, kernel_size=kernel_size, init=init
+            )
+        else:
+            raise ValueError(f"Invalid {kind=}")
+
+        conv = (
+            SelectSemifield.tropical_max().lazy_fixed()
+            if jit
+            else BroadcastSemifield.tropical_max().module()
+        )
+
+        return GenericConv2D(
+            kernel=kernel,
+            conv=conv,
+            padding=padding,
+            stride=stride,
+            groups=grps,
+            group_broadcasting=group_broadcasting,
+        )
+
+    return pooling_fn
+
+
+POOLING_STANDARD = {
+    "standard-2": make_pooling_function("standard", 2),
+    "standard-3": make_pooling_function("standard", 3),
+    "standard-5": make_pooling_function("standard", 5),
+    "standard-7": make_pooling_function("standard", 7),
 }
+POOLING_ISOTROPIC = {
+    "iso-3": make_pooling_function("iso", 3),
+    "iso-5": make_pooling_function("iso", 5),
+    "iso-7": make_pooling_function("iso", 7),
+}
+POOLING_ANISO = {
+    "aniso-3": make_pooling_function("aniso", 3),
+    "aniso-5": make_pooling_function("aniso", 5),
+    "aniso-7": make_pooling_function("aniso", 7),
+}
+
+POOLING_FUNCTIONS: collections.ChainMap[str, Callable[[int, dict], nn.Module]] = (
+    collections.ChainMap(POOLING_STANDARD, POOLING_ISOTROPIC, POOLING_ANISO)
+)

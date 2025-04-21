@@ -1,22 +1,15 @@
 from __future__ import annotations
 
 import sys
-import typing
 from collections.abc import Callable
 
-# import keras
-import numpy as np
 import torch
-from sklearn.metrics import classification_report
-from torch import multiprocessing, nn
-from tqdm.auto import tqdm, trange
+from torch import nn
 
 sys.path.extend(".")
 
-from ..load_data import Dataset
-from . import POOLING_FUNCTIONS
 from .trainer import Trainer
-from .utils import CheckNan, split_seed
+from .utils import POOLING_FUNCTIONS, CheckNan
 
 
 class LeNet(Trainer):
@@ -26,13 +19,16 @@ class LeNet(Trainer):
         self,
         img_channels: int,
         num_classes: int,
-        pool_fn: Callable[[int, str], nn.Module] | str,
+        pool_fn: Callable[[int, dict], nn.Module] | str,
         conv_kernel_size: int = 5,
         linear_units: int = 500,
-        init: str | float = 3.0,
+        init: dict[str, str | float] | None = None,
+        init_seed: int | None = None,
         debug: bool = False,
     ):
         super().__init__()
+        if init_seed is not None:
+            torch.manual_seed(init_seed)
 
         if isinstance(pool_fn, str):
             pool_fn = POOLING_FUNCTIONS[pool_fn]
@@ -45,8 +41,7 @@ class LeNet(Trainer):
             nn.ReLU(),
             pool_fn(50, init),
             nn.Flatten(),
-            nn.Linear(800, 500),
-            # nn.LazyLinear(linear_units),
+            nn.LazyLinear(linear_units),
             nn.ReLU(),
             nn.Linear(linear_units, num_classes),
         ]

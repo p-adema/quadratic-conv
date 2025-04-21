@@ -8,7 +8,6 @@ import keras_tuner
 from keras import layers
 
 from src import convolutions, kernels
-from src.models.utils import quiet_model
 
 _sentinel = object()
 

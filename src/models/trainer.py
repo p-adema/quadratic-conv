@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import sys
-import typing
-from typing import Callable, Self
+from collections.abc import Callable
+from typing import Self
 
 # import keras
 import numpy as np
 import polars as pl
 import torch
 from sklearn.metrics import classification_report
-from torch import multiprocessing, nn
+from torch import nn
 from tqdm.auto import tqdm, trange
 
 sys.path.extend(".")
@@ -48,7 +48,7 @@ class Trainer(nn.Module):
         lr: float = 0.001,
         epoch_callback: Callable[[Self, float], None] | None = None,
         shuffle_seed: int = 0,
-        run_seed: int | None = None,
+        run_seed: int = 1,
         verbose: bool = True,
         shuffle: bool = True,
     ) -> Self:
@@ -61,8 +61,8 @@ class Trainer(nn.Module):
             labels = torch.as_tensor(data.y_train, device="cuda")
         else:
             imgs, labels = data
-        if run_seed is not None:
-            torch.manual_seed(run_seed)
+
+        torch.manual_seed(run_seed)
 
         for _ in trange(
             epochs, desc="Training", unit="epoch", smoothing=0, disable=not verbose
@@ -114,34 +114,35 @@ class Trainer(nn.Module):
         epochs: int = 5,
         batch_size: int = 32,
         lr: float = 0.001,
-        pool_fn: str = "standard-2",
-        init: str | float = 3.0,
+        pool_fn: str | Callable[[int, dict], nn.Module] = "standard-2",
+        init: dict[str, str | float] | None = None,
         seed: int = 0,
         debug: bool = False,
         count: int = 20,
         return_models: bool = False,
         epoch_callback: Callable[[Self, float], None] | None = None,
+        description: str | None = None,
         **init_kwargs,
-    ) -> pl.DataFrame | tuple[pl.DataFrame, list[Trainer]]:
+    ) -> pl.DataFrame | tuple[pl.DataFrame, list[Self]]:
         run_scores = []
         model_seeds, run_seeds, shuffle_seeds = split_seed(count, seed, groups=3)
 
         bar = tqdm(
             zip(model_seeds, run_seeds, shuffle_seeds, strict=True),
             unit="run",
-            desc=f"{pool_fn}:{init}",
+            desc=f"{pool_fn}:{init}" if description is None else description,
             total=count,
         )
         imgs, labels, test_imgs, test_labels = data.as_cuda(except_y_test=True)
         models = []
         for m_seed, r_seed, s_seed in bar:
-            torch.manual_seed(m_seed)
             model = cls(
                 img_channels=data.img_channels,
                 num_classes=data.num_classes,
                 pool_fn=pool_fn,
                 debug=debug,
                 init=init,
+                init_seed=m_seed,
                 **init_kwargs,
             )
             run_scores.append(
