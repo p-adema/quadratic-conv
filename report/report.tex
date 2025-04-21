@@ -29,7 +29,7 @@ Convolutional Neural Networks}
 
 % [CHANGE] The name of your supervisor(s). Include the titles of your supervisor(s),
 % as well as the initials for *all* of his/her first names.
-\newcommand{\theSupervisor}{Dr. ir. R. van den Boomgaard} % Dr. Ing. L. Dorst
+\newcommand{\theSupervisor}{Dr.\ ir.\ R.\ van den Boomgaard} % Dr. Ing. L. Dorst
 
 % [CHANGE] The address of the institute at which your supervisor is working.
 % Be sure to include (1) institute (is appropriate), (2) faculty (if
@@ -194,17 +194,18 @@ One use case for fields in machine learning is to describe a weighted reduction 
 	(F*G)[x] &= \sum_{y\in\mathcal{I}} F[x-y]\; G[y],
 \end{align}
 
-
+\noindent
 we could instead use a field $L=(\mathcal{F}, \oplus, \otimes)$ and write a similar operation:
+
 \begin{align}
 	(F ~\textcircled{$*$}_L\; G)[x] &=\bigoplus_{y\in \mathcal{I}} F[x-y] \otimes G[y] \label{eq:semifield-conv}
 \end{align}
-
+\noindent
 Performing this operation does not, strictly speaking, require any of the above field axioms to hold for $\oplus$ or $\otimes$: the only relevant restriction would be that of the types being $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$ (while using gradient descent would also require both operators to be differentiable). However, it is generally useful for the reduction operator $\oplus$ to be both associative and commutative, as this makes the order of elements in the input irrelevant, promoting the stability of the result and allowing efficient parallel implementation of the reduction \cite{ppad}. Furthermore, most of the field axioms hold regardless for most operators we wish to use for $\oplus$ and $\otimes$. As such, the only constraint that we will relax will be that an additive inverse always exists, resulting in a semifield \cite{bellaardaxiomatic}:
 \begin{align}
-	\textrm{A semifield is a field,}\nonumber \\ \textrm{except an additive ($\oplus$) inverse (Eq. \ref{eq:additive-inverse}) does }& \textrm{not necessarily exist}
+	\textrm{A semifield is a field,}\nonumber \\ \textrm{except an additive ($\oplus$) inverse (Eq. \ref{eq:additive-inverse}) does }& \textrm{not necessarily exist}\nonumber
 \end{align}
-
+\noindent
 We can then define the operator $\textcircled{$*$}_L$ for the following sections (identically to Eq. \ref{eq:semifield-conv}) as the semifield convolutional operator for any semifield $L$.
 
 \section{Semifields from mathematical morphology}
@@ -214,7 +215,7 @@ Two core classes of discrete operators from mathematical morphology are dilation
 \begin{align}
 F \boxplus G \textrm{, where }(F \boxplus G)[x] = \bigvee_ {y\in\mathcal{I}} \left(F[x-y] + G[y]\right)	
 \end{align}
-
+\noindent
 Here, $F$ is the image (or object or sampled function) to be dilated, $G$ is a structuring element describing how the dilation will occur, and $\bigvee$ denotes the supremum. If we further restrict $F$ and $G$ to be of finite size, then $\mathcal{I}$ will be of finite size, and the correspondence with the local maximum becomes exact:
 \begin{align}
 \textrm{For finite-size }F\textrm{ and }G: (F \boxplus G)[x] = \max_ {y\in\mathcal{I}} \left(F[x-y] + G[y]\right)	
@@ -234,14 +235,14 @@ Looking at the operation performed by dilation more closely, we can see that it 
   \caption{Illustration of the effects of the dilation $\boxplus$ with three kernels on a sinusoidal $f$. $g_{step}=0$ in a region of size 0.5 and $-\infty$ outside, while $g_{quad}=-5x^2$ and $g_{qclip}=g_{quad}+g_{step}$. An alternative intuition for $\boxplus$ is also illustrated, corresponding with 'lowering' a negated version of $g'$ down towards the point $x$ until it intersects $f$ and taking the value of the lowered and flipped $g'(x)$ as the result of $\boxplus$ at point $x$. Note the continuous, thus lowercase $f$ and $g$.}
   \label{fig:dil-illust}
 \end{figure}
-
+\noindent
 This result is interesting because we can see the standard max pooling layer in a convolutional neural network as a dilation with a fixed, step-function-like $G$ (a 2D version of $G_{step}$ from Fig. \ref{fig:dil-illust}). Generalising $G$ to be a quadratic form is a logical next step, where this thesis focuses on the anisotropic case.
 
 In mathematical morphology, dilations and erosions come in pairs named adjunctions. It can be shown that the erosion which adjoins $\boxplus$ (henceforth referred to as the operator $\boxminus$) is effectively a minimum (infimum in the infinite case) weighted by a (negated) distance function \cite{heijmans1996morphological}: 
 \begin{align}
 	(F \boxminus G)[x]=\min_{y\in \mathcal{I}}(F[x+y] - G[y])
 \end{align}
-
+\noindent
 Using similar logic as above, we can show that, in the corresponding tropical min semifield $T_-=(\mathbb{R}\cup\{\infty\},\min,+)$\footnote{For both $T_+$ and $T_-$, it should be noted that standard addition $+$ is undefined for $\pm\infty$. In accordance with \cite{maragos}, we define $\forall x: x+(-\infty)=(-\infty)$ in $T_+$, while $\forall x: x+\infty=\infty$ in $T_-$} \cite{maragos} with neutral elements $(\mathbb{0}=\infty, \mathbb{1}=0)$, the convolution with $\check{G}^*(x)=-G(-x)$ is equivalent to the erosion $\boxminus$:
 \begin{align}
 	(F ~\textcircled{$*$}~ \check{G}^*(x))[x]
@@ -253,7 +254,22 @@ Using similar logic as above, we can show that, in the corresponding tropical mi
 \end{align}
 
 \section{Other relevant mathematical morphology}
-Dilation and erosion with multiplication and division. Opening and closing as alternatives for a single min- or max-pool. \cite{heijmans1996morphological} \comment{\ldots\ldots}
+\comment{Work in progress}
+
+Besides the common adjoint $(\boxplus,\; \boxminus)$ using $+$ and $-$ as the operators weighing every point, one can also define an adjoint that uses multiplication and division. This alternate adjoint on $\mathbb{R}_+$ then has the dilation $\dot \boxplus$, defined as \cite{heijmans1996morphological}:
+\begin{align}
+	(F~ \dot\boxplus~ G)[x] &= \bigvee_{y\in \mathcal{I}}F[x-y]G[y]
+\end{align}
+However, it can be shown that that this adjoint is equivalent (anamorphic) to the common adjoint $(\boxplus,\; \boxminus)$ using the transformation $t(x)=e^x$ and its inverse $t^{-1}(x)=\log(x)$. As such, using $\dot \boxplus$ would not result in a more expressive convolution, while complicating implementation with the requirement of $\mathbb{R}_+$.
+
+Two other concepts from mathematical morphology that do increase expressivity are the concepts of openings and closings. Here, an opening is an operator using an adjoint, where the input is first eroded and then dilated with the same structuring element $G$. The relevant characteristic of an opening, is that the result is always $\leq$ the input $F$. As such, for $(\boxplus, \boxminus)$ we can write:
+\begin{align}
+	\textrm{An opening is anti-extensive (decreasing): }&(F\;\boxminus\; G)\;\boxplus\;G \leq F
+\intertext{
+The operator dual to an opening, is the closing using the same adjoint: here, a closing refers to first performing a dilation, and then performing the adjoining erosion with the same structuring element $G$. The result of a closing is also dual to the result of an opening, being $\geq$ than the input $F$:
+}
+	\textrm{A closing is extensive (increasing): }&(F\;\boxplus\; G)\;\boxminus\;G \geq F
+\end{align}
 \section{Variations on the convolution in CNNs}
 The four parameters of a convolution: stride, padding, dilation, groups. \comment{\ldots\ldots}
 \section{Other nonlinear fields}
@@ -312,7 +328,7 @@ In order for $\Sigma$ to be positive-definite, $\sigma_1^2$ and $\sigma_2^2$ are
 \end{align}
 Since we placed no assumptions on $\boldsymbol{\theta}$, it is safe for a black-box or gradient-based optimiser to adjust in any direction, as the resulting $\Sigma$ will always be a positive definite matrix.
 
-This parameterisation has the advantage of being easily interpretable: $e^{\theta_1}$ and $e^{\theta_2}$ are the standard deviations of a hypothetical normal distribution in the first and second principal axis of the quadratic, while $\theta_3$ is the counter-clockwise angle the first principal axis forms with the x-axis.
+This parameterisation has the advantage of being easily interpretable: $e^{\theta_1}$ and $e^{\theta_2}$ are the standard deviations of a hypothetical normal distribution in the first and second principal axis of the quadratic, while $\theta_3$ is the counter-clockwise angle the first principal axis forms with the x-axis. An alternative parameterisation, based on the Pearson correlation coefficient, can be found in Appendix \ref{sec:pearson}.
 \chapter{Experiments}
 \comment{I only really want to write the accompanying text when I have a clear idea of what the experiments are going to be: for now, I'm just putting some graphs in from the test experiments I conducted.}
 \begin{figure}[h!]
@@ -403,30 +419,24 @@ Then, we can write out the orthogonal diagonalisation using \ref{eq:refl-rot}:
 
 \newpage
 \section{Alternative parameterisation for $\Sigma \in \mathbb{R}^{2\times 2}$}
-A different way of parameterising the covariance matrix used for modelling the quadratic form would be to use the Pearson correlation coefficient $\rho$ instead of the angle $\phi$:
+\label{sec:pearson}
+A different way of parameterising a $2\times 2$ covariance matrix  would be to use the Pearson correlation coefficient $\rho$ instead of the angle $\phi$. 
+We can then keep the covariance matrix in its Cholesky decomposed form, using a lower triangular $L$ such that $\Sigma=LL^T$. Then, for any $\boldsymbol{\theta}\in\mathbb{R}^3$, we can find the corresponding $L$:
 \begin{align}
-\Sigma = \begin{bmatrix}
- \sigma_1^2 & \sigma_1\sigma_2\rho \\
-  \sigma_1\sigma_2\rho & \sigma_2^2 \\
-\end{bmatrix} \textrm{, still with parameter vector } \boldsymbol{\theta}=\begin{bmatrix}
+\textrm{Let }\boldsymbol{\theta}&=\begin{bmatrix}
 	\theta_1\\
 	\theta_2\\
 	\theta_3\\
-\end{bmatrix}.
-\end{align}
-The relevant constraints are then:
-\begin{align}
-	\sigma_1 > 0& \textrm{, so we can use } \sigma_1 = \exp(\theta_1)\\
-	\sigma_2 > 0& \textrm{, so we can use } \sigma_2 = \exp(\theta_2)\\
-	\rho \in (-1, 1) & \textrm{, so we can use } \rho = \tanh(\theta_3)
-\end{align}
-We may then wish to keep the covariance matrix in its Cholesky decomposed form, where we find a lower triangular $L$ such that $\Sigma=LL^T$:
-\begin{align}
+\end{bmatrix}=\begin{bmatrix}
+	\log|\sigma_1| \\
+	\log|\sigma_2|\\
+	\rho\\
+\end{bmatrix}, \textrm{ then a valid $\Sigma$ would be} \\
 	\Sigma &= \begin{bmatrix}
  \sigma_1^2 & \sigma_1\sigma_2\rho \\
   \sigma_1\sigma_2\rho & \sigma_2^2 \\
-\end{bmatrix}\\
-&= LL^T = \begin{bmatrix}
+\end{bmatrix}
+= LL^T = \begin{bmatrix}
  l_{11} & 0 \\
   l_{21} & l_{22} \\
 \end{bmatrix}\begin{bmatrix}
@@ -443,7 +453,7 @@ We may then wish to keep the covariance matrix in its Cholesky decomposed form, 
 %	l_{21}^2 + l_{22}^2 &= \sigma_2^2 \textrm{, so}\\
 	l_{22} &= \sqrt{\sigma_2^2 - \sigma_2\rho} = \sqrt{\exp(2\theta_2)-\exp(\theta_2)\tanh(\theta_3)}
 \end{align}
-which is then a valid parameterisation for the Cholesky decomposed form  (the higher-dimensional version of this parameterisation of $L$ based on $\Sigma$ corresponds with the Cholesky-Banachiewicz algorithm for the Cholesky decomposition). If we keep the covariance matrix in this triangular form, we can see that the quadratic form can be calculated in an efficient manner:
+which is then a valid parameterisation for the Cholesky decomposed form for a $2\times 2$ positive definite matrix\footnote{To extend this parameterisation for higher dimensions, see the  Cholesky-Banachiewicz algorithm for the Cholesky decomposition}. If we keep the covariance matrix in this triangular form, we can see that the quadratic form can be calculated in an efficient manner:
 
 (based on the PyTorch code for the multivariate normal PDF)
 \begin{align}
