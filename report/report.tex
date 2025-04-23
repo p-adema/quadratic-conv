@@ -49,6 +49,7 @@ Science Park 900 \\
 
 \usepackage[shortlabels]{enumitem}
 \usepackage{graphicx}
+
 \usepackage{hyperref}
 \usepackage{amsmath}
 \usepackage{amssymb}
@@ -60,6 +61,9 @@ Science Park 900 \\
 \usepackage{xcolor}
 \def\comment#1{\color{red}#1\color{black}}
 \usepackage{bbold}
+\DeclareMathOperator{\boxclose}{\vcenter{\hbox{$\blacksquare$}}}
+\DeclareMathOperator{\boxopen}{\Box}
+
 
 \begin{document}
 \pagestyle{empty}
@@ -201,11 +205,11 @@ we could instead use a field $L=(\mathcal{F}, \oplus, \otimes)$ and write a simi
 	(F ~\textcircled{$*$}_L\; G)[x] &=\bigoplus_{y\in \mathcal{I}} F[x-y] \otimes G[y] \label{eq:semifield-conv}
 \end{align}
 \noindent
-Performing this operation does not, strictly speaking, require any of the above field axioms to hold for $\oplus$ or $\otimes$: the only relevant restriction would be that of the types being $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$ (while using gradient descent would also require both operators to be differentiable). However, it is generally useful for the reduction operator $\oplus$ to be both associative and commutative, as this makes the order of elements in the input irrelevant, promoting the stability of the result and allowing efficient parallel implementation of the reduction \cite{ppad}. Furthermore, most of the field axioms hold regardless for most operators we wish to use for $\oplus$ and $\otimes$. As such, the only constraint that we will relax will be that an additive inverse always exists, resulting in a semifield \cite{bellaardaxiomatic}:
-\begin{align}
-	\textrm{A semifield is a field,}\nonumber \\ \textrm{except an additive ($\oplus$) inverse (Eq. \ref{eq:additive-inverse}) does }& \textrm{not necessarily exist}\nonumber
-\end{align}
-\noindent
+Performing this operation does not, strictly speaking, require any of the above field axioms to hold for $\oplus$ or $\otimes$: the only relevant restriction would be that of the types being $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Implementing this operation for a CNN would further require both operators to be differentiable, and for $\mathbb{0}$ to exist (to deal with border effects in a convolution). However, it is generally also useful for the reduction operator $\oplus$ to be both associative and commutative, as this makes the order of elements in the input irrelevant, promoting the stability of the result and allowing efficient parallel implementation of the reduction \cite{ppad}. Furthermore, most of the field axioms hold regardless for most operators we wish to use for $\oplus$ and $\otimes$. As such, we will use a semifield \cite{bellaardaxiomatic}:\\
+\textbf{
+A semifield is a field, except an additive ($\oplus$) inverse (Eq. \ref{eq:additive-inverse}) does not necessarily exist.
+}
+
 We can then define the operator $\textcircled{$*$}_L$ for the following sections (identically to Eq. \ref{eq:semifield-conv}) as the semifield convolutional operator for any semifield $L$.
 
 \section{Semifields from mathematical morphology}
@@ -253,23 +257,38 @@ Using similar logic as above, we can show that, in the corresponding tropical mi
 	&= (F \boxminus G)[x]
 \end{align}
 
-\section{Other relevant mathematical morphology}
-\comment{Work in progress}
+\section{Further relevant mathematical morphology}
 
-Besides the common adjoint $(\boxplus,\; \boxminus)$ using $+$ and $-$ as the operators weighing every point, one can also define an adjoint that uses multiplication and division. This alternate adjoint on $\mathbb{R}_+$ then has the dilation $\dot \boxplus$, defined as \cite{heijmans1996morphological}:
+
+
+Besides the common adjoint $(\boxplus,\; \boxminus)$ using $+$ and $-$ as the operators weighing each point, one can also define an adjoint that uses multiplication and division. This alternate adjoint on $\mathbb{R}_+$ then has the dilation $\dot \boxplus$, defined as \cite{heijmans1996morphological}:
 \begin{align}
 	(F~ \dot\boxplus~ G)[x] &= \bigvee_{y\in \mathcal{I}}F[x-y]G[y]
 \end{align}
-However, it can be shown that that this adjoint is equivalent (anamorphic) to the common adjoint $(\boxplus,\; \boxminus)$ using the transformation $t(x)=e^x$ and its inverse $t^{-1}(x)=\log(x)$. As such, using $\dot \boxplus$ would not result in a more expressive convolution, while complicating implementation with the requirement of $\mathbb{R}_+$.
+However, it can be shown that this adjoint is equivalent (anamorphic) to the common adjoint $(\boxplus,\; \boxminus)$ using the transformation $t(x)=e^x$ and its inverse $t^{-1}(x)=\log(x)$. As such, using $\dot \boxplus$ would not result in a more expressive convolution while complicating implementation with the requirement of $\mathbb{R}_+$.
 
-Two other concepts from mathematical morphology that do increase expressivity are the concepts of openings and closings. Here, an opening is an operator using an adjoint, where the input is first eroded and then dilated with the same structuring element $G$. The relevant characteristic of an opening, is that the result is always $\leq$ the input $F$. As such, for $(\boxplus, \boxminus)$ we can write:
+Two other concepts from mathematical morphology that do increase expressivity are the concepts of openings and closings \cite{heijmans1996morphological, gonzalez2017}. Here, an opening is an operator using an adjoint, where the input is first eroded and then dilated with the same structuring element $G$. Notably, an opening is anti-extensive (decreasing), meaning that for $(\boxplus,\; \boxminus)$ we can write the opening $\boxopen$:
 \begin{align}
-	\textrm{An opening is anti-extensive (decreasing): }&(F\;\boxminus\; G)\;\boxplus\;G \leq F
+	\forall x\in\mathcal{I}~~(F ~\boxopen~ G)[x] &= ((F\;\boxminus\; G)\;\boxplus\;G)[x] \leq F[x]
 \intertext{
-The operator dual to an opening, is the closing using the same adjoint: here, a closing refers to first performing a dilation, and then performing the adjoining erosion with the same structuring element $G$. The result of a closing is also dual to the result of an opening, being $\geq$ than the input $F$:
+The operator dual to an opening is the closing using the same adjoint: here, a closing refers to first performing a dilation, and then performing the adjoining erosion with the same structuring element $G$. Notably, a closing is extensive (increasing), meaning that for $(\boxplus,\; \boxminus)$ we can write the closing $\boxclose$:
 }
-	\textrm{A closing is extensive (increasing): }&(F\;\boxplus\; G)\;\boxminus\;G \geq F
+	\forall x\in\mathcal{I}~~(F ~\boxclose~ G)[x] &= ((F\;\boxplus\; G)\;\boxminus\;G)[x] \geq F[x]
 \end{align}
+One of the possible advantages of using closing and opening over only dilation or erosion is that opening and closing both produce results with contours similar to their inputs \cite{gonzalez2017}. Illustrating the effects of opening and closing with a simple diagonal kernel in Figure \ref{fig:closing-illust}, we can see that the results of the closing have a higher value (due to the extensivity of $\boxclose$), but the shapes are less distorted by the shape of the kernel $G$ when compared with the results of the dilation. 
+
+This property, when combined with the extensivity of $\boxclose$, suggests it can also be used in the place of a dilation within the context of max-pooling for CNNs. As such, we will later apply the closing $\boxclose$ in that context, implemented as not a single semifield convolution \textcircled{$*$}, but a pair in $T_+$ and $T_-$ respectively.
+
+%In conclusion, we can find two candidates for inclusion in CNNs within the field of mathematical morphology: firstly, the dilation $\boxplus$, and secondly, the closing $\boxclose$, both to be used as a replacement for a max-pooling layer and implemented as (a pair of) semifield convolutions \textcircled{$*$} within tropical semifields.
+
+
+\begin{figure}[hb!]
+	\center
+  \includegraphics[width=\textwidth]{figures/closing.png}
+  \caption{Illustration of the effects of opening and closing, where warmer (red) colors  indicate higher values, and colder (blue) colors  indicate lower values.}
+  \label{fig:closing-illust}
+\end{figure}
+
 \section{Variations on the convolution in CNNs}
 The four parameters of a convolution: stride, padding, dilation, groups. \comment{\ldots\ldots}
 \section{Other nonlinear fields}
