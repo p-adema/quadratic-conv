@@ -122,6 +122,7 @@ class Trainer(nn.Module):
         return_models: bool = False,
         epoch_callback: Callable[[Self, float], None] | None = None,
         description: str | None = None,
+        progress_bar: bool = True,
         **init_kwargs,
     ) -> pl.DataFrame | tuple[pl.DataFrame, list[Self]]:
         run_scores = []
@@ -132,6 +133,7 @@ class Trainer(nn.Module):
             unit="run",
             desc=f"{pool_fn}:{init}" if description is None else description,
             total=count,
+            disable=not progress_bar,
         )
         imgs, labels, test_imgs, test_labels = data.as_cuda(except_y_test=True)
         models = []

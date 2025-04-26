@@ -5,8 +5,9 @@ import torch
 
 sys.path.extend(".")
 
+from pytorch_semifield_conv import TropicalConv2D
+
 from src import load_data
-from src.convolutions import TropicalConv2D
 
 
 def try_tropical_conv(kernels: torch.Tensor | list, num_img: int = 0):

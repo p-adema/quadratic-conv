@@ -29,7 +29,7 @@ class LearnedSpectral2D(nn.Module):
             nn.init.trunc_normal_(variances, mean=2.0, a=0.1, b=4.0)
         elif init["var"] == "skewed":
             nn.init.uniform_(variances[..., 0], 0.1, 2.0)
-            nn.init.uniform_(variances[..., 0], 4.0, 7.0)
+            nn.init.uniform_(variances[..., 1], 4.0, 7.0)
         else:
             raise ValueError(f"Invalid {init['var']=}")
 
@@ -96,7 +96,7 @@ class LearnedCholesky2D(nn.Module):
             nn.init.trunc_normal_(variances, mean=2.0, a=0.1, b=4.0)
         elif init["var"] == "skewed":
             nn.init.uniform_(variances[..., 0], 0.1, 2.0)
-            nn.init.uniform_(variances[..., 0], 4.0, 7.0)
+            nn.init.uniform_(variances[..., 1], 4.0, 7.0)
         else:
             raise ValueError(f"Invalid {init['var']=}")
 

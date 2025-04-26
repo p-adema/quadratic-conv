@@ -8,9 +8,9 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 import polars as pl
 import torch
+from pytorch_semifield_conv import BroadcastSemifield, GenericConv2D, SelectSemifield
 from torch import nn
 
-from src.convolutions import BroadcastSemifield, GenericConv2D, SelectSemifield
 from src.kernels import QuadraticKernelIso2D, QuadraticKernelSpectral2D
 
 from ..load_data import Dataset
