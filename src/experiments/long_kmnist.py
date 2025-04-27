@@ -55,4 +55,4 @@ results = {
 }
 
 
-pl.DataFrame(results).write_parquet("data/long_kmnist.pq")
+pl.DataFrame(results).write_parquet(".data/long_kmnist.pq")

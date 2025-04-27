@@ -26,7 +26,7 @@ res = {
     )
 }
 
-pl.DataFrame(res).write_parquet("data/thierry_long.pq")
+pl.DataFrame(res).write_parquet(".data/thierry_long.pq")
 
 res = {}
 
@@ -52,4 +52,4 @@ for size in tqdm.tqdm((3, 5, 7), desc="Aniso sizes", unit="trial"):
     )
 
 
-pl.DataFrame(res).write_parquet("data/thierry_extend.pq")
+pl.DataFrame(res).write_parquet(".data/thierry_extend.pq")

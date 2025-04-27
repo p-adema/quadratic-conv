@@ -4,7 +4,7 @@ import math
 import uuid
 import warnings
 from collections.abc import Callable
-from typing import Literal, NamedTuple
+from typing import NamedTuple
 
 import numba
 import numpy as np
@@ -25,7 +25,6 @@ class SelectSemifield(NamedTuple):
     d_times_d_img: Callable[[float, float], float]
     d_times_d_kernel: Callable[[float, float], float]
     neutral: float
-    kind: Literal["conv", "corr"]  # Whether the kernel should be mirrored (conv) or not
 
     @classmethod
     def tropical_max(cls) -> SelectSemifield:
@@ -35,7 +34,6 @@ class SelectSemifield(NamedTuple):
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: 1.0,
             neutral=-float("inf"),
-            kind="conv",
         )
 
     @classmethod
@@ -46,7 +44,6 @@ class SelectSemifield(NamedTuple):
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: -1.0,
             neutral=float("inf"),
-            kind="corr",
         )
 
     # The torch compiler doesn't understand the Numba compiler
@@ -85,7 +82,6 @@ class SelectSemifield(NamedTuple):
             meta=meta,
             prov_t=prov_t,
             op_id=op_id,
-            group_broadcasting=group_broadcasting,
             thread_block_size=thread_block_size,
             debug=debug,
         )
@@ -94,7 +90,6 @@ class SelectSemifield(NamedTuple):
             meta=meta,
             prov_t=prov_t,
             op_id=op_id,
-            group_broadcasting=group_broadcasting,
             thread_block_size=thread_block_size,
             debug=debug,
         )
@@ -285,12 +280,11 @@ class _ProvType(NamedTuple):
         raise ValueError
 
 
-def _compile_forwards(  # noqa: C901
+def _compile_forwards(
     semifield: _CompiledSelectSemifield,
     meta: ConvMeta,
     prov_t: _ProvType,
     op_id: str,
-    group_broadcasting: bool = False,
     thread_block_size: int = 256,
     debug: bool = False,
 ):
@@ -322,7 +316,7 @@ def _compile_forwards(  # noqa: C901
         # If we're not broadcasting, then we have a separate kernel
         # for every output channel. If we are broadcasting, we instead loop
         # around the kernels every k_os (which == krn_group_size)
-        k_o = o_c if not group_broadcasting else o_c % meta.krn_o_group_size
+        k_o = o_c if not meta.group_broadcasting else o_c % meta.krn_o_group_size
 
         # For a pooling, we have only one input channel, so group_idx is always 0
         for group_idx in range(meta.krn_cs):
@@ -340,12 +334,8 @@ def _compile_forwards(  # noqa: C901
                         continue
 
                     # Need to explicitly use seperate variable, due to compiler error
-                    if meta.mirror_kernel:
-                        k_x = meta.krn_xs - 1 - x_step
-                        k_y = meta.krn_ys - 1 - y_step
-                    else:
-                        k_x = x_step
-                        k_y = y_step
+                    k_x = meta.krn_xs - 1 - x_step if meta.mirror_kernel else x_step
+                    k_y = meta.krn_ys - 1 - y_step if meta.mirror_kernel else y_step
 
                     i_c = group_number * meta.krn_cs + group_idx
                     img_val = img[b, i_c, i_y, i_x]
@@ -378,7 +368,6 @@ def _compile_backwards(
     meta: ConvMeta,
     prov_t: _ProvType,
     op_id: str,
-    group_broadcasting: bool = False,
     thread_block_size: int = 256,
     debug: bool = False,
 ):
@@ -404,7 +393,7 @@ def _compile_backwards(
             return
 
         group_number = o_c // meta.krn_o_group_size
-        k_o = o_c if not group_broadcasting else o_c % meta.krn_o_group_size
+        k_o = o_c if not meta.group_broadcasting else o_c % meta.krn_o_group_size
 
         grad_val = gradient[b, o_c, o_y, o_x]
         k_prov_y = prov[b, o_c, o_y, o_x, 0]
@@ -429,14 +418,6 @@ def _compile_backwards(
         i_prov_c = group_number * meta.krn_cs + prov_group_idx
         i_prov_y = i_top_y + meta.dilation * y_steps
         i_prov_x = i_left_x + meta.dilation * x_steps
-        # if (
-        #     i_prov_x < 0
-        #     or i_prov_x >= shapes.img_xs
-        #     or i_prov_y < 0
-        #     or i_prov_y >= shapes.img_ys
-        # ):
-        #     # Out-of-bounds providence?
-        #     return
 
         kernel_val = kernel[k_o, prov_group_idx, k_prov_y, k_prov_x]
         img_val = img[b, i_prov_c, i_prov_y, i_prov_x]

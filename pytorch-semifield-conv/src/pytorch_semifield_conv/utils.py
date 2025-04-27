@@ -17,6 +17,7 @@ class GenericConv2D(nn.Module):
         stride: int = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
+        kind: Literal["conv", "corr"] = "conv",
     ):
         super().__init__()
         self.padding = padding
@@ -26,8 +27,17 @@ class GenericConv2D(nn.Module):
         self.conv = conv
         self.groups = groups
         self.group_broadcasting = group_broadcasting
+        self.kind = kind
 
     def forward(self, x):
+        # Since these are custom arguments, we only want to pass them if they differ
+        # from the default values (otherwise, they may be unexpected)
+        kwargs = {}
+        if self.group_broadcasting:
+            kwargs["group_broadcasting"] = True
+        if self.kind == "corr":
+            kwargs["kind"] = "corr"
+
         return self.conv(
             x,
             self.kernel(),
@@ -35,7 +45,7 @@ class GenericConv2D(nn.Module):
             padding=self.padding,
             stride=self.stride,
             groups=self.groups,
-            **({"group_broadcasting": True} if self.group_broadcasting else {}),
+            **kwargs,
         )
 
     def extra_repr(self) -> str:
@@ -49,7 +59,10 @@ class GenericConv2D(nn.Module):
         if self.groups != 1:
             res.append(f"groups={self.groups}")
         if self.group_broadcasting:
-            res.append(f"group_broadcasting={self.group_broadcasting}")
+            res.append("group_broadcasting=True")
+        if self.kind == "corr":
+            res.append("kind=corr")
+
         return ", ".join(res)
 
 

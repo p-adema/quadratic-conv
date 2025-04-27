@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.12"
 resolution-markers = [
     "sys_platform != 'darwin'",
@@ -226,7 +225,9 @@ name = "nvidia-cuda-runtime-cu12"
 version = "12.8.57"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/9d/e77ec4227e70c6006195bdf410370f2d0e5abfa2dc0d1d315cacd57c5c88/nvidia_cuda_runtime_cu12-12.8.57-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:534ccebd967b6a44292678fa5da4f00666029cb2ed07a79515ea41ef31fe3ec7", size = 965264 },
     { url = "https://files.pythonhosted.org/packages/16/f6/0e1ef31f4753a44084310ba1a7f0abaf977ccd810a604035abb43421c057/nvidia_cuda_runtime_cu12-12.8.57-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:75342e28567340b7428ce79a5d6bb6ca5ff9d07b69e7ce00d2c7b4dc23eff0be", size = 954762 },
+    { url = "https://files.pythonhosted.org/packages/16/ee/52508c74bee2a3de8d59c6fd9af4ca2f216052fa2bc916da3a6a7bb998af/nvidia_cuda_runtime_cu12-12.8.57-py3-none-win_amd64.whl", hash = "sha256:89be637e3ee967323865b85e0f147d75f9a5bd98360befa37481b02dd57af8f5", size = 944309 },
 ]
 
 [[package]]
@@ -356,8 +357,10 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "numba-cuda" },
+    { name = "nvidia-cuda-runtime-cu12", marker = "sys_platform != 'darwin'" },
     { name = "torch", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.7.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform != 'darwin'" },
+    { name = "uuid" },
 ]
 
 [package.dev-dependencies]
@@ -369,8 +372,10 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "numba-cuda", specifier = ">=0.9.0" },
+    { name = "nvidia-cuda-runtime-cu12", marker = "sys_platform != 'darwin'", specifier = ">=12.8.57" },
     { name = "torch", marker = "sys_platform != 'darwin'", specifier = ">=2.7.0", index = "https://download.pytorch.org/whl/cu128" },
     { name = "torch", marker = "sys_platform == 'darwin'", specifier = ">=2.7.0" },
+    { name = "uuid", specifier = ">=1.30" },
 ]
 
 [package.metadata.requires-dev]
@@ -520,3 +525,9 @@ sdist = { url = "https://files.pythonhosted.org/packages/f6/37/23083fcd6e3549295
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/54/b1ae86c0973cc6f0210b53d508ca3641fb6d0c56823f288d108bc7ab3cc8/typing_extensions-4.13.2-py3-none-any.whl", hash = "sha256:a439e7c04b49fec3e5d3e2beaa21755cadbbdc391694e28ccdd36ca4a1408f8c", size = 45806 },
 ]
+
+[[package]]
+name = "uuid"
+version = "1.30"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/63/f42f5aa951ebf2c8dac81f77a8edcc1c218640a2a35a03b9ff2d4aa64c3d/uuid-1.30.tar.gz", hash = "sha256:1f87cc004ac5120466f36c5beae48b4c48cc411968eed0eaecd3da82aa96193f", size = 5811 }

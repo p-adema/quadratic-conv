@@ -16,7 +16,6 @@ dependencies = [
     "seaborn>=0.13.2",
     "torch>=2.7.0",
     "torchvision>=0.22.0",
-    "uuid>=1.30",
     "pytorch-numba-extension-jit",
     "pytorch-semifield-conv",
     "tqdm>=4.67.1",
