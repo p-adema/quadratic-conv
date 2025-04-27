@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import typing
-from typing import Callable
+from collections.abc import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np

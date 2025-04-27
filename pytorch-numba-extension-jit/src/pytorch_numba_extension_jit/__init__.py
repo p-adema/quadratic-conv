@@ -1,5 +1,5 @@
-from .compile import jit, ptx_to_extension
-from .cpp_codegen import InputScalar, InputTensor, KernelParam, OutputTensor
+from .codegen import InputScalar, InputTensor, KernelParam, OutputTensor
+from .compile import jit
 
 __all__ = [
     "InputScalar",
@@ -7,5 +7,4 @@ __all__ = [
     "KernelParam",
     "OutputTensor",
     "jit",
-    "ptx_to_extension",
 ]

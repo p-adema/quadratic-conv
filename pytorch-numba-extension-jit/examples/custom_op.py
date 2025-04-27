@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-import pytorch_numba_extension_jit as ptex_jit
+import pytorch_numba_extension_jit as ptex
 import torch
 from numba import cuda
 
 
-@ptex_jit.jit(
-    "hoooo",
+@ptex.jit(
     [
-        ptex_jit.InputTensor("ree", "f32", (None, 3)),
-        ptex_jit.OutputTensor("rawr", "f32", (("ree", 0), ("ree", 1), 2)),
+        ptex.InputTensor("ree", "f32", (None, 3)),
+        ptex.OutputTensor("rawr", "f32", ("ree.size(0) + 1", "ree.shape[1]", 2)),
     ],
     n_threads="rawr",
-    compile_extension=False,
+    compile_extension=True,
+    verbose=True,
 )
 def hoo(ree, rawr):
     idx = cuda.grid(1)
@@ -29,6 +29,11 @@ out1 = hoo(a)
 print(a)
 print(out1)
 print(type(hoo))
+torch.library.opcheck(hoo, (a,))
+comp_a = torch.compile(hoo, fullgraph=True)
+print("Compiled:")
+print(comp_a(a).shape)
+print(comp_a(a))
 #
 #
 # @ptex_jit.jit(
