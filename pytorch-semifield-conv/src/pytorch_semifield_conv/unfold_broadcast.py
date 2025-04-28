@@ -18,7 +18,6 @@ class BroadcastSemifield(typing.NamedTuple):
     # (img, krn) -> img (x) krn
     multiply: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     neutral: float
-    kind: Literal["conv", "corr"]
 
     @classmethod
     def tropical_max(cls):
@@ -26,7 +25,6 @@ class BroadcastSemifield(typing.NamedTuple):
             add_reduce=lambda multiplied, dim: torch.max(multiplied, dim=dim).values,
             multiply=lambda img, krn: img + krn,
             neutral=-float("inf"),
-            kind="conv",
         )
 
     @classmethod
@@ -35,7 +33,6 @@ class BroadcastSemifield(typing.NamedTuple):
             add_reduce=lambda multiplied, dim: torch.min(multiplied, dim=dim).values,
             multiply=lambda img, krn: img - krn,
             neutral=float("inf"),
-            kind="corr",
         )
 
     @staticmethod
@@ -66,6 +63,7 @@ class BroadcastConv(nn.Module):
         dilation: int = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
+        kind: Literal["conv", "corr"] = "conv",
     ) -> torch.Tensor:
         meta = self.get_meta(
             imgs,
@@ -97,8 +95,8 @@ class BroadcastConv(nn.Module):
             meta.krn_cs * meta.krn_ys * meta.krn_xs,
             meta.out_ys * meta.out_xs,
         )
-        if self.semifield.kind == "conv":
-            # Very expensive and bad, but this is only a reference implementation
+        if kind == "conv":
+            # Very bad, but this is only a reference implementation
             kernel = kernel.flip((2, 3))
 
         weights = kernel.view(
@@ -127,9 +125,10 @@ class BroadcastConv(nn.Module):
         dilation: int = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
+        kind: Literal["conv", "corr"] = "conv",
     ) -> ConvMeta:
         if self.last_meta is not None and self.last_meta.check_matches(
-            imgs, kernel, stride, padding, dilation, groups, group_broadcasting
+            imgs, kernel, stride, padding, dilation, groups, group_broadcasting, kind
         ):
             meta = self.last_meta
         else:
@@ -144,7 +143,7 @@ class BroadcastConv(nn.Module):
                 dilation,
                 groups,
                 group_broadcasting,
-                kind=self.semifield.kind,
+                kind,
             )
             self.last_meta = meta
         return meta

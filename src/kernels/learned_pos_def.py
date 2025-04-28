@@ -57,7 +57,7 @@ class LearnedSpectral2D(nn.Module):
         )
         # Along the diagonal, we want 1/ std^2
         inv_diag = torch.diag_embed(self.log_std.mul(-2).exp())
-        return torch.einsum("oivd,oidD,oiVD->oivV", rot, inv_diag, rot)
+        return torch.einsum("oivd,oidD,oiVD->oivV", rot, inv_diag, rot).contiguous()
 
     def cov(self):
         return torch.linalg.inv(self.inverse_cov())

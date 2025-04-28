@@ -22,6 +22,7 @@ class LeNet(Trainer):
         pool_fn: Callable[[int, dict], nn.Module] | str,
         conv_kernel_size: int = 5,
         linear_units: int = 500,
+        conv_channels: tuple[int, int] = (20, 50),
         init: dict[str, str | float] | None = None,
         init_seed: int | None = None,
         debug: bool = False,
@@ -34,12 +35,12 @@ class LeNet(Trainer):
             pool_fn = POOLING_FUNCTIONS[pool_fn]
 
         modules = [
-            nn.Conv2d(img_channels, 20, conv_kernel_size),
+            nn.Conv2d(img_channels, conv_channels[0], conv_kernel_size),
             nn.ReLU(),
-            pool_fn(20, init),
-            nn.Conv2d(20, 50, conv_kernel_size),
+            pool_fn(conv_channels[0], init),
+            nn.Conv2d(conv_channels[0], conv_channels[1], conv_kernel_size),
             nn.ReLU(),
-            pool_fn(50, init),
+            pool_fn(conv_channels[1], init),
             nn.Flatten(),
             nn.LazyLinear(linear_units),
             nn.ReLU(),

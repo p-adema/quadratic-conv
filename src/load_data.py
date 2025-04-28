@@ -118,8 +118,8 @@ def _mnist_like(
     module, has_channels: bool = False, img_channels: int = 1, num_classes: int = 10
 ):
     def get():
-        train = module(root="./data", train=True, download=True)
-        test = module(root="./data", train=False, download=True)
+        train = module(root="./.data", train=True, download=True)
+        test = module(root="./.data", train=False, download=True)
         return _mnist_like_normalisation(
             train,
             test,

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import math
-import uuid
 import warnings
 from collections.abc import Callable
-from typing import NamedTuple
+from functools import lru_cache
+from typing import Literal, NamedTuple
 
 import numba
 import numpy as np
+import pytorch_numba_extension_jit as ptex
 import torch
 from numba import cuda
 from numba.cuda.dispatcher import CUDADispatcher
@@ -25,6 +26,7 @@ class SelectSemifield(NamedTuple):
     d_times_d_img: Callable[[float, float], float]
     d_times_d_kernel: Callable[[float, float], float]
     neutral: float
+    cache_name: str = None  # Cache identifier: distinct for different operators
 
     @classmethod
     def tropical_max(cls) -> SelectSemifield:
@@ -34,6 +36,7 @@ class SelectSemifield(NamedTuple):
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: 1.0,
             neutral=-float("inf"),
+            cache_name="_tropical_max",
         )
 
     @classmethod
@@ -44,63 +47,43 @@ class SelectSemifield(NamedTuple):
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: -1.0,
             neutral=float("inf"),
+            cache_name="_tropical_max",
         )
 
     # The torch compiler doesn't understand the Numba compiler
     @torch.compiler.disable
+    @lru_cache  # noqa: B019
     def compile(
         self,
-        example_imgs: torch.Tensor,
-        example_kernels: torch.Tensor,
-        stride: int = 1,
-        padding: int = 0,
-        dilation: int = 1,
-        groups: int = 1,
-        group_broadcasting: bool = False,
+        meta: ConvMeta,
         thread_block_size: int = 256,
         debug: bool = False,
-    ) -> tuple[
-        ConvMeta,
-        Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]],
-    ]:
-        meta = ConvMeta.infer(
-            example_imgs,
-            example_kernels,
-            stride,
-            padding,
-            dilation,
-            groups,
-            group_broadcasting,
-            kind=self.kind,
-        )
+        to_extension: bool = True,
+    ) -> Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]:
         prov_t = _ProvType.smallest_required(meta)
-        op_id = uuid.uuid4().hex
         cmp_semi = _CompiledSelectSemifield.compile(self)
 
         forwards = _compile_forwards(
             semifield=cmp_semi,
             meta=meta,
             prov_t=prov_t,
-            op_id=op_id,
             thread_block_size=thread_block_size,
             debug=debug,
+            cache_name="_temporary" if self.cache_name is None else self.cache_name,
+            to_extension=to_extension,
         )
         backwards, backwards_setup = _compile_backwards(
             semifield=cmp_semi,
             meta=meta,
             prov_t=prov_t,
-            op_id=op_id,
             thread_block_size=thread_block_size,
             debug=debug,
+            cache_name="_temporary" if self.cache_name is None else self.cache_name,
+            to_extension=to_extension,
         )
         forwards.register_autograd(backwards, setup_context=backwards_setup)
 
-        if debug:
-            _debug_tests(forwards, example_imgs, example_kernels, meta)
-        # Nothing should capture these, but delete anyway for safety's sake
-        del example_imgs, example_kernels
-
-        return meta, forwards
+        return forwards
 
     def dynamic(self, max_compilations: int = 3) -> SelectConv:
         """
@@ -118,6 +101,40 @@ class SelectSemifield(NamedTuple):
         Can be fully traced
         """
         return SelectConvFixedLazy(self)
+
+    def __hash__(self):
+        if self.cache_name is not None:
+            return hash(self.cache_name)
+
+        return hash(
+            (
+                self.add_select,
+                self.times,
+                self.d_times_d_img,
+                self.d_times_d_kernel,
+                self.neutral,
+            )
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, SelectSemifield):
+            return False
+        if self.cache_name is not None:
+            return self.cache_name == other.cache_name
+
+        return (
+            self.add_select,
+            self.times,
+            self.d_times_d_img,
+            self.d_times_d_kernel,
+            self.neutral,
+        ) == (
+            other.add_select,
+            other.times,
+            other.d_times_d_img,
+            other.d_times_d_kernel,
+            other.neutral,
+        )
 
 
 class SelectConv(nn.Module):
@@ -137,11 +154,12 @@ class SelectConv(nn.Module):
         groups: int = 1,
         group_broadcasting: bool = False,
         thread_block_size: int = 256,
+        kind: Literal["conv", "corr"] = "conv",
         debug: bool = False,
     ):
         for i, (meta, maybe_fwd) in enumerate(self.compilations):
             if meta.check_matches(
-                img, kernel, stride, padding, dilation, groups, group_broadcasting
+                img, kernel, stride, padding, dilation, groups, group_broadcasting, kind
             ):
                 meta_idx = i
                 fwd = maybe_fwd
@@ -152,15 +170,11 @@ class SelectConv(nn.Module):
                     f"Need to recompile, but at {self.max_compilations}\n"
                     f"{self.compilations=}"
                 )
-
-            new_meta, fwd = self.semifield.compile(
-                img,
-                kernel,
-                stride=stride,
-                padding=padding,
-                dilation=dilation,
-                groups=groups,
-                group_broadcasting=group_broadcasting,
+            new_meta = ConvMeta.infer(
+                img, kernel, stride, padding, dilation, groups, group_broadcasting, kind
+            )
+            fwd = self.semifield.compile(
+                new_meta,
                 thread_block_size=thread_block_size,
                 debug=debug,
             )
@@ -178,7 +192,7 @@ class SelectConv(nn.Module):
 
 
 class SelectConvFixed(nn.Module):
-    op: Callable[[torch.Tensor, torch.Tensor], torch.Tensor] | None
+    op: Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]] | None
     meta: ConvMeta | None
     semifield: SelectSemifield
 
@@ -220,17 +234,15 @@ class SelectConvFixedLazy(LazyModuleMixin, SelectConvFixed):
         groups: int = 1,
         group_broadcasting: bool = False,
         thread_block_size: int = 256,
+        kind: Literal["conv", "corr"] = "conv",
         debug: bool = False,
     ):
         assert not self.done
-        self.meta, self.op = self.semifield.compile(
-            imgs,
-            kernel,
-            stride,
-            padding,
-            dilation,
-            groups,
-            group_broadcasting,
+        self.meta = ConvMeta.infer(
+            imgs, kernel, stride, padding, dilation, groups, group_broadcasting, kind
+        )
+        self.op = self.semifield.compile(
+            self.meta,
             thread_block_size,
             debug,
         )
@@ -250,10 +262,12 @@ class _CompiledSelectSemifield(NamedTuple):
     @classmethod
     def compile(cls, semifield: SelectSemifield) -> _CompiledSelectSemifield:
         return _CompiledSelectSemifield(
-            cuda.jit(semifield.add_select, device=True, inline="always"),
-            cuda.jit(semifield.times, device=True, inline="always"),
-            cuda.jit(semifield.d_times_d_img, device=True, inline="always"),
-            cuda.jit(semifield.d_times_d_kernel, device=True, inline="always"),
+            cuda.jit(semifield.add_select, device=True, inline="always", cache=True),
+            cuda.jit(semifield.times, device=True, inline="always", cache=True),
+            cuda.jit(semifield.d_times_d_img, device=True, inline="always", cache=True),
+            cuda.jit(
+                semifield.d_times_d_kernel, device=True, inline="always", cache=True
+            ),
             semifield.neutral,
         )
 
@@ -284,20 +298,42 @@ def _compile_forwards(
     semifield: _CompiledSelectSemifield,
     meta: ConvMeta,
     prov_t: _ProvType,
-    op_id: str,
     thread_block_size: int = 256,
     debug: bool = False,
+    cache_name: str = "",
+    to_extension: bool = True,
 ):
     # === Forwards CUDA-side ===
-    @cuda.jit(
-        "void(float32[:, :, :, :],"  # img: [Batch, Channel, Img-Y, Img-X]
-        " float32[:, :, :, :],"  # kernel: [Out-chan, Group-chan, Kernel-Y, Kernel-X]
-        " float32[:, :, :, :],"  # out_img: [Batch, Out-chan, Out-Y, Out-X]
-        # out_prov: [B, O-chan, O-Y, O-X, 2 / 3 (y, x[, gi])]
-        f" {prov_t.typename}[:, :, :, :, :])",
-        debug=debug,
-        cache=True,
-        opt=not debug,
+    @ptex.jit(
+        [
+            ptex.InputTensor(
+                "img", "f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)
+            ),
+            ptex.InputTensor(
+                "kernel", "f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)
+            ),
+            ptex.OutputTensor(
+                "out_img",
+                "f32",
+                ("img.shape[0]", meta.out_cs, meta.out_ys, meta.out_xs),
+            ),
+            ptex.OutputTensor(
+                "out_prov",
+                prov_t.torch_type(),
+                (
+                    "img.shape[0]",
+                    meta.out_cs,
+                    meta.out_ys,
+                    meta.out_xs,
+                    3 if meta.krn_cs > 1 else 2,
+                ),
+            ),
+        ],
+        n_threads="out_img",
+        compile_extension=to_extension,
+        verbose=debug,
+        threads_per_block=thread_block_size,
+        cache_id=f"select_{cache_name}_{meta.cache_id()}",
     )
     def forwards(img, kernel, out_img, out_prov):
         rem, o_x = divmod(cuda.grid(1), meta.out_xs)
@@ -334,8 +370,15 @@ def _compile_forwards(
                         continue
 
                     # Need to explicitly use seperate variable, due to compiler error
-                    k_x = meta.krn_xs - 1 - x_step if meta.mirror_kernel else x_step
-                    k_y = meta.krn_ys - 1 - y_step if meta.mirror_kernel else y_step
+
+                    if meta.mirror_kernel:
+                        k_x = meta.krn_xs - 1 - x_step
+                        k_y = meta.krn_ys - 1 - y_step
+                    else:
+                        k_x = x_step
+                        k_y = y_step
+                    # k_x = meta.krn_xs - 1 - x_step if meta.mirror_kernel else x_step
+                    # k_y = meta.krn_ys - 1 - y_step if meta.mirror_kernel else y_step
 
                     i_c = group_number * meta.krn_cs + group_idx
                     img_val = img[b, i_c, i_y, i_x]
@@ -356,34 +399,65 @@ def _compile_forwards(
             # out_prov is only size 3 if we require an index within the group
             out_prov[b, o_c, o_y, o_x, 2] = prov_group_idx
 
-    fowards_bindings = _torch_bindings_forwards(
-        forwards, meta, prov_t, op_id, thread_block_size, debug
-    )
-
-    return fowards_bindings
+    return forwards
 
 
 def _compile_backwards(
     semifield: _CompiledSelectSemifield,
     meta: ConvMeta,
     prov_t: _ProvType,
-    op_id: str,
     thread_block_size: int = 256,
     debug: bool = False,
+    cache_name: str = "",
+    to_extension: bool = True,
 ):
     # === Backwards CUDA-side ===
     # noinspection PyArgumentList
-    @cuda.jit(
-        "void(float32[:, :, :, :],"  # img: [Batch, Channel, Img-Y, Img-X]
-        " float32[:, :, :, :],"  # kernel: [Out-chan, Group-chan, Kernel_Y, Kernel_X]
-        " float32[:, :, :, :],"  # gradient: [Batch, Out-chan, Out-Y, Out-X]
-        # prov: [B, O-chan, O-Y, O-X, 2 / 3 (y, x[, gi])]
-        f" {prov_t.typename}[:, :, :, :, :],"
-        " float32[:, :, :, :],"  # out_img_grad: [Batch, Channel, Img-Y, Img-X]
-        " float32[:, :, :, :])",  # out_kernel_grad: [Out-chan, Group-chan, K-Y, K-X]
-        debug=debug,
-        opt=not debug,
-        cache=True,
+    # @cuda.jit(
+    #     "void(float32[:, :, :, :],"  # img: [Batch, Channel, Img-Y, Img-X]
+    #     " float32[:, :, :, :],"  # kernel: [Out-chan, Group-chan, Kernel_Y, Kernel_X]
+    #     " float32[:, :, :, :],"  # gradient: [Batch, Out-chan, Out-Y, Out-X]
+    #     # prov: [B, O-chan, O-Y, O-X, 2 / 3 (y, x[, gi])]
+    #     f" {prov_t.typename}[:, :, :, :, :],"
+    #     " float32[:, :, :, :],"  # out_img_grad: [Batch, Channel, Img-Y, Img-X]
+    #     " float32[:, :, :, :])",  # out_kernel_grad: [Out-chan, Group-chan, K-Y, K-X]
+    #     debug=debug,
+    #     opt=not debug,
+    #     cache=True,
+    # )
+
+    @ptex.jit(
+        [
+            ptex.InputTensor(
+                "img", "f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)
+            ),
+            ptex.InputTensor(
+                "kernel", "f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)
+            ),
+            ptex.InputTensor(
+                "gradient",
+                "f32",
+                ("img.shape[0]", meta.out_cs, meta.out_ys, meta.out_xs),
+            ),
+            ptex.InputTensor(
+                "prov",
+                prov_t.torch_type(),
+                (
+                    "img.shape[0]",
+                    meta.out_cs,
+                    meta.out_ys,
+                    meta.out_xs,
+                    3 if meta.krn_cs > 1 else 2,
+                ),
+            ),
+            ptex.OutputTensor("out_img_grad", "f32", "img", init=0),
+            ptex.OutputTensor("out_kernel_grad", "f32", "kernel", init=0),
+        ],
+        n_threads="gradient",
+        compile_extension=to_extension,
+        verbose=debug,
+        threads_per_block=thread_block_size,
+        cache_id=f"select_{cache_name}_{meta.cache_id()}",
     )
     def backwards(img, kernel, gradient, prov, out_img_grad, out_kernel_grad):
         rem, o_x = divmod(cuda.grid(1), meta.out_xs)
@@ -431,27 +505,29 @@ def _compile_backwards(
         )
 
     # === Backwards torch-side ===
-    @torch.library.custom_op(
-        f"semifields::select_bwd_{op_id}", mutates_args={}, device_types="cuda"
-    )
-    def backwards_wrapper(
-        img: torch.Tensor,
-        kernel: torch.Tensor,
-        gradient: torch.Tensor,
-        prov: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        img, kernel = img.detach(), kernel.detach()
-        out_img_grad = torch.zeros_like(img)
-        out_kernel_grad = torch.zeros_like(kernel)
-        n_blocks = math.ceil(gradient.nelement() / thread_block_size)
-        backwards[n_blocks, thread_block_size](
-            img, kernel, gradient, prov, out_img_grad, out_kernel_grad
-        )
-        return out_img_grad, out_kernel_grad
-
-    @backwards_wrapper.register_fake
-    def _(img, kernel, _gradient, _prov):
-        return torch.empty_like(img), torch.empty_like(kernel)
+    # @torch.library.custom_op(
+    #     f"semifields::select_bwd_{cache_name}_{uuid.uuid4().hex}",
+    #     mutates_args={},
+    #     device_types="cuda",
+    # )
+    # def backwards_wrapper(
+    #     img: torch.Tensor,
+    #     kernel: torch.Tensor,
+    #     gradient: torch.Tensor,
+    #     prov: torch.Tensor,
+    # ) -> tuple[torch.Tensor, torch.Tensor]:
+    #     img, kernel = img.detach(), kernel.detach()
+    #     out_img_grad = torch.zeros_like(img)
+    #     out_kernel_grad = torch.zeros_like(kernel)
+    #     n_blocks = math.ceil(gradient.nelement() / thread_block_size)
+    #     backwards[n_blocks, thread_block_size](
+    #         img, kernel, gradient, prov, out_img_grad, out_kernel_grad
+    #     )
+    #     return out_img_grad, out_kernel_grad
+    #
+    # @backwards_wrapper.register_fake
+    # def _(img, kernel, _gradient, _prov):
+    #     return torch.empty_like(img), torch.empty_like(kernel)
 
     def backwards_setup(ctx, inputs, output):
         img, kernel = inputs
@@ -461,7 +537,9 @@ def _compile_backwards(
         ctx.prov = prov
 
     def backwards_entry(ctx, grad_output, _grad_prov):
-        return backwards_wrapper(ctx.img, ctx.kernel, grad_output, ctx.prov)
+        # return backwards_wrapper(ctx.img, ctx.kernel, grad_output, ctx.prov)
+        g_img, g_kern = backwards(ctx.img, ctx.kernel, grad_output, ctx.prov)
+        return g_img, g_kern
 
     return backwards_entry, backwards_setup
 

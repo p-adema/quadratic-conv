@@ -7,16 +7,16 @@ import torch
 
 
 class AsDType:
-    torch_to_at: typing.Final = {
-        torch.float32: "at::kFloat",
-        torch.uint8: "at::kUInt8",
-        torch.uint16: "at::kUInt16",
-        torch.uint32: "at::kUInt32",
-        torch.uint64: "at::kUInt64",
-        torch.int8: "at::kInt8",
-        torch.int16: "at::kInt16",
-        torch.int32: "at::kInt32",
-        torch.int64: "at::kInt64",
+    torch_to_tcpp: typing.Final = {
+        torch.float32: "torch::kFloat32",
+        torch.uint8: "torch::kUInt8",
+        torch.uint16: "torch::kUInt16",
+        torch.uint32: "torch::kUInt32",
+        torch.uint64: "torch::kUInt64",
+        torch.int8: "torch::kInt8",
+        torch.int16: "torch::kInt16",
+        torch.int32: "torch::kInt32",
+        torch.int64: "torch::kInt64",
     }
     torch_to_c: typing.Final = {
         torch.float32: "float",
@@ -64,7 +64,7 @@ class AsDType:
     }
     any_to_torch: typing.Final = (
         {k: k for k in torch_to_c}
-        | {v: k for k, v in torch_to_at.items()}
+        | {v: k for k, v in torch_to_tcpp.items()}
         | {v: k for k, v in torch_to_c.items()}
         | {v: k for k, v in torch_to_rs.items()}
         | {v.removesuffix("_t"): k for k, v in torch_to_c.items()}
@@ -83,9 +83,9 @@ class AsDType:
         except TypeError:
             return torch.iinfo(self.dtype).bits // 8
 
-    def as_aten(self):
-        if self.dtype in self.torch_to_at:
-            return self.torch_to_at[self.dtype]
+    def as_tcpp(self):
+        if self.dtype in self.torch_to_tcpp:
+            return self.torch_to_tcpp[self.dtype]
         raise ValueError(f"Unsupported dtype {self.dtype}")
 
     def as_c(self):

@@ -10,6 +10,27 @@ import torch
 
 from .as_dtype import AsDType
 
+# Replace a.shape[2] with a.size(2)
+_cpp_replace_shape = re.compile(r"\w+\.shape\[([^]]+)]")
+
+
+def _replace_shape_size_func(match: re.Match[str]):
+    name, right = match.group().split(".shape[")
+
+    return f"{name}.size({right[:-1]})"
+
+
+def _to_size(s: str | int) -> str:
+    if isinstance(s, int):
+        return str(s)
+    return _cpp_replace_shape.sub(_replace_shape_size_func, s)
+
+
+def _to_shape_param(s: str | int, i: int, tensor_ndims):
+    if s in tensor_ndims:
+        return f"{s}.size({i})"
+    return _to_size(s)
+
 
 class InputTensor(NamedTuple):
     name: str
@@ -23,19 +44,21 @@ class InputTensor(NamedTuple):
         asserts: list[str],
         declarations: list[str],
         args: list[str],
-        _tensor_names: set[str],
+        tensor_ndims: dict[str, int],
         *,
         lang: Literal["cpp", "py"],
     ):
+        shape = self.sizes(tensor_ndims)
+        tensor_ndims[self.name] = len(shape)
         if lang == "cpp":
             parameters.append(
                 f"{'' if self.mutable else 'const '}at::Tensor &{self.name}"
             )
             asserts.extend(
                 (
-                    f"{self.name}.dtype() == {AsDType(self.dtype).as_aten()}",
-                    f"{self.name}.is_contiguous()",
-                    f"{self.name}.sizes().size() == {len(self.shape)}",
+                    f"{self.name}.dtype() == {AsDType(self.dtype).as_tcpp()}",
+                    # f"{self.name}.is_contiguous()",
+                    f"{self.name}.sizes().size() == {len(shape)}",
                     f"{self.name}.device().type() == at::DeviceType::CUDA",
                 )
             )
@@ -44,33 +67,41 @@ class InputTensor(NamedTuple):
             asserts.extend(
                 (
                     f"{self.name}.dtype == {AsDType(self.dtype).dtype}",
-                    f"{self.name}.is_contiguous()",
-                    f"{self.name}.ndim == {len(self.shape)}",
+                    # f"{self.name}.is_contiguous()",
+                    f"{self.name}.ndim == {len(shape)}",
                     f"{self.name}.is_cuda",
                 )
             )
-        for i, dim in enumerate(self.shape):
+        for i, dim in enumerate(shape):
             if dim is None:
                 continue
-            asserts.append(f"{self.name}.size({i}) == {dim}")
+            asserts.append(
+                f"{self.name}.size({i}) == {_to_shape_param(dim, i, tensor_ndims)}"
+            )
 
-        _add_tensor_args(self, args, declarations, lang)
+        _add_tensor_args(self, args, declarations, len(shape), lang)
 
+    def sizes(self, tensor_ndims) -> tuple[str | None, ...]:
+        if isinstance(self.shape, str):
+            if self.shape not in tensor_ndims:
+                msg = (
+                    f"Asked for {self.name} to be like {self.shape},"
+                    f" but {self.shape} is not (yet) defined ({tensor_ndims} are)"
+                )
+                raise ValueError(msg)
+            return tuple(
+                f"{self.shape}.size({i})" for i in range(tensor_ndims[self.shape])
+            )
 
-# Replace a.shape[2] with a.size(2)
-_cpp_replace_shape = re.compile(r"\w+\.shape\[([^]]+)]")
-
-
-def _replace_shape_size(match: re.Match[str]):
-    name, right = match.group().split(".shape[")
-
-    return f"{name}.size({right[:-1]})"
+        assert len(self.shape) > 0
+        return self.shape
 
 
 class OutputTensor(NamedTuple):
     name: str
     dtype: torch.dtype | np.dtype | str
     shape: tuple[int | str, ...] | str
+    init: int | float | None = None
 
     def prepare_args(
         self,
@@ -78,42 +109,70 @@ class OutputTensor(NamedTuple):
         _asserts: list[str],
         declarations: list[str],
         args: list[str],
-        tensor_names: set[str],
+        tensor_ndims: dict[str, int],
         *,
         lang: Literal["cpp", "py"],
     ):
-        sizes = self.sizes(lang, tensor_names)
+        sizes = self.sizes(lang, tensor_ndims)
+        ndim = (
+            tensor_ndims[self.shape] if self.shape in tensor_ndims else len(self.shape)
+        )
+        tensor_ndims[self.name] = ndim
 
         if lang == "cpp":
             declarations.append(
-                f"at::Tensor {self.name} = at::empty({sizes}"
-                f",     at::device(at::kCUDA).dtype({AsDType(self.dtype).as_aten()}));"
+                f"at::Tensor {self.name} = "
+                + (
+                    f"at::empty({sizes}"
+                    if self.init is None
+                    else f"at::full({sizes}, {self.init}"
+                )
+                + f", at::device(at::kCUDA).dtype({AsDType(self.dtype).as_tcpp()}));"
             )
         else:
             declarations.append(
-                f"{self.name} = torch.empty({sizes},"
-                f" dtype={AsDType(self.dtype).dtype}, device='cuda')"
+                f"{self.name} = "
+                + (
+                    f"torch.empty({sizes}"
+                    if self.init is None
+                    else f"torch.full({sizes}, {self.init}"
+                )
+                + f", dtype={AsDType(self.dtype).dtype}, device='cuda')"
             )
-        _add_tensor_args(self, args, declarations, lang)
+        _add_tensor_args(self, args, declarations, ndim, lang)
 
-    def sizes(self, lang, tensor_names):
+    def sizes(self, lang, tensor_ndims):
         assert len(self.shape) > 0
         if isinstance(self.shape, str):
-            if self.shape not in tensor_names:
+            if self.shape not in tensor_ndims:
                 msg = (
                     f"Asked for {self.name} to be like {self.shape},"
-                    f" but {self.shape} is not (yet) defined ({tensor_names} are)"
+                    f" but {self.shape} is not (yet) defined ({tensor_ndims} are)"
                 )
                 raise ValueError(msg)
 
             sizes = f"{self.shape}.sizes()" if lang == "cpp" else f"{self.shape}.shape"
         elif lang == "cpp":
-            sizes = "{" + ", ".join(str(dim) for dim in self.shape) + "}"
-            sizes = _cpp_replace_shape.sub(_replace_shape_size, sizes)
+            sizes = (
+                "{"
+                + ", ".join(
+                    _to_shape_param(dim, i, tensor_ndims)
+                    for i, dim in enumerate(self.shape)
+                )
+                + "}"
+            )
+            sizes = _to_size(sizes)
         elif len(self.shape) == 1:
             sizes = str(self.shape[0])
         else:
-            sizes = "(" + ", ".join(str(dim) for dim in self.shape) + ")"
+            sizes = (
+                "("
+                + ", ".join(
+                    _to_shape_param(dim, i, tensor_ndims)
+                    for i, dim in enumerate(self.shape)
+                )
+                + ")"
+            )
         return sizes
 
 
@@ -127,7 +186,7 @@ class InputScalar(NamedTuple):
         _asserts: list[str],
         _declarations: list[str],
         args: list[str],
-        _tensor_names: set[str],
+        _tensor_ndims: dict[str, int],
         *,
         lang: Literal["cpp", "py"],
     ):
@@ -148,7 +207,7 @@ class UnusedParam(NamedTuple):
         _asserts: list[str],
         declarations: list[str],
         args: list[str],
-        _tensor_names: set[str],
+        _tensor_ndims: dict[str, int],
         *,
         lang: Literal["cpp", "py"],
     ):
@@ -166,6 +225,7 @@ def _add_tensor_args(
     tensor: InputTensor | OutputTensor,
     args: list[str],
     declarations: list[str],
+    ndim: int,
     lang: Literal["cpp", "py"],
 ):
     if lang == "py":
@@ -192,7 +252,7 @@ def _add_tensor_args(
             f"&{tensor.name}_data",
         )
     )
-    for i in range(len(tensor.shape)):
+    for i in range(ndim):
         declarations.extend(
             (
                 f"uint64_t {tensor.name}_shape_{i} = {tensor.name}.size({i});",
@@ -201,8 +261,8 @@ def _add_tensor_args(
             )
         )
 
-    args.extend(f"&{tensor.name}_shape_{i}" for i in range(len(tensor.shape)))
-    args.extend(f"&{tensor.name}_stride_{i}" for i in range(len(tensor.shape)))
+    args.extend(f"&{tensor.name}_shape_{i}" for i in range(ndim))
+    args.extend(f"&{tensor.name}_stride_{i}" for i in range(ndim))
 
 
 _chk_macro_runtime = r"""
@@ -240,12 +300,12 @@ def _cpp_return_type(outputs: list[str]):
     return f"std::tuple<{', '.join(['at::Tensor'] * len(outputs))}>"
 
 
-def _return_statement(outputs: list[str]):
+def _return_values(outputs: list[str]):
     if len(outputs) == 0:
-        return "return"
+        return ""
     if len(outputs) == 1:
-        return f"return {outputs[0]}"
-    return f"return {{{', '.join(outputs)}}}"
+        return outputs[0]
+    return ", ".join(outputs)
 
 
 def _cpp_kernel_invocation(name: str, use_runtime_api: bool):
@@ -276,6 +336,7 @@ def _cpp_kernel_invocation(name: str, use_runtime_api: bool):
 
 
 _ptx_name_regex = re.compile(r"\.visible \.entry (\w+)\(")
+_ptx_env_regex = re.compile(r"\.common \.global \.align 8 \.u64 (\w+NumbaEnv\w+);")
 
 
 def kernel_wrapper(
@@ -292,17 +353,16 @@ def kernel_wrapper(
     parameters, asserts, declarations, args, outputs = [], [], [], [], []
 
     all_names = set()
-    tensor_names = set()
+    tensor_ndims = {}
 
     if lang == "cpp":
         assert isinstance(kernel_inner, str), "CPP must be provided PTX"
         ptx_match = _ptx_name_regex.search(kernel_inner)
         assert ptx_match is not None, "Strange PTX with no function"
-        kernel_inner = (
-            kernel_inner[: ptx_match.span(1)[0]]
-            + name
-            + kernel_inner[ptx_match.span(1)[1] :]
-        ).replace("\n", "    \\n\\t\\\n")
+        env_stripped = _ptx_env_regex.sub("", kernel_inner)
+        kernel_inner = env_stripped.replace(ptx_match.group(1), name).replace(
+            "\n", "    \\n\\t\\\n"
+        )
 
     else:
         assert isinstance(kernel_inner, Callable), "PY must be provided a Dispatcher"
@@ -313,15 +373,16 @@ def kernel_wrapper(
         all_names.add(param.name)
 
         param.prepare_args(
-            parameters, asserts, declarations, args, tensor_names, lang=lang
+            parameters, asserts, declarations, args, tensor_ndims, lang=lang
         )
 
         if isinstance(param, OutputTensor):
             outputs.append(param.name)
-        if isinstance(param, OutputTensor | InputTensor):
-            tensor_names.add(param.name)
-    if n_threads in tensor_names:
+
+    if n_threads in tensor_ndims:
         n_threads = f"{n_threads}.numel()"
+    else:
+        n_threads = _to_size(n_threads)
 
     newline = "\n    "
     return (
@@ -342,18 +403,18 @@ namespace ptex_jit {{
                                           + threads_per_block - 1) / threads_per_block;
     
         {_cpp_kernel_invocation(name, use_runtime_api)}
-        {_return_statement(outputs)};
+        return {{{_return_values(outputs)}}};
     }}
 }}
 """
         if lang == "cpp"
         else f"""
 def kernel_{name}({", ".join(parameters)}):
-    {newline.join(f"assert {cond}" for cond in asserts)}
+    {newline.join(f"assert {cond}, '{cond}'" for cond in asserts)}
     {newline.join(declarations)}
     blocks_per_grid = ( ({n_threads}) 
                         + {threads_per_block} - 1) // {threads_per_block}
     kernel_inner[blocks_per_grid, {threads_per_block}]({", ".join(args)})
-    {_return_statement(outputs)}
+    return {_return_values(outputs)}
 """
     )

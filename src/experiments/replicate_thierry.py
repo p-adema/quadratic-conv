@@ -20,7 +20,7 @@ res = {
         epochs=5,
         lr=0.001,
         count=100,
-    )
+    ).scores
     for pool_fn in tqdm.tqdm(
         sorted(POOLING_FUNCTIONS), desc="Pooling types", unit="trial"
     )
@@ -40,7 +40,7 @@ for size in tqdm.tqdm((3, 5, 7), desc="Aniso sizes", unit="trial"):
         epochs=5,
         lr=0.001,
         count=100,
-    )
+    ).scores
     res[f"aniso-{size}-uiso"] = LeNet.fit_many(
         k_mnist,
         pool_fn=f"aniso-{size}",
@@ -49,7 +49,7 @@ for size in tqdm.tqdm((3, 5, 7), desc="Aniso sizes", unit="trial"):
         epochs=5,
         lr=0.001,
         count=100,
-    )
+    ).scores
 
 
 pl.DataFrame(res).write_parquet(".data/thierry_extend.pq")

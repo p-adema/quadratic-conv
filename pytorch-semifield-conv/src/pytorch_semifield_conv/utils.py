@@ -101,13 +101,12 @@ class LinearConv2D(nn.Module):
 
 
 class ConvMeta(NamedTuple):
-    img_bs: int  # Batch size
     img_cs: int  # Image channels
     img_ys: int  # Image y-size
     img_xs: int  # Image x-size
-    krn_o_group_size: int  # Size of a convolution group in kernel output channels
+    krn_o_group_size: int  # Size of a convolutional group in kernel output channels
     krn_os: int  # Kernel output channels
-    krn_cs: int  # Kernel input channels. Therefore, also equal to image group size
+    krn_cs: int  # Kernel input channels. Equal to image group size
     krn_ys: int  # Kernel y-size
     krn_xs: int  # Kernel x-size
     out_cs: int  # Output image channels. Equal to krn_os, except when group broacasting
@@ -117,7 +116,7 @@ class ConvMeta(NamedTuple):
     padding: int  # Padding in both x and y
     dilation: int  # Dilation in both x and y
     groups: int  # Number of convolutional groups
-    group_broadcasting: int  # Whether kernels should be broadcast along groups
+    group_broadcasting: bool  # Whether kernels should be broadcast along groups
     mirror_kernel: bool  # When true, the kernel is mirrored as in a convolution
 
     @classmethod
@@ -130,22 +129,24 @@ class ConvMeta(NamedTuple):
         dilation: int = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
-        *,
-        kind: Literal["conv", "corr"],
+        kind: Literal["conv", "corr"] = "conv",
     ) -> ConvMeta:
         # === Check params
-        assert stride > 0, f"Cannot have zero {stride=}"
-        assert dilation > 0, f"Cannot have zero {dilation=}"
-        assert groups > 0, f"Cannot have zero {groups=}"
+        assert stride > 0, f"{stride=} must be positive"
+        assert dilation > 0, f"{dilation=} must be positive"
+        assert groups > 0, f"{groups=} must be positive"
+        # Negative padding is strange, but not a logic error.
         # === Check imgs
         assert imgs.dtype == torch.float32, f"{imgs.dtype=}"
         assert kernel.dtype == torch.float32, f"{kernel.dtype=}"
         assert len(imgs.shape) == 4, f"{imgs.shape=} needs to be BCHW"
+        assert all(s > 0 for s in imgs.shape), f"Invalid {imgs.shape=}"
         img_bs, img_cs, img_ys, img_xs = imgs.shape
         assert img_cs % groups == 0, f"{img_cs=} not a multiple of {groups=}"
         img_group_size = img_cs // groups
         # === Check kernels
         assert len(kernel.shape) == 4, f"{kernel.shape=} needs to be OIHW"
+        assert all(s > 0 for s in kernel.shape), f"Invalid {kernel.shape=}"
         krn_os, krn_cs, krn_ys, krn_xs = kernel.shape
         assert krn_cs == img_group_size, f"Groups: {krn_cs=} != {img_group_size}"
         if not group_broadcasting:
@@ -158,28 +159,27 @@ class ConvMeta(NamedTuple):
 
         out_xs = _output_size(img_xs, krn_xs, stride, padding, dilation)
         out_ys = _output_size(img_ys, krn_ys, stride, padding, dilation)
+        out_cs = krn_os if not group_broadcasting else krn_os * groups
         assert out_xs > 0, f"Output image collapsed in x-direction: {out_xs=}"
         assert out_ys > 0, f"Output image collapsed in y-direction: {out_ys=}"
-        out_cs = krn_os if not group_broadcasting else krn_os * groups
         shape = cls(
-            img_bs=img_bs,
-            img_cs=img_cs,
-            img_ys=img_ys,
-            img_xs=img_xs,
-            krn_o_group_size=krn_o_group_size,
-            krn_os=krn_os,
-            krn_cs=krn_cs,
-            krn_ys=krn_ys,
-            krn_xs=krn_xs,
-            out_cs=out_cs,
-            out_ys=out_ys,
-            out_xs=out_xs,
-            stride=stride,
-            padding=padding,
-            dilation=dilation,
-            groups=groups,
-            group_broadcasting=group_broadcasting,
-            mirror_kernel=kind == "conv",
+            img_cs=int(img_cs),
+            img_ys=int(img_ys),
+            img_xs=int(img_xs),
+            krn_o_group_size=int(krn_o_group_size),
+            krn_os=int(krn_os),
+            krn_cs=int(krn_cs),
+            krn_ys=int(krn_ys),
+            krn_xs=int(krn_xs),
+            out_cs=int(out_cs),
+            out_ys=int(out_ys),
+            out_xs=int(out_xs),
+            stride=int(stride),
+            padding=int(padding),
+            dilation=int(dilation),
+            groups=int(groups),
+            group_broadcasting=bool(group_broadcasting),
+            mirror_kernel=bool(kind == "conv"),
         )
         return shape
 
@@ -192,6 +192,7 @@ class ConvMeta(NamedTuple):
         dilation: int = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
+        kind: Literal["conv", "corr"] = "conv",
     ):
         assert img.shape[1] == self.img_cs, f"Wrong image channels: {img.shape=}"
         assert img.shape[2] == self.img_ys, f"Wrong image ys: {img.shape=}"
@@ -207,6 +208,7 @@ class ConvMeta(NamedTuple):
         assert group_broadcasting == self.group_broadcasting, (
             f"Cannot change {group_broadcasting=}"
         )
+        assert (kind == "conv") == self.mirror_kernel, f"Cannot change {kind=}"
 
     def check_matches(
         self,
@@ -217,6 +219,7 @@ class ConvMeta(NamedTuple):
         dilation: int = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
+        kind: Literal["conv", "corr"] = "conv",
     ):
         return (
             img.shape[1] == self.img_cs
@@ -231,6 +234,16 @@ class ConvMeta(NamedTuple):
             and dilation == self.dilation
             and groups == self.groups
             and group_broadcasting == self.group_broadcasting
+            and (kind == "conv") == self.mirror_kernel
+        )
+
+    def cache_id(self) -> str:
+        return (
+            f"meta_{self.img_cs}_{self.img_ys}_{self.img_xs}_{self.krn_o_group_size}"
+            f"_{self.krn_os}_{self.krn_cs}_{self.krn_ys}_{self.krn_xs}"
+            f"_{self.out_cs}_{self.out_ys}_{self.out_xs}"
+            f"_{self.stride}_{self.padding}_{self.dilation}_{self.groups}"
+            f"_{int(self.group_broadcasting)}_{int(self.mirror_kernel)}"
         )
 
 

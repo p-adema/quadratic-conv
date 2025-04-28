@@ -84,29 +84,43 @@ def make_pooling_function(
     stride: int = 2,
     padding: int | None = None,
     groups: int | None = None,
+    group_size: int | None = None,
     group_broadcasting: bool = False,
     jit: bool = POOLING_JIT,
 ) -> Callable[[int, dict], torch.Module]:
+    assert groups is None or group_size is None, "Can't specify both n groups and size"
     if padding is None:
         padding = kernel_size // 2
 
     def pooling_fn(channels: int, init: dict[str, float | int]) -> nn.Module:
-        grps = channels if groups is None else groups
-        assert channels % grps == 0, f"{channels=} not evenly divided by {grps=}"
-        group_size = channels // grps
+        if groups is None and group_size is None:
+            grps = channels
+            grp_size = 1
+        elif groups is not None:
+            grps = groups
+            assert channels % grps == 0, f"{channels=} not evenly divided by {groups=}"
+            grp_size = channels // grps
+        else:
+            grp_size = group_size
+            assert channels % group_size == 0, (
+                f"{channels=} not evenly divided by {group_size=}"
+            )
+            grps = channels // grp_size
 
         if kind == "standard":
-            assert grps == channels, "Standard max pool doesn't support group sizes > 1"
+            assert grp_size == 1, "Standard max pool doesn't support group sizes > 1"
             assert not group_broadcasting, "Standard max pool doesn't have parameters"
             return nn.MaxPool2d(kernel_size=kernel_size, stride=stride, padding=padding)
 
+        out_channels = channels if not group_broadcasting else grp_size
+
         if kind == "iso":
             kernel = QuadraticKernelIso2D(
-                group_size, grps, kernel_size=kernel_size, init=init
+                grp_size, out_channels, kernel_size=kernel_size, init=init
             )
         elif kind == "aniso":
             kernel = QuadraticKernelSpectral2D(
-                group_size, grps, kernel_size=kernel_size, init=init
+                grp_size, out_channels, kernel_size=kernel_size, init=init
             )
         else:
             raise ValueError(f"Invalid {kind=}")
