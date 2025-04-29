@@ -170,9 +170,9 @@ At the core of a convolutional neural network is the convolutional operation $f*
 \end{align}
 where $\mathcal{D}$ is the (continuous) domain of $f$ and $g$. However, save for a handful of functions whose convolutions can be calculated algebraically, we are typically required to approximate this convolution in the discrete domain. In this case, we approximate the functions $f$ and $g$ by sampling them at fixed intervals, the result of which can be represented as discrete arrays $F$ and $G$. A discrete convolution could then be written as \cite{szeliski2022computer}:
 \begin{align}
-(F*G)[x] &= \sum_{y\in\mathcal{I}} F[x-y]\; G[y],
+(F*G)[x] &= \sum_{y\in\mathcal{Y}} F[x-y]\; G[y],
 \end{align}
-where $\mathcal{I}$ is the set of all indices in the domain of $F$ and $G$ (e.g. $\mathcal{I}=\mathbb{Z}^2$ for infinitely large 2D images and kernels), and $G$ is typically referred to as the (convolutional) kernel.
+where $\mathcal{Y}$ is the set of all indices in the domain of $F$ and $G$ (e.g. $\mathcal{Y}=\mathbb{Z}^2$ for infinitely large 2D images and kernels), and $G$ is typically referred to as the (convolutional) kernel.
 
 
 \section{Fields and semifield convolutions}
@@ -195,14 +195,14 @@ These field axioms can be written as (adapted from \cite{beachy2006abstract}, pa
 
 One use case for fields in machine learning is to describe a weighted reduction (as in a kernel-based convolution) more generally. To better understand this, let us return to the example of the convolutional operator. In this case, we must reduce the neighbourhood around a pixel $x$ in the image $F$, weighted by the values in the kernel $G$. While this would typically be written as:
 \begin{align}
-	(F*G)[x] &= \sum_{y\in\mathcal{I}} F[x-y]\; G[y],
+	(F*G)[x] &= \sum_{y\in\mathcal{Y}} F[x-y]\; G[y],
 \end{align}
 
 \noindent
 we could instead use a field $L=(\mathcal{F}, \oplus, \otimes)$ and write a similar operation:
 
 \begin{align}
-	(F ~\textcircled{$*$}_L\; G)[x] &=\bigoplus_{y\in \mathcal{I}} F[x-y] \otimes G[y] \label{eq:semifield-conv}
+	(F ~\textcircled{$*$}_L\; G)[x] &=\bigoplus_{y\in \mathcal{Y}} F[x-y] \otimes G[y] \label{eq:semifield-conv}
 \end{align}
 \noindent
 Performing this operation does not, strictly speaking, require any of the above field axioms to hold for $\oplus$ or $\otimes$: the only relevant restriction would be that of the types being $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Implementing this operation for a CNN would further require both operators to be differentiable, and for $\mathbb{0}$ to exist (to deal with border effects in a convolution). However, it is generally also useful for the reduction operator $\oplus$ to be both associative and commutative, as this makes the order of elements in the input irrelevant, promoting the stability of the result and allowing efficient parallel implementation of the reduction \cite{ppad}. Furthermore, most of the field axioms hold regardless for most operators we wish to use for $\oplus$ and $\otimes$. As such, we will use a semifield \cite{bellaardaxiomatic}:\\
@@ -217,20 +217,20 @@ Knowing that an operator similar to convolution can be used in any semifield, we
 
 Two core classes of discrete operators from mathematical morphology are dilations and erosions, where dilations informally correspond with 'making a function larger' (scaling the umbra of a function), and erosions with 'making a function smaller'. The result of the common dilation is shown in Fig. \ref{fig:dil-illust}. Examining the local effects of the dilation more closely, we can see that it is somewhat similar to taking a local maximum, which can also be seen in the formula for this dilation operator $\boxplus$  (from \cite{heijmans1996morphological}, using the Minkowski sum): 
 \begin{align}
-F \boxplus G \textrm{, where }(F \boxplus G)[x] = \bigvee_ {y\in\mathcal{I}} \left(F[x-y] + G[y]\right)	
+F \boxplus G \textrm{, where }(F \boxplus G)[x] = \bigvee_ {y\in\mathcal{Y}} \left(F[x-y] + G[y]\right)	
 \end{align}
 \noindent
-Here, $F$ is the image (or object or sampled function) to be dilated, $G$ is a structuring element describing how the dilation will occur, and $\bigvee$ denotes the supremum. If we further restrict $F$ and $G$ to be of finite size, then $\mathcal{I}$ will be of finite size, and the correspondence with the local maximum becomes exact:
+Here, $F$ is the image (or object or sampled function) to be dilated, $G$ is a structuring element describing how the dilation will occur, and $\bigvee$ denotes the supremum. If we further restrict $F$ and $G$ to be of finite size, then $\mathcal{Y}$ will be of finite size, and the correspondence with the local maximum becomes exact:
 \begin{align}
-\textrm{For finite-size }F\textrm{ and }G: (F \boxplus G)[x] = \max_ {y\in\mathcal{I}} \left(F[x-y] + G[y]\right)	
+\textrm{For finite-size }F\textrm{ and }G: (F \boxplus G)[x] = \max_ {y\in\mathcal{Y}} \left(F[x-y] + G[y]\right)	
 \end{align}
- An intuitive explanation would be to see the structuring element $G$ as a (negated) distance function and the dilation $\boxplus$ as the operation that takes the highest value weighted by how 'close' it is to $x$. If $G$ is a step function with value zero near its centre and $-\infty$ outside (Fig. \ref{fig:dil-illust}, first row), we can see that this is precisely taking the maximum value in the area where $G$ is zero. However, we may also wish to use a quadratic (Fig. \ref{fig:dil-illust}, second row) or other function as $G$. Depending on $G$, we may still be able to perform the dilation exactly (using algebraic solutions and/or leveraging separability), but to compute the dilation in the general case, we may wish to clip $G$ to be above $-\infty$ in only a constrained domain (Fig. \ref{fig:dil-illust}, third row). The dilation with the clipped version of $F\boxplus G_{clipped}$ could then be seen as an approximation of the dilation $F\boxplus G$ with the full (unclipped) $G$ while having the advantage that the set of relevant indices $\mathcal{I}$ is bounded in size. It should be noted, however, that if $F$ is $K$-Lipschitz and $G$ is strictly decreasing with the second derivative $|\delta^2 G|>K$ outside a central area, then clipping $G$ to this central area will not change the result of the dilation ($F\boxplus G_{clipped}$ is then exact, see Appendix \ref{sec:lipschitz}).
+ An intuitive explanation would be to see the structuring element $G$ as a (negated) distance function and the dilation $\boxplus$ as the operation that takes the highest value weighted by how 'close' it is to $x$. If $G$ is a step function with value zero near its centre and $-\infty$ outside (Fig. \ref{fig:dil-illust}, first row), we can see that this is precisely taking the maximum value in the area where $G$ is zero. However, we may also wish to use a quadratic (Fig. \ref{fig:dil-illust}, second row) or other function as $G$. Depending on $G$, we may still be able to perform the dilation exactly (using algebraic solutions and/or leveraging separability), but to compute the dilation in the general case, we may wish to clip $G$ to be above $-\infty$ in only a constrained domain (Fig. \ref{fig:dil-illust}, third row). The dilation with the clipped version of $F\boxplus G_{clipped}$ could then be seen as an approximation of the dilation $F\boxplus G$ with the full (unclipped) $G$ while having the advantage that the set of relevant indices $\mathcal{Y}$ is bounded in size. It should be noted, however, that if $F$ is $K$-Lipschitz and $G$ is strictly decreasing with the second derivative $|\delta^2 G|>K$ outside a central area, then clipping $G$ to this central area will not change the result of the dilation ($F\boxplus G_{clipped}$ is then exact, see Appendix \ref{sec:lipschitz}).
 
 Looking at the operation performed by dilation more closely, we can see that it is, in effect, a maximum operation weighted by a distance function. Similarities with the weighted reduction in the semifield convolution $\textcircled{$*$}_L$ may lead us to believe that this can also be viewed as a convolution in the appropriate semifield $L$, and this is indeed the case. By defining $\oplus=\max$ and $\otimes=+$, we obtain the tropical max semifield $T_+=(\mathbb{R}\cup\{-\infty\},\max,+)$ with neutral elements $(\mathbb{0}=-\infty, \mathbb{1}=0)$ \cite{maragos, bellaardaxiomatic}. A convolution $F \;\textcircled{$*$}_{T_+} G$ in this tropical semifield $T_+$ (also known as a max-plus convolution \cite{maragos}) would then be $\boxplus$:
 \begin{align*}
 	(F ~\textcircled{$*$}_{T_+} G)[x]
-	&= \bigoplus_{y\in \mathcal{I}}F[x-y] \otimes G[y] \\
-	&= \max_{y\in \mathcal{I}}\left(F[x-y] + G[y]\right) \\
+	&= \bigoplus_{y\in \mathcal{Y}}F[x-y] \otimes G[y] \\
+	&= \max_{y\in \mathcal{Y}}\left(F[x-y] + G[y]\right) \\
 	&= (F \boxplus G)[x]
 \end{align*}
 
@@ -244,33 +244,33 @@ This result is interesting because we can see the standard max pooling layer in 
 
 In mathematical morphology, dilations and erosions come in pairs named adjunctions. It can be shown that the erosion which adjoins $\boxplus$ (henceforth referred to as the operator $\boxminus$) is effectively a minimum (infimum in the infinite case) weighted by a (negated) distance function \cite{heijmans1996morphological}: 
 \begin{align}
-	(F \boxminus G)[x]=\min_{y\in \mathcal{I}}(F[x+y] - G[y])
+	(F \boxminus G)[x]=\min_{y\in \mathcal{Y}}(F[x+y] - G[y])
 \end{align}
 \noindent
 Using similar logic as above, we can show that, in the corresponding tropical min semifield $T_-=(\mathbb{R}\cup\{\infty\},\min,+)$\footnote{For both $T_+$ and $T_-$, it should be noted that standard addition $+$ is undefined for $\pm\infty$. In accordance with \cite{maragos}, we define $\forall x: x+(-\infty)=(-\infty)$ in $T_+$, while $\forall x: x+\infty=\infty$ in $T_-$} \cite{maragos} with neutral elements $(\mathbb{0}=\infty, \mathbb{1}=0)$, the convolution with $\check{G}^*(x)=-G(-x)$ is equivalent to the erosion $\boxminus$:
 \begin{align}
 	(F ~\textcircled{$*$}~ \check{G}^*(x))[x]
-	&= \bigoplus_{y\in \mathcal{I}}F[x-y] \otimes \check{G}^*(x)[y] \\
-	&= \min{y\in \mathcal{I}}(F[x-y] + \check{G}^*(x)[y]) \\
-	&= \min{y\in \mathcal{I}}(F[x-y] - G[-y]) \\
-	&= \min{y^*\in \mathcal{I}}(F[x+y^*] - G[y^*]) \\
+	&= \bigoplus_{y\in \mathcal{Y}}F[x-y] \otimes \check{G}^*(x)[y] \\
+	&= \min{y\in \mathcal{Y}}(F[x-y] + \check{G}^*(x)[y]) \\
+	&= \min{y\in \mathcal{Y}}(F[x-y] - G[-y]) \\
+	&= \min{y^*\in \mathcal{Y}}(F[x+y^*] - G[y^*]) \\
 	&= (F \boxminus G)[x]
 \end{align}
 
 \section{Further relevant mathematical morphology}
 Besides the common adjoint $(\boxplus,\; \boxminus)$ using $+$ and $-$ as the operators weighing each point, one can also define an adjoint that uses multiplication and division. This alternate adjoint on $\mathbb{R}_+$ then has the dilation $\dot \boxplus$, defined as \cite{heijmans1996morphological}:
 \begin{align}
-	(F~ \dot\boxplus~ G)[x] &= \bigvee_{y\in \mathcal{I}}F[x-y]G[y]
+	(F~ \dot\boxplus~ G)[x] &= \bigvee_{y\in \mathcal{Y}}F[x-y]G[y]
 \end{align}
 However, it can be shown that this adjoint is equivalent (anamorphic) to the common adjoint $(\boxplus,\; \boxminus)$ using the transformation $t(x)=e^x$ and its inverse $t^{-1}(x)=\log(x)$. As such, using $\dot \boxplus$ would not result in a more expressive convolution while complicating implementation with the requirement of $\mathbb{R}_+$.
 
 Two other concepts from mathematical morphology that do increase expressivity are the concepts of openings and closings \cite{heijmans1996morphological, gonzalez2017}. Here, an opening is an operator using an adjoint, where the input is first eroded and then dilated with the same structuring element $G$. Notably, an opening is anti-extensive (decreasing), meaning that for $(\boxplus,\; \boxminus)$ we can write the opening $\boxopen$:
 \begin{align}
-	\forall x\in\mathcal{I}~~(F ~\boxopen~ G)[x] &= ((F\;\boxminus\; G)\;\boxplus\;G)[x] \leq F[x]
+	\forall x\in\mathcal{Y}~~(F ~\boxopen~ G)[x] &= ((F\;\boxminus\; G)\;\boxplus\;G)[x] \leq F[x]
 \intertext{
 The operator dual to an opening is the closing using the same adjoint: here, a closing refers to first performing a dilation, and then performing the adjoining erosion with the same structuring element $G$. Notably, a closing is extensive (increasing), meaning that for $(\boxplus,\; \boxminus)$ we can write the closing $\boxclose$:
 }
-	\forall x\in\mathcal{I}~~(F ~\boxclose~ G)[x] &= ((F\;\boxplus\; G)\;\boxminus\;G)[x] \geq F[x]
+	\forall x\in\mathcal{Y}~~(F ~\boxclose~ G)[x] &= ((F\;\boxplus\; G)\;\boxminus\;G)[x] \geq F[x]
 \end{align}
 One of the possible advantages of using closing and opening over only dilation or erosion is that opening and closing both produce results with contours similar to their inputs \cite{gonzalez2017}. Illustrating the effects of opening and closing with a simple diagonal kernel in Figure \ref{fig:closing-illust}, we can see that the results of the closing have a higher value (due to the extensivity of $\boxclose$), but the shapes are less distorted by the shape of the kernel $G$ when compared with the results of the dilation. 
 
@@ -287,7 +287,17 @@ This property, when combined with the extensivity of $\boxclose$, suggests it ca
 \end{figure}
 
 \section{Variations on the convolution in CNNs}
-The four parameters of a convolution: stride, padding, dilation, groups. \comment{\ldots\ldots}
+Within a Convolutional Neural Network, there are layers typically referred to as convolutional layers. These layers apply an operation very similar to a discrete mathematical convolution $*$ of the input activations (or image) and a parameterised kernel (here with an explicit domain $\mathcal{X}$ for valid values of $x$):
+\begin{align}
+\forall x\in\mathcal{X}:~~(F*G)[x] &= \sum_{y\in\mathcal{Y}} F[x-y]\; G[y]
+\end{align}
+However, a CNN convolution has additional parameters that may change its behaviour. To better understand how we can apply semifield convolutions $\textcircled{$*$}$ in CNNs, we must therefore understand these parameters, usually called 'stride', 'dilation', 'padding'  and 'groups' in modern deep learning frameworks. Additionally, images and activations in CNNs have 'channels': an additional dimension in the input which is treated differently from the spatial ones. We will first discuss stride, dilation and padding, which do not interact with channels, and then discuss the concept of channels and convolutional groups.
+
+Stride controls the spacing of the sampling grid for $F$ with respect to the output position $x$: where a normal convolution uses $F[x-y]$, a strided convolution would have $F[\textsc{stride}\times x - y]$. This can also be seen as 'moving' the receptive field (accessed values of $F$) of the convolution with a step size equal to the stride: see Fig. REF. For finite images, this has the effect of reducing the size of the convolution result by reducing the number of values for $x$ that keep the index within the domain of $F$. A stride higher than 1 can therefore be useful to allow later convolutions to be influenced by more inputs without increasing kernel sizes. A normal (linear) convolutional layer typically has a stride of 1, but a pooling (max) layer might have a stride of 2 or higher.
+
+Dilation is similar, but instead adjusts the sampling for the input image $F$: the term $F[x-y]$ becomes $F[x-\textsc{dilation}\times y]$, creating 'gaps' between the sampling points for $F$ (e.g. for $x=1$, sampling $F[-1]$, $F[1]$, $F[3]$) without changing the sampling for the kernel $G$. However, a $\textsc{dilation}>1$ results in a locally non-smooth operator, (which seems undesirable for our purposes). As such, none of the later experiments investigated using a $\textsc{dilation}>1$.
+
+\newpage
 \section{Other nonlinear fields}
 Log and root \cite{bellaardaxiomatic} \comment{\ldots\ldots}
 
