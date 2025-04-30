@@ -178,9 +178,9 @@ where $\mathcal{Y}$ is the set of all indices in the domain of $F$ and $G$ (e.g.
 \section{Fields and semifield convolutions}
 In the convolutional operator, a part of the image is repeatedly multiplied element-wise with a kernel, and the resulting values are summed to obtain an activation for each point. However, while we typically use scalar addition and multiplication in this calculation, it is also possible to use different operators in the reduction by defining a different field in which the reduction is done. In this section, we will briefly look at the concept of fields insofar as they are relevant to implementing an alternative version of the convolutional operator.
 
-In mathematics, a field is a set of values with a pair of operators that work on those values: one operator corresponds to the concept of addition, and one operator corresponds to the concept of multiplication. Fields are, in effect, a generalisation of standard addition and multiplication on integers or reals that allow for describing a set of values other than typical scalars or an alternate method for combining typical numbers. Formally, a field can be described as a tuple $(\mathcal{F}, \oplus, \otimes)$, where the operators $\oplus$ and $\otimes$ are of the type $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Furthermore, the operators $\oplus$ and $\otimes$ are both beholden to the field axioms: informally, a set of rules to ensure they act 'similarly' to standard scalar addition and multiplication. 
+In mathematics, a field is a set of values with a pair of operators: one operator corresponds to the concept of addition, and one operator corresponds to the concept of multiplication. Fields are, in effect, a generalisation of standard addition and multiplication on integers or reals that allow for describing a set of values other than typical scalars or an alternate method for combining typical numbers. Formally, a field can be described as a tuple $(\mathcal{F}, \oplus, \otimes)$, where the operators $\oplus$ and $\otimes$ are of the type $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Furthermore, the operators $\oplus$ and $\otimes$ are both beholden to the field axioms: informally, a set of rules to ensure they act 'similarly' to standard scalar addition and multiplication. 
 
-These field axioms can be written as (adapted from \cite{beachy2006abstract}, page 120):
+These field axioms can be written as (adapted from \cite{beachy2006abstract} and \cite{bellaardaxiomatic}):
 \begin{align}
 \textrm{$\oplus$ is associative: }&\forall a,b,c\in \mathcal{F} &  a \oplus (b \oplus c) = (a\oplus b) \oplus c \\ 
 \textrm{$\otimes$ is associative: }&\forall a,b,c\in \mathcal{F} &  a \otimes (b \otimes c) = (a\otimes b) \otimes c \\ 
@@ -190,6 +190,7 @@ These field axioms can be written as (adapted from \cite{beachy2006abstract}, pa
 \otimes\textrm{ has an identity: }& \exists \mathbb{1} ~\forall a\in \mathcal{F} & a\otimes \mathbb{1} = a \\ 
 \oplus\textrm{ has inverse elements: }& \forall a~\exists b\in \mathcal{F} & a\oplus b = \mathbb{0} \label{eq:additive-inverse}  \\ 
 \otimes\textrm{ has inverse elements: }& \forall a~\exists b\in \mathcal{F} & a\otimes b = \mathbb{1}  \\ 
+\mathbb{0} \textrm{ is absorbing for $\otimes$: }&\forall a\in \mathcal{F} & a\otimes \mathbb{0} = \mathbb{0}\\
 \otimes \textrm{ distributes over $\oplus$: }&\forall a,b,c\in \mathcal{F} & a\otimes (b \oplus c) = (a\otimes b)\oplus(a\otimes c)
 \end{align}
 
@@ -291,14 +292,25 @@ Within a Convolutional Neural Network, there are layers typically referred to as
 \begin{align}
 \forall x\in\mathcal{X}:~~(F*G)[x] &= \sum_{y\in\mathcal{Y}} F[x-y]\; G[y]
 \end{align}
-However, a CNN convolution has additional parameters that may change its behaviour. To better understand how we can apply semifield convolutions $\textcircled{$*$}$ in CNNs, we must therefore understand these parameters, usually called 'stride', 'dilation', 'padding'  and 'groups' in modern deep learning frameworks. Additionally, images and activations in CNNs have 'channels': an additional dimension in the input which is treated differently from the spatial ones. We will first discuss stride, dilation and padding, which do not interact with channels, and then discuss the concept of channels and convolutional groups.
+However, a CNN convolution has additional parameters that may change its behaviour. To better understand how we can apply semifield convolutions $\textcircled{$*$}$ in CNNs, we must therefore understand these parameters, usually named 'stride', 'dilation', 'padding'  and 'groups' in modern deep learning frameworks. Additionally, images and activations in CNNs have 'channels': an additional dimension in the input which is treated differently from the spatial ones. We will first discuss stride, dilation and padding, which do not interact with channels, and then discuss the concept of channels and convolutional groups.
 
-Stride controls the spacing of the sampling grid for $F$ with respect to the output position $x$: where a normal convolution uses $F[x-y]$, a strided convolution would have $F[\textsc{stride}\times x - y]$. This can also be seen as 'moving' the receptive field (accessed values of $F$) of the convolution with a step size equal to the stride: see Fig. REF. For finite images, this has the effect of reducing the size of the convolution result by reducing the number of values for $x$ that keep the index within the domain of $F$. A stride higher than 1 can therefore be useful to allow later convolutions to be influenced by more inputs without increasing kernel sizes. A normal (linear) convolutional layer typically has a stride of 1, but a pooling (max) layer might have a stride of 2 or higher.
+Stride controls the spacing of the sampling grid for $F$ with respect to the output position $x$: where a normal convolution uses $F[x-y]$, a strided convolution would have $F[\textsc{stride}\times x - y]$. This can also be seen as 'moving' the receptive field (accessed values of $F$) of the convolution with a step size equal to the stride: see Fig. \ref{fig:stride-dilation-padding}. For finite images, this has the effect of reducing the size of the convolution result by reducing the number of values for $x$ that keep the index within the domain of $F$. A $\textsc{stride}>1$ can therefore be useful to allow later convolutions to be influenced by more inputs without increasing kernel sizes. A normal (linear) convolutional layer typically has a stride of 1, but a pooling (max) layer might have a stride of 2 or higher.
 
-Dilation is similar, but instead adjusts the sampling for the input image $F$: the term $F[x-y]$ becomes $F[x-\textsc{dilation}\times y]$, creating 'gaps' between the sampling points for $F$ (e.g. for $x=1$, sampling $F[-1]$, $F[1]$, $F[3]$) without changing the sampling for the kernel $G$. However, a $\textsc{dilation}>1$ results in a locally non-smooth operator, (which seems undesirable for our purposes). As such, none of the later experiments investigated using a $\textsc{dilation}>1$.
+Dilation is similar, but instead adjusts the sampling for the input image $F$: the term $F[x-y]$ becomes $F[x-\textsc{dilation}\times y]$, creating 'gaps' between the sampling points for $F$ (e.g. for $x=1$, sampling $F[-1]$, $F[1]$, $F[3]$) without changing the sampling for the kernel $G$. However, a $\textsc{dilation}>1$ results in a locally non-smooth operator, (which seems undesirable for smooth pooling). As such, none of the later experiments investigated using a $\textsc{dilation}>1$.
 
-\newpage
-\section{Other nonlinear fields}
+Padding refers to convolving with a widened $F$: if a certain $F$ has domain $[0, 5]$, then a padding of 1 would correspond with convolving with an expanded $F'$ with domain $[-1, 6]$ that is equal to $F$ within $[0, 4]$. While there are many so-called border strategies in computer vision for how to determine the value of the newly added $F'[-1]$ and $F'[6]$, the method typically used within CNNs is to set these new values to 0, thereby keeping the sum unchanged. 
+Our use of padding lies in ensuring that the size of the output image does not shrink with kernel sizes larger than 1: if we were to convolve a $3\times3$ kernel over a $6\times6$ input, then there would only be a $4\times4$ set $\mathcal{X}$ of valid values for $x$. To simplify network structures, we typically set the padding such that the output size would remain the same, decreasing only if $\textsc{stride}>1$. For an odd-valued kernel dimension $K_o$, this can be achieved by setting the padding to $\lfloor\frac{K_o}{2}\rfloor$. For even-valued kernel dimensions $K_e$, it depends on where we define the centre of the kernel to lie. If we choose to define it as towards the lower indices in the kernel (up and to the left in 2D images) and allow for different amounts of padding at the beginning and end of $F$, then we can retain image sizes by padding with $\frac{K_e}{2}-1$ at the low-index side of $F$ (top/left) and padding with $\frac{K_e}{2}$ at the high-index side of $F$ (bottom/right) For a visualisation, see Figure \ref{fig:stride-dilation-padding}.
+
+\begin{figure}[ht!]
+	\center
+  \includegraphics[width=\textwidth]{figures/stride-dilation-padding.png}
+  \caption{Illustration of the effects of stride, dilation and padding with a $3\times3$ kernel on a $6\times6$ input. The top row shows the receptive field of the reduction (accessed values of $F$), while the bottom row shows the output structure.}
+  \label{fig:stride-dilation-padding}
+\end{figure}
+\expandafter\show\the\font
+\comment{channels, groups, relation to semiconv}
+
+\section{Non-morphological fields}
 Log and root \cite{bellaardaxiomatic} \comment{\ldots\ldots}
 
 \section{Quadratic distance functions}
