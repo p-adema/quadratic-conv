@@ -136,6 +136,14 @@ Science Park 900\\
 \setcounter{page}{1}
 \pagestyle{plain} 
 
+\section*{Abstract \comment{TODO}}
+
+
+\section*{Acknowledgements \comment{TODO}}
+
+
+\tableofcontents
+
 \newgeometry{a4paper, textwidth=400.0pt, textheight=740.0pt}
 \chapter{Introduction}
 In the field of computer vision, machine learning has been successfully applied for societal benefit in various ways, ranging from analysing medical imaging data \cite{esteva2021deep, jain2015computer} to classifying agricultural produce \cite{wan2020faster, sivaranjani2022overview} and recognising license plate numbers \cite{xie2018new}. One of the primary tools used in these applications is the Convolutional Neural Network (CNN) \cite{le1990handwritten}, a type of neural network that leverages existing theoretical knowledge of image processing to learn representations of images more efficiently.
@@ -147,7 +155,7 @@ This idea has been formalised in mathematical morphology as dilation \cite{heijm
 Previous studies \cite{groenendijk2022morphpool} and theses \cite{thierrybsc, koenbsc} have investigated the possibility of using such a dilation (generalised max-pooling) with an isotropic quadratic structuring element as a layer within a CNN, with the parameter $s$ being learned via gradient descent (a standard optimisation method within machine learning). These previous works showed that using an isotropic quadratic kernel (which is strictly more expressive than a standard max-pooling) resulted in higher performance on a small selection of datasets. This thesis aims to expand upon this by examining using an anisotropic quadratic structuring element within the dilation, specifically whether the anisotropic parameters $\Sigma$ could also be learned via gradient descent. The expectation would be that since anisotropic quadratic kernels are again strictly more expressive than the isotropic versions, such a dilation layer would further improve performance.
 
 \newpage
-\section{Related work}
+\section{Related work \comment{TODO}}
 \comment{For now, I've just copied my literature survey from the project proposal.\\ I intend to rewrite this evenutally, though: no need to review this for now.}
 
 Modern Convolutional Neural Networks (CNNs) often use linear convolutional layers to process images and max-pooling layers to condense information and shrink the feature space \cite{introconvnets}. However, both of these operations are equivalent to a semifield convolution: the first in the linear field (with a learned kernel) and the second in the tropical-max field (with a step-function-like kernel) \cite{bellaardaxiomatic}. In \cite{bellaardaxiomatic}, Bellaard et al. provide an axiomatic foundation for using various semifields within the context of PDE-CNNs but do not discuss using semifields for conventional (discrete) CNNs. 
@@ -200,10 +208,10 @@ One use case for fields in machine learning is to describe a weighted reduction 
 \end{align}
 
 \noindent
-we could instead use a field $L=(\mathcal{F}, \oplus, \otimes)$ and write a similar operation:
+we could instead use a field $S=(\mathcal{F}, \oplus, \otimes)$ and write a similar operation:
 
 \begin{align}
-	(F ~\textcircled{$*$}_L\; G)[x] &=\bigoplus_{y\in \mathcal{Y}} F[x-y] \otimes G[y] \label{eq:semifield-conv}
+	(F ~\textcircled{$*$}_S\; G)[x] &=\bigoplus_{y\in \mathcal{Y}} F[x-y] \otimes G[y] \label{eq:semifield-conv}
 \end{align}
 \noindent
 Performing this operation does not, strictly speaking, require any of the above field axioms to hold for $\oplus$ or $\otimes$: the only relevant restriction would be that of the types being $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Implementing this operation for a CNN would further require both operators to be differentiable, and for $\mathbb{0}$ to exist (to deal with border effects in a convolution). However, it is generally also useful for the reduction operator $\oplus$ to be both associative and commutative, as this makes the order of elements in the input irrelevant, promoting the stability of the result and allowing efficient parallel implementation of the reduction \cite{ppad}. Furthermore, most of the field axioms hold regardless for most operators we wish to use for $\oplus$ and $\otimes$. As such, we will use a semifield \cite{bellaardaxiomatic}:\\
@@ -211,7 +219,7 @@ Performing this operation does not, strictly speaking, require any of the above 
 A semifield is a field, except an additive ($\oplus$) inverse (Eq. \ref{eq:additive-inverse}) does not necessarily exist.
 }
 
-We can then define the operator $\textcircled{$*$}_L$ for the following sections (identically to Eq. \ref{eq:semifield-conv}) as the semifield convolutional operator for any semifield $L$.
+We can then define the operator $\textcircled{$*$}_S$ for the following sections (identically to Eq. \ref{eq:semifield-conv}) as the semifield convolutional operator for any semifield $L$.
 
 \section{Semifields from mathematical morphology}
 Knowing that an operator similar to convolution can be used in any semifield, we can examine if there are relevant semifields in which we can perform a convolution other than the standard linear field. For this, we can take inspiration from mathematical morphology, the study of object and function shapes.
@@ -227,7 +235,7 @@ Here, $F$ is the image (or object or sampled function) to be dilated, $G$ is a s
 \end{align}
  An intuitive explanation would be to see the structuring element $G$ as a (negated) distance function and the dilation $\boxplus$ as the operation that takes the highest value weighted by how 'close' it is to $x$. If $G$ is a step function with value zero near its centre and $-\infty$ outside (Fig. \ref{fig:dil-illust}, first row), we can see that this is precisely taking the maximum value in the area where $G$ is zero. However, we may also wish to use a quadratic (Fig. \ref{fig:dil-illust}, second row) or other function as $G$. Depending on $G$, we may still be able to perform the dilation exactly (using algebraic solutions and/or leveraging separability), but to compute the dilation in the general case, we may wish to clip $G$ to be above $-\infty$ in only a constrained domain (Fig. \ref{fig:dil-illust}, third row). The dilation with the clipped version of $F\boxplus G_{clipped}$ could then be seen as an approximation of the dilation $F\boxplus G$ with the full (unclipped) $G$ while having the advantage that the set of relevant indices $\mathcal{Y}$ is bounded in size. It should be noted, however, that if $F$ is $K$-Lipschitz and $G$ is strictly decreasing with the second derivative $|\delta^2 G|>K$ outside a central area, then clipping $G$ to this central area will not change the result of the dilation ($F\boxplus G_{clipped}$ is then exact, see Appendix \ref{sec:lipschitz}).
 
-Looking at the operation performed by dilation more closely, we can see that it is, in effect, a maximum operation weighted by a distance function. Similarities with the weighted reduction in the semifield convolution $\textcircled{$*$}_L$ may lead us to believe that this can also be viewed as a convolution in the appropriate semifield $L$, and this is indeed the case. By defining $\oplus=\max$ and $\otimes=+$, we obtain the tropical max semifield $T_+=(\mathbb{R}\cup\{-\infty\},\max,+)$ with neutral elements $(\mathbb{0}=-\infty, \mathbb{1}=0)$ \cite{maragos, bellaardaxiomatic}. A convolution $F \;\textcircled{$*$}_{T_+} G$ in this tropical semifield $T_+$ (also known as a max-plus convolution \cite{maragos}) would then be $\boxplus$:
+Looking at the operation performed by dilation more closely, we can see that it is, in effect, a maximum operation weighted by a distance function. Similarities with the weighted reduction in the semifield convolution $\textcircled{$*$}_S$ may lead us to believe that this can also be viewed as a convolution in the appropriate semifield $S$, and this is indeed the case. By defining $\oplus=\max$ and $\otimes=+$, we obtain the tropical max semifield $T_+=(\mathbb{R}\cup\{-\infty\},\max,+)$ with neutral elements $(\mathbb{0}=-\infty, \mathbb{1}=0)$ \cite{maragos, bellaardaxiomatic}. A convolution $F \;\textcircled{$*$}_{T_+} G$ in this tropical semifield $T_+$ (also known as a max-plus convolution \cite{maragos}) would then be $\boxplus$:
 \begin{align*}
 	(F ~\textcircled{$*$}_{T_+} G)[x]
 	&= \bigoplus_{y\in \mathcal{Y}}F[x-y] \otimes G[y] \\
@@ -292,29 +300,76 @@ Within a Convolutional Neural Network, there are layers typically referred to as
 \begin{align}
 \forall x\in\mathcal{X}:~~(F*G)[x] &= \sum_{y\in\mathcal{Y}} F[x-y]\; G[y]
 \end{align}
-However, a CNN convolution has additional parameters that may change its behaviour. To better understand how we can apply semifield convolutions $\textcircled{$*$}$ in CNNs, we must therefore understand these parameters, usually named 'stride', 'dilation', 'padding'  and 'groups' in modern deep learning frameworks. Additionally, images and activations in CNNs have 'channels': an additional dimension in the input which is treated differently from the spatial ones. We will first discuss stride, dilation and padding, which do not interact with channels, and then discuss the concept of channels and convolutional groups.
+However, a CNN convolution has additional parameters that may change its behaviour. To better understand how we can apply semifield convolutions $\textcircled{$*$}$ in CNNs, we must therefore understand these parameters, usually named 'stride', 'dilation', 'padding'  and 'groups' in modern deep learning frameworks \cite{noauthor_conv2d_nodate, noauthor_xla_nodate}. Additionally, images and activations in CNNs have 'channels': an additional axis in the input, which is treated differently from the spatial ones. We will first discuss stride, dilation and padding, which do not interact with channels, and then discuss the concept of channels and convolutional groups.
 
-Stride controls the spacing of the sampling grid for $F$ with respect to the output position $x$: where a normal convolution uses $F[x-y]$, a strided convolution would have $F[\textsc{stride}\times x - y]$. This can also be seen as 'moving' the receptive field (accessed values of $F$) of the convolution with a step size equal to the stride: see Fig. \ref{fig:stride-dilation-padding}. For finite images, this has the effect of reducing the size of the convolution result by reducing the number of values for $x$ that keep the index within the domain of $F$. A $\textsc{stride}>1$ can therefore be useful to allow later convolutions to be influenced by more inputs without increasing kernel sizes. A normal (linear) convolutional layer typically has a stride of 1, but a pooling (max) layer might have a stride of 2 or higher.
+Stride controls the spacing of the sampling grid for $F$ with respect to the output position $x$: where a regular convolution uses $F[x-y]$, a strided convolution would have $F[\textsc{stride}\times x - y]$. Striding can also be seen as 'moving' the receptive field (accessed values of $F$) of the convolution with a step size equal to the stride: see Fig. \ref{fig:stride-dilation-padding}. For finite images, this reduces the size of the convolution result by shrinking the set of valid indices $\mathcal{X}$. Therefore, a $\textsc{stride}>1$ can allow later convolutions to be influenced by more inputs without increasing kernel sizes. A standard convolutional layer typically has a stride of 1, but a pooling layer might have a stride of 2 or higher.
 
-Dilation is similar, but instead adjusts the sampling for the input image $F$: the term $F[x-y]$ becomes $F[x-\textsc{dilation}\times y]$, creating 'gaps' between the sampling points for $F$ (e.g. for $x=1$, sampling $F[-1]$, $F[1]$, $F[3]$) without changing the sampling for the kernel $G$. However, a $\textsc{dilation}>1$ results in a locally non-smooth operator, (which seems undesirable for smooth pooling). As such, none of the later experiments investigated using a $\textsc{dilation}>1$.
+Dilation is similar, but instead adjusts the step size for $y$: the term $F[x-y]$ becomes $F[x-\textsc{dilation}\times y]$, creating 'gaps' between the sampling points for $F$ (e.g. for $x=1$, sampling $F[-1]$, $F[1]$, $F[3]$) without changing the sampling for the kernel $G$. However, a $\textsc{dilation}>1$ results in a locally non-smooth operator, (which seems undesirable for smooth pooling). As such, none of the later experiments investigated using a $\textsc{dilation}>1$.
 
-Padding refers to convolving with a widened $F$: if a certain $F$ has domain $[0, 5]$, then a padding of 1 would correspond with convolving with an expanded $F'$ with domain $[-1, 6]$ that is equal to $F$ within $[0, 4]$. While there are many so-called border strategies in computer vision for how to determine the value of the newly added $F'[-1]$ and $F'[6]$, the method typically used within CNNs is to set these new values to 0, thereby keeping the sum unchanged. 
-Our use of padding lies in ensuring that the size of the output image does not shrink with kernel sizes larger than 1: if we were to convolve a $3\times3$ kernel over a $6\times6$ input, then there would only be a $4\times4$ set $\mathcal{X}$ of valid values for $x$. To simplify network structures, we typically set the padding such that the output size would remain the same, decreasing only if $\textsc{stride}>1$. For an odd-valued kernel dimension $K_o$, this can be achieved by setting the padding to $\lfloor\frac{K_o}{2}\rfloor$. For even-valued kernel dimensions $K_e$, it depends on where we define the centre of the kernel to lie. If we choose to define it as towards the lower indices in the kernel (up and to the left in 2D images) and allow for different amounts of padding at the beginning and end of $F$, then we can retain image sizes by padding with $\frac{K_e}{2}-1$ at the low-index side of $F$ (top/left) and padding with $\frac{K_e}{2}$ at the high-index side of $F$ (bottom/right) For a visualisation, see Figure \ref{fig:stride-dilation-padding}.
-
-\begin{figure}[ht!]
+\begin{figure}[h!]
 	\center
-  \includegraphics[width=\textwidth]{figures/stride-dilation-padding.png}
+  \includegraphics[width=0.87\textwidth]{figures/stride-dilation-padding.png}
   \caption{Illustration of the effects of stride, dilation and padding with a $3\times3$ kernel on a $6\times6$ input. The top row shows the receptive field of the reduction (accessed values of $F$), while the bottom row shows the output structure.}
   \label{fig:stride-dilation-padding}
 \end{figure}
-\expandafter\show\the\font
-\comment{channels, groups, relation to semiconv}
 
-\section{Non-morphological fields}
-Log and root \cite{bellaardaxiomatic} \comment{\ldots\ldots}
+\noindent
+Padding refers to convolving with a widened $F$: if a certain $F$ has domain $[0, 5]$, then a padding of 1 would correspond with convolving with an expanded $F'$ with domain $[-1, 6]$ that is equal to $F$ within $[0, 5]$. While there are many so-called border strategies \cite{gonzalez2017} in computer vision for how to determine the value of the newly added $F'[-1]$ and $F'[6]$, the method typically used within CNNs is to set these new values to 0, thereby keeping the sum unchanged. 
+Our use of padding lies in ensuring that the size of the output image does not shrink with kernel sizes larger than 1: this simplifies network structures by ensuring the output size decreases only if $\textsc{stride}>1$. For an odd-valued kernel dimensionality $K_o$ (such as $3\times3$, see Fig. \ref{fig:stride-dilation-padding}), this can be achieved by setting the padding to $\lfloor\frac{K_o}{2}\rfloor$. Even-valued kernel dimensionalities $K_e$ depend on where we define the centre of the kernel to lie. Suppose we define it as towards the lower indices in the kernel (up and to the left in 2D images) and allow for different amounts of padding at the beginning and end of $F$: in that case, we can retain image sizes by padding with $\frac{K_e}{2}-1$ at the low-index side of $F$ (top/left) and padding with $\frac{K_e}{2}$ at the high-index side of $F$ (bottom/right).
 
-\section{Quadratic distance functions}
-In general, we may wish to weigh dimensions differently. \cite{Boomgaard1999NumericalSS} \comment{\ldots\ldots}
+
+Besides modifying the receptive field of the convolution, another way in which CNN convolutions can diverge from mathematical ones is in their usage of a channel axis, distinct from the spatial axes. A small 2D RGB image might be stored as a $3\times50\times50$ array, but while the output index $x$ in a CNN convolution would represent a position in the X- and Y- axes of the image, the channel (colour) axis is not indexed. Instead, every convolutional kernel is responsible for one channel in the output and reads from a fixed set of channels in the input: while the kernel is 'moved' through the spatial dimensions during the convolution, it stays fixed relative to the channel dimensions. In a standard CNN convolution, all kernels read from all input channels, meaning that a square convolution of size 5 in this RGB image would require a convolutional kernel of size $3\times5\times5$ (as the kernel reads from 3 channels). In contrast, a typical max-pooling works per channel: every convolution operation only reads from one input channel. However, both cases can be seen as an adjusted version of the standard convolution formula. For a linear convolution, we simply add a summation over the set of input channels $\mathcal{C}$, indexing both $F$ and $G$ \cite{noauthor_conv2d_nodate}:
+
+\begin{align}
+\forall x\in\mathcal{X}:~~(F*G)[x] &= \sum_{c\in\mathcal{C}} \sum_{y\in\mathcal{Y}} F_c[x-y]\; G_c[y]
+\end{align}
+\noindent
+Groups are then the parameter which allows us to precisely characterise this set of input channels $\mathcal{C}$. If the number of input- and output channels is a multiple of a certain number $N_{groups}$, then we can split both input and output into $N_{groups}$ equally sized groups. Here, $N_{groups}$ is the parameter named 'groups' in deep learning frameworks. A kernel in the $i$'th group of the output then reads from all the input channels in the $i$'th group of the input. For example, suppose we have an image with 6 input channels ($C_i=6$): $N_{groups}=1$ would result in every kernel reading from every input channel (a standard convolution), while $N_{groups}=C_i=6$ would make kernels read from only one channel (like a pooling). Values of $N_{groups}$ where $1<N_{groups}<C_i$ interpolate between these extremes, where every kernel reads a fixed subset of the input channels. It should be noted that while the number of output channels $C_o$ (equal to the number of kernels) is constrained to be a multiple of $N_{groups}$, the number of kernels per group in the output $S_o$ can be freely chosen and does not need to equal the number of channels per input group $S_i$: see Fig. \ref{fig:channels-groups} for examples.
+
+\begin{figure}[h!]
+	\center
+  \includegraphics[width=\textwidth]{figures/channels-groups.png}
+  \caption{Illustration of channels in the input and output, and the effects of the group parameter on which input channels are used by the kernels.}
+  \label{fig:channels-groups}
+\end{figure}
+
+\section{Non-morphological semifields}
+In previous sections, we discussed two semifields related to mathematical morphology, namely $T_+$ and $T_-$, and showed their correspondence with the pooling layers within a CNN. Using these results, we could see that a max-pooling was equivalent to a semifield convolution (in $T_+$, with a flat kernel). However, the standard convolutional layers within a CNN can also be interpreted as a semifield convolution in the linear semifield
+$L=(\mathbb{R}, +, \times)$: filling in the equation for $\textcircled{$*$}_L$ (Eq. \ref{eq:semifield-conv}), we would again obtain a standard convolution $*$.
+
+This raises the question of whether there are alternative semifields that act similarly to the linear semifield, such that they could be used in place of the standard convolutional layer in a CNN. In an investigation of some semifields, \cite{bellaardaxiomatic} identified sets of relevant semifields that were isomorphic (equivalent under a bijective mapping) to the linear semifield $L$. These can be written as:
+
+\begin{itemize}
+	\item[$L_{\mu+}$]  The positive log semifields:  $(\mathbb{R}\cup \{-\infty\}, \oplus_\mu, +)$ for all $\mu>0$ where \\$a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b})$, $\mathbb{0}=-\infty$ and $\mathbb{1}=0$ (using $e^{-\infty}=0$)
+	\item[$L_{\mu-}$]  The negative log semifields:  $(\mathbb{R}\cup \{+\infty\}, \oplus_\mu, +)$ for all $\mu<0$ where \\$a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b})$, $\mathbb{0}=+\infty$ and $\mathbb{1}=0$ 
+	\item[$R_p$]  The root semifields:  $(\mathbb{R}_+, \oplus_p, \times)$ for all $p\ne0$ where \\$a\oplus_p b= \sqrt[p]{a^p+b^p}$, $\mathbb{0}=0$ and $\mathbb{1}=1$
+\end{itemize}
+
+\noindent
+In \cite{bellaardaxiomatic} it was also noted that the positive log semifield $L_{\mu+}$ becomes equivalent to $T_+$ when $\mu$ approaches $+\infty$, while $L_{\mu-}$ becomes equivalent to $T_-$ as $\mu$ approaches $-\infty$. 
+Additionally, one can see that the root semifields $R_p$ also become equivalent to $T_+$ when $p$ approaches $+\infty$, as $\oplus_p$ then becomes the infinity-norm (which is equivalent to the maximum function). Informally, one can also see that as $p$ approaches $-\infty$, the semifield addition $\oplus_p$ approximates the minimum function, making $R_{-\infty}$ equivalent to $T_-$.
+
+These additional equivalences with $T_+$ suggest the possibility of using log or root semifields with high values for $\mu$ or $p$ as another alternative for traditional max-pooling layers in CNNs. It should be noted, however, that neither log nor root semifields seem to be part of an adjoint, meaning the resulting pooling would likely not be easily modelled using principles of mathematical morphology, and many of the theoretical guarantees would be lost.
+
+% $\sqrt[\infty]{\frac{1}{\frac{1}{a^\infty}+\frac{1}{b^\infty}}}$
+
+\chapter{Method}
+With a greater understanding of what semifields are, how convolutions work and some examples of relevant semifield convolutions, we can now examine how to apply semifield convolutions within the context of CNNs. 
+
+First, we will go through some implementation notes on semifield convolutions, and describe how to use quadratic forms to parameterise convolutional kernels. Afterwards, we will describe the experimental setup used to examine which kinds of quadratic forms work best in the context of CNNs, and which parameters of a semifield convolution have a positive impact on the performance of a CNN on various image classification tasks.
+
+
+
+\section{Semifield convolutions in a CNN \comment{TODO}}
+\comment{I used a library that I wrote, please see other report for more details.\\ Important note: reduction over channels with + or with $\oplus$}
+
+
+
+\newpage
+\section{Quadratic forms for convolutional kernels \comment{TODO}}
+\comment{We may have reason to believe that kernels should be smooth. A quadratic form is a simple yet useful smooth function to parameterise the kernel.}
+
+\cite{Boomgaard1999NumericalSS} 
 
 \newpage
 \section{Learning positive definite matrices}
@@ -367,7 +422,19 @@ In order for $\Sigma$ to be positive-definite, $\sigma_1^2$ and $\sigma_2^2$ are
 Since we placed no assumptions on $\boldsymbol{\theta}$, it is safe for a black-box or gradient-based optimiser to adjust in any direction, as the resulting $\Sigma$ will always be a positive definite matrix.
 
 This parameterisation has the advantage of being easily interpretable: $e^{\theta_1}$ and $e^{\theta_2}$ are the standard deviations of a hypothetical normal distribution in the first and second principal axis of the quadratic, while $\theta_3$ is the counter-clockwise angle the first principal axis forms with the x-axis. An alternative parameterisation, based on the Pearson correlation coefficient, can be found in Appendix \ref{sec:pearson}.
-\chapter{Experiments}
+
+
+\newpage
+\section{Experimental setup \comment{TODO}}
+\comment{Hardware, software, hyperparameter tuning}
+
+
+\newpage
+\section{Image classification datasets \comment{TODO}}
+\comment{Which ones did I use?}
+
+
+\chapter{Experiments \comment{TODO}}
 \comment{I only really want to write the accompanying text when I have a clear idea of what the experiments are going to be: for now, I'm just putting some graphs in from the test experiments I conducted.}
 \begin{figure}[h!]
 	\center
@@ -389,7 +456,7 @@ This parameterisation has the advantage of being easily interpretable: $e^{\thet
 \end{figure}
 
 
-\chapter{Conclusion}
+\chapter{Conclusion \comment{TODO}}
 \comment{\ldots\ldots}
 
 \bibliographystyle{ieeetr}
@@ -451,7 +518,7 @@ Then, we can write out the orthogonal diagonalisation using \ref{eq:refl-rot}:
 	&= R_\phi D R_\phi^T \\&&\qed\nonumber
 \end{align}
 \newpage
-\section{Exact dilation and erosion with clipped kernels using Lipschitz conditions on $F$}
+\section{Clipping kernels with Lipschitz conditions \comment{TODO}}
 \label{sec:lipschitz}
 \comment{Todo: proof, and better name for this section}
 
