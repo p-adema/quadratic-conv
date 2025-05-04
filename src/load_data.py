@@ -103,11 +103,21 @@ def _mnist_like_normalisation(
     assert x_test.shape[1] == img_channels, f"Wrong channels in {x_test.shape=}"
     assert num_classes == len(train.classes), "Classes seem wrong"
     y_test = torch.as_tensor(test.targets, dtype=torch.int64)
+    if torch.cuda.is_available():
+        return Dataset(
+            x_train.contiguous().cpu().pin_memory(),
+            x_test.contiguous().cpu().pin_memory(),
+            y_train.contiguous().cpu().pin_memory(),
+            y_test.contiguous().cpu().pin_memory(),
+            img_channels,
+            num_classes,
+            train.classes,
+        )
     return Dataset(
-        x_train.contiguous().cpu().pin_memory(),
-        x_test.contiguous().cpu().pin_memory(),
-        y_train.contiguous().cpu().pin_memory(),
-        y_test.contiguous().cpu().pin_memory(),
+        x_train.contiguous(),
+        x_test.contiguous(),
+        y_train.contiguous(),
+        y_test.contiguous(),
         img_channels,
         num_classes,
         train.classes,
@@ -118,8 +128,8 @@ def _mnist_like(
     module, has_channels: bool = False, img_channels: int = 1, num_classes: int = 10
 ):
     def get():
-        train = module(root="./.data", train=True, download=True)
-        test = module(root="./.data", train=False, download=True)
+        train = module(root="./.data/", train=True, download=True)
+        test = module(root="./.data/", train=False, download=True)
         return _mnist_like_normalisation(
             train,
             test,

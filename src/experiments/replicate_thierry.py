@@ -7,7 +7,7 @@ import tqdm.auto as tqdm
 sys.path.extend(".")
 
 from src import load_data
-from src.models import POOLING_FUNCTIONS, LeNet
+from src.models import EXAMPLE_POOLING_FUNCTIONS, LeNet
 
 torch.set_float32_matmul_precision("high")
 k_mnist = load_data.k_mnist()
@@ -22,7 +22,7 @@ res = {
         count=100,
     ).scores
     for pool_fn in tqdm.tqdm(
-        sorted(POOLING_FUNCTIONS), desc="Pooling types", unit="trial"
+        sorted(EXAMPLE_POOLING_FUNCTIONS), desc="Pooling types", unit="trial"
     )
 }
 

@@ -9,7 +9,7 @@ from torch import nn
 sys.path.extend(".")
 
 from .trainer import Trainer
-from .utils import POOLING_FUNCTIONS, CheckNan
+from .utils import EXAMPLE_POOLING_FUNCTIONS, CheckNan
 
 
 class LeNet(Trainer):
@@ -32,7 +32,7 @@ class LeNet(Trainer):
             torch.manual_seed(init_seed)
 
         if isinstance(pool_fn, str):
-            pool_fn = POOLING_FUNCTIONS[pool_fn]
+            pool_fn = EXAMPLE_POOLING_FUNCTIONS[pool_fn]
 
         modules = [
             nn.Conv2d(img_channels, conv_channels[0], conv_kernel_size),

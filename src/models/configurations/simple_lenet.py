@@ -7,21 +7,26 @@ from .utils import handle_common
 
 
 def lenet_configs(
-    kernel_sizes: tuple[int, ...] = (2, 3, 5, 7, 11),
+    kernel_sizes: tuple[int, ...] = (3, 5, 7, 11),
     group_sizes: tuple[int, ...] = (1,),
     g_broadcasting_options: tuple[bool, ...] = (False,),
+    channel_add_options: tuple[bool, ...] = (False,),
+    spread_gradient_options: tuple[bool, ...] = (False,),
     do_standard: bool = True,
     do_iso: bool = True,
     do_aniso: bool = True,
-    iso_inits: tuple[str, ...] = ("uniform", "ss"),
+    iso_inits: tuple[str, ...] = (
+        # "uniform",
+        "ss",
+    ),
     aniso_inits: tuple[tuple[str, str], ...] = (
-        ("uniform", "uniform"),
-        ("uniform-iso", "uniform"),
-        ("uniform-iso", "spin"),
+        # ("uniform", "uniform"),
+        # ("uniform-iso", "uniform"),
+        # ("uniform-iso", "spin"),
         ("ss-iso", "spin"),
         ("skewed", "spin"),
     ),
-    max_standard_size: int = 7,
+    max_standard_size: int = 5,
     keep_tag_if: Callable[[str], bool] | None = None,
     progress_bar: str | None = None,
 ) -> Iterable[tuple[str, dict[str, Any]]]:
@@ -35,14 +40,21 @@ def lenet_configs(
             }
 
     if do_iso:
-        for size, init, group_size, g_broadcast in product(
-            kernel_sizes, iso_inits, group_sizes, g_broadcasting_options
+        for size, init, group_size, g_broadcast, channel_add, spread_grad in product(
+            kernel_sizes,
+            iso_inits,
+            group_sizes,
+            g_broadcasting_options,
+            channel_add_options,
+            spread_gradient_options,
         ):
             trials[
                 (
                     f"iso-{size}-{init}"
                     f"{'-gsize' + str(group_size) if len(group_sizes) > 1 else ''}"
                     f"{'-broadcast1' if g_broadcast else ''}"
+                    f"{'-channeladd' if channel_add else ''}"
+                    f"{'-spreadgrad' if spread_grad else ''}"
                 )
             ] = {
                 "pool_fn": make_pooling_function(
@@ -50,24 +62,38 @@ def lenet_configs(
                     size,
                     group_size=group_size,
                     group_broadcasting=g_broadcast,
+                    channel_add=channel_add,
+                    spread_gradient=spread_grad,
                 ),
                 "init": {"var": init},
             }
 
     if do_aniso:
-        for size, (v_init, t_init), group_size, g_broadcast in product(
-            kernel_sizes, aniso_inits, group_sizes, g_broadcasting_options
+        for size, (
+            v_init,
+            t_init,
+        ), group_size, g_broadcast, channel_add, spread_grad in product(
+            kernel_sizes,
+            aniso_inits,
+            group_sizes,
+            g_broadcasting_options,
+            channel_add_options,
+            spread_gradient_options,
         ):
             trials[
                 f"aniso-{size}-{v_init}-{t_init}"
                 f"{'-gsize' + str(group_size) if len(group_sizes) > 1 else ''}"
                 f"{'-broadcast1' if g_broadcast else ''}"
+                f"{'-channeladd' if channel_add else ''}"
+                f"{'-spreadgrad' if spread_grad else ''}"
             ] = {
                 "pool_fn": make_pooling_function(
                     "aniso",
                     size,
                     group_size=group_size,
                     group_broadcasting=g_broadcast,
+                    channel_add=channel_add,
+                    spread_gradient=spread_grad,
                 ),
                 "init": {"var": v_init, "theta": t_init},
             }
@@ -83,12 +109,17 @@ def group_configs(name: str | None = None):
     return lenet_configs(
         g_broadcasting_options=(False, True),
         group_sizes=(1, 2, 3),
-        kernel_sizes=(9,),
-        iso_inits=("uniform", "ss"),
-        aniso_inits=(
-            ("uniform-iso", "uniform"),
-            ("skewed", "spin"),
-        ),
+        kernel_sizes=(7,),
+        do_standard=False,
+        progress_bar=name,
+    )
+
+
+def grad_configs(name: str | None = None):
+    return lenet_configs(
+        channel_add_options=(False, True),
+        spread_gradient_options=(False, True),
+        kernel_sizes=(7,),
         do_standard=False,
         progress_bar=name,
     )

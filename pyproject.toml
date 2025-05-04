@@ -19,6 +19,7 @@ dependencies = [
     "pytorch-numba-extension-jit",
     "pytorch-semifield-conv",
     "tqdm>=4.67.1",
+    "pyarrow>=20.0.0",
 ]
 
 

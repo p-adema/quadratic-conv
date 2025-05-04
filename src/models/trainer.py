@@ -6,7 +6,6 @@ import warnings
 from collections.abc import Callable
 from typing import NamedTuple, Self
 
-# import keras
 import numpy as np
 import polars as pl
 import torch

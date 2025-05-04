@@ -75,7 +75,7 @@ class HistoryCallback:
         return reports_to_df(self.reports), self.losses
 
 
-POOLING_JIT = True
+POOLING_JIT_DEFAULT = True
 
 
 def make_pooling_function(
@@ -86,9 +86,20 @@ def make_pooling_function(
     groups: int | None = None,
     group_size: int | None = None,
     group_broadcasting: bool = False,
-    jit: bool = POOLING_JIT,
+    jit: bool = ...,
+    channel_add: bool = False,
+    spread_gradient: bool = False,
 ) -> Callable[[int, dict], torch.Module]:
     assert groups is None or group_size is None, "Can't specify both n groups and size"
+    if (channel_add or spread_gradient) and jit is ...:
+        jit = False
+    elif channel_add or spread_gradient:
+        assert not jit, (
+            "JIT doesn't support alternate reduction for channels or spreading gradient"
+        )
+    elif jit is ...:
+        jit = POOLING_JIT_DEFAULT
+
     if padding is None:
         padding = kernel_size // 2
 
@@ -128,7 +139,9 @@ def make_pooling_function(
         conv = (
             SelectSemifield.tropical_max().lazy_fixed()
             if jit
-            else BroadcastSemifield.tropical_max().module()
+            else BroadcastSemifield.tropical_max(
+                channels_add=channel_add, spread_gradient=spread_gradient
+            ).dynamic()
         )
 
         return GenericConv2D(
@@ -143,23 +156,25 @@ def make_pooling_function(
     return pooling_fn
 
 
-POOLING_STANDARD = {
+EXAMPLE_POOLING_STANDARD = {
     "standard-2": make_pooling_function("standard", 2),
     "standard-3": make_pooling_function("standard", 3),
     "standard-5": make_pooling_function("standard", 5),
     "standard-7": make_pooling_function("standard", 7),
 }
-POOLING_ISOTROPIC = {
+EXAMPLE_POOLING_ISOTROPIC = {
     "iso-3": make_pooling_function("iso", 3),
     "iso-5": make_pooling_function("iso", 5),
     "iso-7": make_pooling_function("iso", 7),
 }
-POOLING_ANISO = {
+EXAMPLE_POOLING_ANISO = {
     "aniso-3": make_pooling_function("aniso", 3),
     "aniso-5": make_pooling_function("aniso", 5),
     "aniso-7": make_pooling_function("aniso", 7),
 }
 
-POOLING_FUNCTIONS: collections.ChainMap[str, Callable[[int, dict], nn.Module]] = (
-    collections.ChainMap(POOLING_STANDARD, POOLING_ISOTROPIC, POOLING_ANISO)
+EXAMPLE_POOLING_FUNCTIONS: collections.ChainMap[
+    str, Callable[[int, dict], nn.Module]
+] = collections.ChainMap(
+    EXAMPLE_POOLING_STANDARD, EXAMPLE_POOLING_ISOTROPIC, EXAMPLE_POOLING_ANISO
 )

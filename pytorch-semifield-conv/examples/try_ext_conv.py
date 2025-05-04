@@ -8,7 +8,7 @@ import numpy as np
 import torch
 
 # Move to project root
-from pytorch_semifield_conv import BroadcastSemifield, SelectSemifield, TropicalConv2D
+from pytorch_semifield_conv import BroadcastSemifield, SelectSemifield
 
 plt.set_cmap("Spectral_r")
 
@@ -124,8 +124,8 @@ ss_adj = Adjunction(
 )
 tr_adj = Adjunction(TropicalConv2D(is_max=True), TropicalConv2D(is_max=False), "Old")
 un_adj = Adjunction(
-    BroadcastSemifield.tropical_max().module(),
-    BroadcastSemifield.tropical_min().module(),
+    BroadcastSemifield.tropical_max().dynamic(),
+    BroadcastSemifield.tropical_min().dynamic(),
     "Unfold",
 )
 

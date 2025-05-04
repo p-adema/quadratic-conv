@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 import polars as pl
 import torch
@@ -7,7 +8,11 @@ sys.path.extend(".")
 
 from src import load_data
 from src.models import LeNet
-from src.models.configurations.simple_lenet import group_configs, standard_configs
+from src.models.configurations.simple_lenet import (
+    grad_configs,
+    group_configs,
+    standard_configs,
+)
 
 torch.set_float32_matmul_precision("high")
 k_mnist = load_data.k_mnist()
@@ -21,20 +26,21 @@ base_kwargs = {
     "progress_bar": True,
 }
 
+assert not Path("./.data/long_k_mnist.pq").exists(), "Move or delete old data"
 
 for data_name, data in {"k_mnist": k_mnist, "fashion": fashion}.items():
     result = {}
-    for desc, config_kwargs in standard_configs(name=f"Test basics ({data_name})"):
+    for desc, config_kwargs in standard_configs(name=f"Basics ({data_name})"):
         result[desc] = LeNet.fit_many(
             data=data,
             description=desc,
             **base_kwargs,
             **config_kwargs,
         ).scores
-    pl.DataFrame(result).write_parquet(f"./.data/long_{data_name}")
+    pl.DataFrame(result).write_parquet(f"./.data/long_{data_name}.pq")
 
     result = {}
-    for desc, config_kwargs in group_configs(name=f"Test groups ({data_name})"):
+    for desc, config_kwargs in group_configs(name=f"Groups ({data_name})"):
         result[desc] = LeNet.fit_many(
             data=data,
             description=desc,
@@ -42,4 +48,14 @@ for data_name, data in {"k_mnist": k_mnist, "fashion": fashion}.items():
             **base_kwargs,
             **config_kwargs,
         ).scores
-    pl.DataFrame(result).write_parquet(f"./.data/groups_{data_name}")
+    pl.DataFrame(result).write_parquet(f"./.data/groups_{data_name}.pq")
+
+    result = {}
+    for desc, config_kwargs in grad_configs(name=f"Grad ({data_name})"):
+        result[desc] = LeNet.fit_many(
+            data=data,
+            description=desc,
+            **base_kwargs,
+            **config_kwargs,
+        ).scores
+    pl.DataFrame(result).write_parquet(f"./.data/grad_{data_name}.pq")
