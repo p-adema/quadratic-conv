@@ -25,18 +25,18 @@ base_kwargs = {
 }
 result = {}
 
-for desc, config_kwargs in standard_configs(name="Trial run basics (cifar10)"):
-    result[desc] = CIFAR10CNN.fit_many(
-        data=cifar10,
-        description=desc,
-        **base_kwargs,
-        **config_kwargs,
-    ).scores
+# for desc, config_kwargs in standard_configs(name="Basics (cifar10)"):
+#     result[desc] = CIFAR10CNN.fit_many(
+#         data=cifar10,
+#         description=desc,
+#         **base_kwargs,
+#         **config_kwargs,
+#     ).scores
+#
+# pl.DataFrame(result).write_parquet("./.data/long_cifar10.pq")
+# result.clear()
 
-pl.DataFrame(result).write_parquet("./.data/long_cifar10.pq")
-result.clear()
-
-# for desc, config_kwargs in group_configs(name="Trial run groups (cifar10)"):
+# for desc, config_kwargs in group_configs(name="Groups (cifar10)"):
 #     result[desc] = CIFAR10CNN.fit_many(
 #         data=cifar10,
 #         description=desc,
@@ -48,7 +48,7 @@ result.clear()
 # pl.DataFrame(result).write_parquet("./.data/groups_cifar10.pq")
 # result.clear()
 #
-for desc, config_kwargs in grad_configs(name="Trial run grad (cifar10)"):
+for desc, config_kwargs in grad_configs(name="Grad (cifar10)"):
     result[desc] = CIFAR10CNN.fit_many(
         data=cifar10,
         description=desc,

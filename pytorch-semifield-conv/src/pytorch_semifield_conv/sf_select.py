@@ -40,7 +40,7 @@ class SelectSemifield(NamedTuple):
         )
 
     @classmethod
-    def tropical_min(cls) -> SelectSemifield:
+    def tropical_min_negated(cls) -> SelectSemifield:
         return cls(
             add_select=lambda left, right: left > right,
             times=lambda img_val, kernel_val: img_val - kernel_val,

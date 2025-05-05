@@ -7,65 +7,6 @@ import torch
 from torch import nn
 
 
-class GenericConv2D(nn.Module):
-    def __init__(
-        self,
-        kernel: nn.Module,
-        conv: nn.Module,
-        dilation: int = 1,
-        padding: int = 0,
-        stride: int = 1,
-        groups: int = 1,
-        group_broadcasting: bool = False,
-        kind: Literal["conv", "corr"] = "conv",
-    ):
-        super().__init__()
-        self.padding = padding
-        self.stride = stride
-        self.dilation = dilation
-        self.kernel = kernel
-        self.conv = conv
-        self.groups = groups
-        self.group_broadcasting = group_broadcasting
-        self.kind = kind
-
-    def forward(self, x):
-        # Since these are custom arguments, we only want to pass them if they differ
-        # from the default values (otherwise, they may be unexpected)
-        kwargs = {}
-        if self.group_broadcasting:
-            kwargs["group_broadcasting"] = True
-        if self.kind == "corr":
-            kwargs["kind"] = "corr"
-
-        return self.conv(
-            x,
-            self.kernel(),
-            dilation=self.dilation,
-            padding=self.padding,
-            stride=self.stride,
-            groups=self.groups,
-            **kwargs,
-        )
-
-    def extra_repr(self) -> str:
-        res = []
-        if self.padding:
-            res.append(f"padding={self.padding}")
-        if self.stride != 1:
-            res.append(f"stride={self.stride}")
-        if self.dilation != 1:
-            res.append(f"dilation={self.dilation}")
-        if self.groups != 1:
-            res.append(f"groups={self.groups}")
-        if self.group_broadcasting:
-            res.append("group_broadcasting=True")
-        if self.kind == "corr":
-            res.append("kind=corr")
-
-        return ", ".join(res)
-
-
 class CoerceImage4D(nn.Module):
     def __init__(self, img_channels: int):
         super().__init__()
