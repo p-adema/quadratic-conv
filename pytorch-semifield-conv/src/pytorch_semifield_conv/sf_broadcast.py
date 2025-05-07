@@ -63,6 +63,14 @@ class BroadcastSemifield(typing.NamedTuple):
             ),
         )
 
+    @classmethod
+    def linear(cls):
+        return cls(
+            add_reduce=(lambda multiplied, dim: torch.sum(multiplied, dim=dim)),
+            multiply=lambda img, krn: img * krn,
+            zero=0,
+        )
+
     def dynamic(
         self, unfold_copy: bool = False, warn_changing_meta: bool = True
     ) -> BroadcastConv:
@@ -102,23 +110,26 @@ class BroadcastConv(nn.Module):
             groups,
             group_broadcasting,
         )
+        batch_size = imgs.shape[0]
 
         imgs_padded = torch.constant_pad_nd(
-            imgs, (padding, padding, padding, padding), self.semifield.zero
+            imgs,
+            (meta.pad_x_beg, meta.pad_x_end, meta.pad_y_beg, meta.pad_y_end),
+            self.semifield.zero,
         )
 
         # [b, groups * krn_cs, krn_ys, krn_xs, out_ys, out_xs]
         windows_flat_channels = self.unfold(
             imgs_padded,
             (meta.krn_ys, meta.krn_xs),
-            dilation=dilation,
-            stride=stride,
+            dilation=(meta.dil_y, meta.dil_x),
+            stride=(meta.str_y, meta.str_x),
         )
-        # print(windows_flat.shape)
+        # print(windows_flat_channels.shape)
         windows = windows_flat_channels.view(
-            imgs.shape[0],
-            groups,
-            1,  # Broadcast along krn_o_group_size
+            batch_size,
+            meta.groups,
+            1,  # Broadcast along grp_o
             meta.krn_cs,
             meta.krn_ys,
             meta.krn_xs,
@@ -132,7 +143,7 @@ class BroadcastConv(nn.Module):
         weights = kernel.view(
             1,  # Broadcast along batch dimension
             1 if group_broadcasting else groups,  # Maybe broadcast along groups
-            meta.krn_o_group_size,  # Number of kernels per group
+            meta.grp_o,  # Number of kernels per group
             meta.krn_cs,  # 3: Neighbourhood Channels
             meta.krn_ys,  # 4: Neighbourhood Ys
             meta.krn_xs,  # 5: Neighbourhood Xs
@@ -147,7 +158,7 @@ class BroadcastConv(nn.Module):
             reduced = self.semifield.add_reduce_channels(reduced_with_channels, 3)
 
         res = reduced.view(
-            imgs.shape[0],
+            batch_size,
             meta.out_cs,
             meta.out_ys,
             meta.out_xs,
@@ -158,15 +169,22 @@ class BroadcastConv(nn.Module):
         self,
         imgs: torch.Tensor,
         kernel: torch.Tensor,
-        stride: int = 1,
-        padding: int = 0,
-        dilation: int = 1,
+        stride: int | tuple[int, int] = 1,
+        padding: int | tuple[int, int] | tuple[tuple[int, int], tuple[int, int]] = 0,
+        dilation: int | tuple[int, int] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",
     ) -> ConvMeta:
         if self.last_meta is not None and self.last_meta.check_matches(
-            imgs, kernel, stride, padding, dilation, groups, group_broadcasting, kind
+            tuple(imgs.shape),
+            tuple(kernel.shape),
+            stride,
+            padding,
+            dilation,
+            groups,
+            group_broadcasting,
+            kind,
         ):
             meta = self.last_meta
         else:
@@ -174,8 +192,8 @@ class BroadcastConv(nn.Module):
                 warnings.warn("Convolution parameters changed", stacklevel=5)
 
             meta = ConvMeta.infer(
-                imgs,
-                kernel,
+                tuple(imgs.shape),
+                tuple(kernel.shape),
                 stride,
                 padding,
                 dilation,

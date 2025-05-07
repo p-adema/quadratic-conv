@@ -56,7 +56,10 @@ def unfold_copy(
     meta = _UnfoldMeta.infer(imgs.shape, kernel_size, dilation, stride)
 
     return torch.nn.functional.unfold(
-        imgs, kernel_size=kernel_size, dilation=dilation, stride=stride
+        imgs,
+        kernel_size=(meta.krs_y, meta.krs_x),
+        dilation=(meta.dil_y, meta.dil_x),
+        stride=(meta.str_y, meta.str_x),
     ).view(imgs.shape[0], imgs.shape[1], meta.krs_y, meta.krs_x, meta.out_y, meta.out_x)
 
 
