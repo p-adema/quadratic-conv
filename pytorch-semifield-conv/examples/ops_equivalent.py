@@ -172,6 +172,9 @@ def check_param_space(
         )
         check_params((sy, sx), ((pyb, pye), (pxb, pxe)), (dy, dx))
 
+    for sy, sx, pyb, pye, pxb, pxe, dx, dy in tqdm(samples, desc="Cached second pass"):
+        check_params((sy, sx), ((pyb, pye), (pxb, pxe)), (dy, dx))
+
 
 if __name__ == "__main__":
     check_param_space()
