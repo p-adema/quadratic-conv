@@ -5,30 +5,14 @@ from collections.abc import Callable, Iterable
 
 import torch
 
-from .as_dtype import AsDType
-from .codegen import (
+from ._as_dtype import AsDType
+from ._codegen import (
     InputScalar,
     InputTensor,
     KernelParam,
     OutputTensor,
     UnusedParam,
 )
-
-# @forwards_wrapper.register_fake
-# def _(img, kernel):
-#     batch_size = img.shape[0]
-#     out_img_shape = (
-#         batch_size,
-#         meta.out_cs,
-#         meta.out_ys,
-#         meta.out_xs,
-#     )
-#     return (
-#         img.new_empty(out_img_shape),
-#         kernel.new_empty(
-#             (*out_img_shape, 3 if meta.krn_cs > 1 else 2), dtype=prov_t.torch_type()
-#         ),
-#     )
 
 
 def _determine_torchlib_signature(
@@ -38,20 +22,22 @@ def _determine_torchlib_signature(
     mutable_names = set()
     output_count = 0
     for param in kernel_params:
-        match param:
-            case InputScalar(dtype=dtype, name=name):
-                input_sig.append(f"{AsDType(dtype).as_torchlib_scalar()} {name}")
-            case InputTensor(name=name, mutable=False):
-                input_sig.append(f"Tensor {name}")
-            case InputTensor(name=name, mutable=True):
-                input_sig.append(f"Tensor(mem_{name}!) {name}")
-                mutable_names.add(name)
-            case OutputTensor():
-                output_count += 1
-            case UnusedParam():
-                pass
-            case _:
-                raise TypeError(f"Unknown kernel parameter {type(param)=}: {param=}")
+        if isinstance(param, InputScalar):
+            input_sig.append(
+                f"{AsDType(param.dtype).as_torchlib_scalar()} {param.name}"
+            )
+        elif isinstance(param, InputTensor):
+            if param.mutable:
+                input_sig.append(f"Tensor(mem_{param.name}!) {param.name}")
+                mutable_names.add(param.name)
+            else:
+                input_sig.append(f"Tensor {param.name}")
+        elif isinstance(param, OutputTensor):
+            output_count += 1
+        elif isinstance(param, UnusedParam):
+            pass
+        else:
+            raise TypeError(f"Unknown kernel parameter {type(param)=}: {param=}")
 
     if output_count == 0:
         output = ""
@@ -99,7 +85,7 @@ def torchlib_wrapper(
     schema, mutates_args = _determine_torchlib_signature(kernel_params)
 
     op = torch.library.custom_op(
-        f"ptex_jit::op_{name}_{uuid.uuid4().hex}",
+        f"pnex_jit::op_{name}_{uuid.uuid4().hex}",
         schema=schema,
         mutates_args=mutates_args,
         device_types="cuda",

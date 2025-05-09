@@ -4,11 +4,8 @@ import typing
 from collections.abc import Callable
 
 import matplotlib.pyplot as plt
-import numpy as np
 import torch
-
-# Move to project root
-from pytorch_semifield_conv import BroadcastSemifield, SelectSemifield
+from pytorch_semifield_conv import SelectSemifield
 
 plt.set_cmap("Spectral_r")
 
@@ -76,7 +73,7 @@ def plot_kernels(kernel: torch.Tensor, vmin=-1, vmax=0):
     assert len(kernel.shape) == 4
     kernel = kernel.numpy(force=True)[:, 0]
     _, axs = plt.subplots(ncols=len(kernel), layout="compressed", figsize=(10, 10))
-    for k, ax in zip(kernel, axs):
+    for k, ax in zip(kernel, axs, strict=True):
         ax.matshow(k, vmin=vmin, vmax=vmax)
 
 
@@ -122,12 +119,6 @@ ss_adj = Adjunction(
     SelectSemifield.tropical_min().dynamic(20),
     "Select",
 )
-tr_adj = Adjunction(TropicalConv2D(is_max=True), TropicalConv2D(is_max=False), "Old")
-un_adj = Adjunction(
-    BroadcastSemifield.tropical_max().dynamic(),
-    BroadcastSemifield.tropical_min().dynamic(),
-    "Unfold",
-)
 
 
 def plot_adjunction(
@@ -140,10 +131,7 @@ def plot_adjunction(
     figsize=(10, 10),
     **conv_kwargs,
 ):
-    if surface:
-        plot_fn = plot_3d
-    else:
-        plot_fn = plot_2d
+    plot_fn = plot_2d
     fig, axss = plt.subplots(
         nrows=2,
         ncols=3,
@@ -191,6 +179,7 @@ def plot_adjunction(
     for errs, name in zip(
         (dilation_err, erosion_err, opened_err, closed_err),
         ("Dilation", "Erosion", "Opening", "Closing"),
+        strict=True,
     ):
         if (errs > permissible_error).any():
             plot_fn(
@@ -207,7 +196,7 @@ def plot_adjunction(
         f"{suptitle}: Erosion should always be <="
     )
     assert (closed_err < permissible_error).all(), (
-        f"{suptitle}: Closing should always be >=, {closed_err.max()=} {closed_err.argmax()=}"
+        f"{suptitle}: Closing should always be >=, {closed_err.max()=}"
     )
     assert (opened_err < permissible_error).all(), (
         f"{suptitle}: Opening should always be <=, {opened_err.max()=}"

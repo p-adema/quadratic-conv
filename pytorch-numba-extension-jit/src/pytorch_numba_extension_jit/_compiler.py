@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 import os
 import sys
 import warnings
@@ -12,8 +11,8 @@ import torch
 from numba import cuda
 from torch.utils import cpp_extension
 
-from .as_dtype import AsDType
-from .codegen import (
+from ._as_dtype import AsDType
+from ._codegen import (
     InputScalar,
     InputTensor,
     KernelParam,
@@ -21,16 +20,13 @@ from .codegen import (
     UnusedParam,
     kernel_wrapper,
 )
-from .torchlib_wrapper import torchlib_wrapper
+from ._torchlib_wrapper import torchlib_wrapper
 
 warnings.filterwarnings(
     "ignore",
     r"Grid size \d+ will likely result in GPU under-utilization due to low occupancy.",
     numba.NumbaPerformanceWarning,
 )
-
-_cuda_major, _cuda_minor = cuda.get_current_device().compute_capability
-os.environ.setdefault("TORCH_CUDA_ARCH_LIST", f"{_cuda_major}.{_cuda_minor}")
 
 
 def _find_cudart() -> Path:
@@ -53,11 +49,14 @@ def ptx_to_extension(
     name: str,
     kernel_params: Iterable[KernelParam],
     *,
-    n_threads: str,
-    threads_per_block: int = 256,
+    n_threads: tuple[str, str, str],
+    threads_per_block: tuple[int, int, int],
     use_runtime_api: bool = False,
     verbose: bool = True,
 ):
+    _cuda_major, _cuda_minor = cuda.get_current_device().compute_capability
+    os.environ.setdefault("TORCH_CUDA_ARCH_LIST", f"{_cuda_major}.{_cuda_minor}")
+    cuda.jit()
     cpp = kernel_wrapper(
         ptx,
         name,
@@ -73,15 +72,15 @@ def ptx_to_extension(
         print("=" * 10, f"END CPP {name}", "=" * 10)
 
     mod = cpp_extension.load_inline(
-        f"ptex_jit_{name}",
+        f"pnex_jit_{name}",
         cpp,
         with_cuda=True,
         verbose=verbose,
-        functions=[f"ptex_jit::kernel_{name}"],
+        functions=[f"pnex_jit::kernel_{name}"],
         keep_intermediates=True,
         extra_ldflags=[f"-L{_find_cudart()}"] + ([] if use_runtime_api else ["-lcuda"]),
     )
-    return getattr(mod, f"ptex_jit::kernel_{name}")
+    return getattr(mod, f"pnex_jit::kernel_{name}")
 
 
 def _determine_numba_signature(kernel_params: tuple[KernelParam, ...]) -> str:
@@ -123,16 +122,16 @@ def _determine_numba_signature(kernel_params: tuple[KernelParam, ...]) -> str:
     return "void(" + ", ".join(sig) + ")"
 
 
-def jit(
-    kernel_params: Iterable[KernelParam],
+def compile_extension(
+    pyfunc: Callable,
     *,
-    n_threads: str,
-    threads_per_block: int = 256,
+    kernel_params: Iterable[KernelParam],
+    n_threads: tuple[str, str, str],
+    threads_per_block: tuple[int, int, int],
     use_runtime_api: bool = False,
     verbose: bool = False,
-    compile_extension: bool = True,
     cache_id: str | None = None,
-) -> Callable[[Callable], torch.library.CustomOpDef]:
+):
     cache_id = "_" + cache_id if cache_id else ""
 
     kernel_params = tuple(kernel_params)
@@ -140,63 +139,73 @@ def jit(
     if verbose:
         print(f"SIGNATURE {cache_id if cache_id else ''} : {sig}")
 
-    if compile_extension:
+    name = pyfunc.__name__ + cache_id
+    ptx = cuda.compile_for_current_device(
+        pyfunc,
+        sig,
+        device=False,
+        abi="numba",
+        lineinfo=False,
+        output="ptx",
+    )[0]
+    kernel = ptx_to_extension(
+        ptx,
+        name,
+        kernel_params,
+        n_threads=n_threads,
+        threads_per_block=threads_per_block,
+        use_runtime_api=use_runtime_api,
+        verbose=verbose,
+    )
+    torchlib_op = torchlib_wrapper(
+        kernel=kernel,
+        name=name,
+        kernel_params=kernel_params,
+    )
+    return torchlib_op
 
-        def decorator(pyfunc: Callable) -> torch.library.CustomOpDef:
-            name = pyfunc.__name__ + cache_id
-            ptx = cuda.compile_for_current_device(
-                pyfunc,
-                sig,
-                device=False,
-                abi="numba",
-                lineinfo=False,
-                output="ptx",
-            )[0]
-            kernel = ptx_to_extension(
-                ptx,
-                name,
-                kernel_params,
-                n_threads=str(n_threads),
-                threads_per_block=threads_per_block,
-                use_runtime_api=use_runtime_api,
-                verbose=verbose,
-            )
-            torchlib_op = torchlib_wrapper(
-                kernel=kernel,
-                name=name,
-                kernel_params=kernel_params,
-            )
-            return torchlib_op
-    else:
 
-        def decorator(pyfunc: Callable) -> torch.library.CustomOpDef:
-            name = pyfunc.__name__ + cache_id
-            numba_kernel = cuda.jit(sig, cache=True)(pyfunc)
-            kernel_py_code = kernel_wrapper(
-                numba_kernel,
-                name,
-                kernel_params,
-                n_threads=n_threads,
-                threads_per_block=threads_per_block,
-                lang="py",
-            )
-            ev_locals = {}
-            if verbose:
-                print("=" * 10, f"BEGIN PY {name}", "=" * 10)
-                print(kernel_py_code)
-                print("=" * 10, f"END PY {name}", "=" * 10)
+def compile_array_api(
+    pyfunc: Callable,
+    *,
+    kernel_params: Iterable[KernelParam],
+    n_threads: tuple[str, str, str],
+    threads_per_block: tuple[int, int, int],
+    verbose: bool = False,
+    cache_id: str | None = None,
+):
+    cache_id = "_" + cache_id if cache_id else ""
 
-            exec(
-                kernel_py_code,
-                {"torch": torch, "kernel_inner": numba_kernel},
-                ev_locals,
-            )
-            kernel = ev_locals[f"kernel_{name}"]
-            torchlib_op = torchlib_wrapper(
-                kernel=kernel,
-                name=name,
-                kernel_params=kernel_params,
-            )
-            return torchlib_op
+    kernel_params = tuple(kernel_params)
+    sig = _determine_numba_signature(kernel_params)
+    if verbose:
+        print(f"SIGNATURE {cache_id if cache_id else ''} : {sig}")
 
-    return decorator
+    name = pyfunc.__name__ + cache_id
+    numba_kernel = cuda.jit(sig, cache=True)(pyfunc)
+    kernel_py_code = kernel_wrapper(
+        numba_kernel,
+        name,
+        kernel_params,
+        n_threads=n_threads,
+        threads_per_block=threads_per_block,
+        lang="py",
+    )
+    ev_locals = {}
+    if verbose:
+        print("=" * 10, f"BEGIN PY {name}", "=" * 10)
+        print(kernel_py_code)
+        print("=" * 10, f"END PY {name}", "=" * 10)
+
+    exec(
+        kernel_py_code,
+        {"torch": torch, "kernel_inner": numba_kernel},
+        ev_locals,
+    )
+    kernel = ev_locals[f"kernel_{name}"]
+    torchlib_op = torchlib_wrapper(
+        kernel=kernel,
+        name=name,
+        kernel_params=kernel_params,
+    )
+    return torchlib_op

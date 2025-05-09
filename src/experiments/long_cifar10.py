@@ -8,7 +8,6 @@ sys.path.extend(".")
 from src import load_data
 from src.models import CIFAR10CNN
 from src.models.configurations.simple_lenet import (
-    grad_configs,
     group_configs,
     standard_configs,
 )
@@ -47,14 +46,3 @@ result = {}
 #
 # pl.DataFrame(result).write_parquet("./.data/groups_cifar10.pq")
 # result.clear()
-#
-for desc, config_kwargs in grad_configs(name="Grad (cifar10)"):
-    result[desc] = CIFAR10CNN.fit_many(
-        data=cifar10,
-        description=desc,
-        conv_channels=(30, 60, 120),
-        **base_kwargs,
-        **config_kwargs,
-    ).scores
-
-pl.DataFrame(result).write_parquet("./.data/grad_cifar10.pq")

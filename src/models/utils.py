@@ -10,13 +10,14 @@ import polars as pl
 import torch
 from pytorch_semifield_conv import (
     BroadcastSemifield,
-    Closing2D,
+    GenericClosing2D,
     GenericConv2D,
+    QuadraticKernelIso2D,
+    QuadraticKernelSpectral2D,
     SelectSemifield,
+    TorchMaxpool2D,
 )
 from torch import nn
-
-from src.kernels import QuadraticKernelIso2D, QuadraticKernelSpectral2D
 
 from ..load_data import Dataset
 
@@ -87,27 +88,29 @@ def make_pooling_function(
     kind: Literal["standard", "iso", "aniso"],
     kernel_size: int,
     stride: int = 2,
-    padding: int | None = None,
+    padding: (
+        int
+        | tuple[int, int]
+        | tuple[tuple[int, int], tuple[int, int]]
+        | Literal["valid", "same"]
+    ) = "same",
     groups: int | None = None,
-    group_size: int | None = None,
+    group_size: int | None = None,  # S_i
     group_broadcasting: bool = False,
     jit: bool = ...,
     channel_add: bool = False,
     spread_gradient: bool = False,
-    closing: bool = False,
+    is_closing: bool = False,
 ) -> Callable[[int, dict], torch.Module]:
-    jit = _get_jit_status(channel_add, group_size, groups, jit, spread_gradient)
-
-    if padding is None:
-        padding = kernel_size // 2
+    jit = _get_jit_status(jit, channel_add, spread_gradient)
 
     def pooling_fn(channels: int, init: dict[str, float | int]) -> nn.Module:
-        grp_size, grps = _calculate_groups(channels)
+        grp_size, grps = _calculate_groups(channels, groups, group_size)
 
         if kind == "standard":
             assert grp_size == 1, "Standard max pool doesn't support group sizes > 1"
             assert not group_broadcasting, "Standard max pool doesn't have parameters"
-            return nn.MaxPool2d(kernel_size=kernel_size, stride=stride, padding=padding)
+            return TorchMaxpool2D(kernel_size, stride, padding)
 
         out_channels = channels if not group_broadcasting else grp_size
 
@@ -130,7 +133,7 @@ def make_pooling_function(
             ).dynamic()
         )
 
-        if closing:
+        if is_closing:
             conv_erosion = (
                 SelectSemifield.tropical_min_negated().lazy_fixed()
                 if jit
@@ -138,7 +141,7 @@ def make_pooling_function(
                     channels_add=channel_add, spread_gradient=spread_gradient
                 ).dynamic()
             )
-            return Closing2D(
+            return GenericClosing2D(
                 kernel=kernel,
                 conv_dilation=conv_dilation,
                 conv_erosion=conv_erosion,
@@ -157,36 +160,42 @@ def make_pooling_function(
             group_broadcasting=group_broadcasting,
         )
 
-    def _calculate_groups(channels):
-        if groups is None and group_size is None:
-            grps = channels
-            grp_size = 1
-        elif groups is not None:
-            grps = groups
-            assert channels % grps == 0, f"{channels=} not evenly divided by {groups=}"
-            grp_size = channels // grps
-        else:
-            grp_size = group_size
-            assert channels % group_size == 0, (
-                f"{channels=} not evenly divided by {group_size=}"
-            )
-            grps = channels // grp_size
-        return grp_size, grps
-
     return pooling_fn
 
 
-def _get_jit_status(channel_add, group_size, groups, jit, spread_gradient):
-    assert groups is None or group_size is None, "Can't specify both n groups and size"
+def _calculate_groups(channels: int, groups: int, group_size: int) -> tuple[int, int]:
+    if groups is not None and group_size is not None:
+        expected_channels = groups * group_size
+        assert channels == expected_channels, (
+            f"Provided both {groups=} and {group_size=},"
+            f" which implies {expected_channels=}, but actual {channels=}"
+        )
+        return group_size, groups
+
+    if groups is None and group_size is None:
+        grps = channels
+        grp_size = 1
+    elif groups is not None:
+        grps = groups
+        assert channels % grps == 0, f"{channels=} not evenly divided by {groups=}"
+        grp_size = channels // grps
+    else:
+        grp_size = group_size
+        assert channels % group_size == 0, (
+            f"{channels=} not evenly divided by {group_size=}"
+        )
+        grps = channels // grp_size
+    return grp_size, grps
+
+
+def _get_jit_status(jit: bool | Ellipsis, channel_add: bool, spread_gradient: bool):
     if (channel_add or spread_gradient) and jit is ...:
         return False
-    if channel_add or spread_gradient:
-        assert not jit, (
-            "JIT doesn't support alternate reduction for channels or spreading gradient"
-        )
     if jit is ...:
         return POOLING_JIT_DEFAULT
 
+    if channel_add or spread_gradient:
+        assert not jit, "JIT doesn't support channel-add or spreading gradient"
     return jit
 
 

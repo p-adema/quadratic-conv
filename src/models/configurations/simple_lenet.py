@@ -108,17 +108,8 @@ def standard_configs(name: str | None = None):
 def group_configs(name: str | None = None):
     return lenet_configs(
         g_broadcasting_options=(False, True),
-        group_sizes=(1, 2, 3),
-        kernel_sizes=(7,),
-        do_standard=False,
-        progress_bar=name,
-    )
-
-
-def grad_configs(name: str | None = None):
-    return lenet_configs(
         channel_add_options=(False, True),
-        spread_gradient_options=(False, True),
+        group_sizes=(1, 2, 3),
         kernel_sizes=(7,),
         do_standard=False,
         progress_bar=name,

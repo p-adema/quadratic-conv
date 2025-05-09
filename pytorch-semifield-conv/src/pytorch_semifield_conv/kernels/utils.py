@@ -1,5 +1,3 @@
-import matplotlib.pyplot as plt
-import seaborn as sns
 import torch
 from torch import nn
 
@@ -19,6 +17,9 @@ class LearnedKernel(nn.Module):
 def plot_kernels(
     kernels: torch.Tensor, cut_zero=True, high_cut: float = 0.95, at_most: int = 4
 ) -> None:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
     dev_name = "(CPU)" if kernels.get_device() == -1 else "(CUDA)"
     kernels = kernels.detach().cpu()[:at_most, :at_most]
     high = torch.quantile(kernels.view(-1), torch.tensor([high_cut])).cpu().item()

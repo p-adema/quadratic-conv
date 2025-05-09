@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import NamedTuple
 
 import numba
+import numpy as np
 import pytorch_numba_extension_jit as ptex
 import torch
 from numba import cuda
@@ -17,29 +18,34 @@ from .utils import ConvMeta
 warnings.simplefilter("ignore", numba.NumbaPerformanceWarning, 536)
 
 
-class SubtractSemifield(NamedTuple):
-    add: Callable[[float, float], float]  # (acc, val) -> acc (+) val
+class SelectSemifield(NamedTuple):
+    add_select: Callable[[float, float], bool]  # Return True if we should pick right
     times: Callable[[float, float], float]  # (img_val, krn_val) -> multiplied_val
     d_times_d_img: Callable[[float, float], float]
     d_times_d_kernel: Callable[[float, float], float]
-    # (res, val) -> res-val, such that val (+) (res - val) == res
-    subtract: Callable[[float, float], float]
-    # d(acc (+) val) / dval
-    d_add_d_right: Callable[[float, float], float]
     neutral: float
     cache_name: str = None  # Cache identifier: distinct for different operators
 
     @classmethod
-    def linear(cls) -> SubtractSemifield:
+    def tropical_max(cls) -> SelectSemifield:
         return cls(
-            add=lambda acc, val: acc + val,
-            times=lambda img_val, kernel_val: img_val * kernel_val,
-            d_times_d_img=lambda _i, kernel_val: kernel_val,
-            d_times_d_kernel=lambda img_val, _k: img_val,
-            subtract=lambda res, val: res - val,
-            d_add_d_right=lambda _a, _v: 1,
-            neutral=0,
-            cache_name="_linear",
+            add_select=lambda left, right: left < right,
+            times=lambda img_val, kernel_val: img_val + kernel_val,
+            d_times_d_img=lambda _i, _k: 1.0,
+            d_times_d_kernel=lambda _i, _k: 1.0,
+            neutral=-float("inf"),
+            cache_name="_tropical_max",
+        )
+
+    @classmethod
+    def tropical_min_negated(cls) -> SelectSemifield:
+        return cls(
+            add_select=lambda left, right: left > right,
+            times=lambda img_val, kernel_val: img_val - kernel_val,
+            d_times_d_img=lambda _i, _k: 1.0,
+            d_times_d_kernel=lambda _i, _k: -1.0,
+            neutral=float("inf"),
+            cache_name="_tropical_min",
         )
 
     # The torch compiler doesn't understand the Numba compiler
@@ -51,12 +57,14 @@ class SubtractSemifield(NamedTuple):
         thread_block_size: int = 256,
         debug: bool = False,
         to_extension: bool = True,
-    ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
-        cmp_semi = _CompiledSubtractSemifield.compile(self)
+    ) -> Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]:
+        prov_t = _ProvType.smallest_required(meta)
+        cmp_semi = _CompiledSelectSemifield.compile(self)
 
         forwards = _compile_forwards(
             semifield=cmp_semi,
             meta=meta,
+            prov_t=prov_t,
             thread_block_size=thread_block_size,
             debug=debug,
             cache_name="_temporary" if self.cache_name is None else self.cache_name,
@@ -65,6 +73,7 @@ class SubtractSemifield(NamedTuple):
         backwards, backwards_setup = _compile_backwards(
             semifield=cmp_semi,
             meta=meta,
+            prov_t=prov_t,
             thread_block_size=thread_block_size,
             debug=debug,
             cache_name="_temporary" if self.cache_name is None else self.cache_name,
@@ -81,8 +90,9 @@ class SubtractSemifield(NamedTuple):
         to_extension: bool = True,
     ) -> CompiledConv:
         """
-        Use a dynamic module that will recompile if it sees a new ConvMeta.
-        Cannot be fully traced due to potential compiler calls.
+        Use a dynamic module that will recompile if it sees a new ConvMeta, up to
+        `max_compilations` times.
+        Cannot be fully traced
         """
         return CompiledConv(self, thread_block_size, debug, to_extension)
 
@@ -96,7 +106,7 @@ class SubtractSemifield(NamedTuple):
         Use a lazy module that will compile exactly once, then ignore all auxilliary
         arguments (undefined behaviour if future inputs differ in any way other than
         batch size).
-        Can be fully traced.
+        Can be fully traced
         """
         return CompiledConvFixedLazy(self, thread_block_size, debug, to_extension)
 
@@ -106,18 +116,16 @@ class SubtractSemifield(NamedTuple):
 
         return hash(
             (
-                self.add,
+                self.add_select,
                 self.times,
                 self.d_times_d_img,
                 self.d_times_d_kernel,
-                self.subtract,
-                self.d_add_d_right,
                 self.neutral,
             )
         )
 
     def __eq__(self, other):
-        if not isinstance(other, SubtractSemifield):
+        if not isinstance(other, SelectSemifield):
             return False
         if self.cache_name is not None:
             return self.cache_name == other.cache_name
@@ -125,37 +133,57 @@ class SubtractSemifield(NamedTuple):
         return self is other
 
     @staticmethod
-    def get_result(res: torch.Tensor):
-        return res
+    def get_result(res: tuple[torch.Tensor, torch.Tensor]):
+        return res[0]
 
 
-class _CompiledSubtractSemifield(NamedTuple):
-    add: CUDADispatcher
+class _CompiledSelectSemifield(NamedTuple):
+    add_select: CUDADispatcher
     times: CUDADispatcher
     d_times_d_img: CUDADispatcher
     d_times_d_kernel: CUDADispatcher
-    subtract: CUDADispatcher
-    d_add_d_right: CUDADispatcher
     neutral: float
 
     @classmethod
-    def compile(cls, semifield: SubtractSemifield) -> _CompiledSubtractSemifield:
-        return _CompiledSubtractSemifield(
-            cuda.jit(semifield.add, device=True, inline="always", cache=True),
+    def compile(cls, semifield: SelectSemifield) -> _CompiledSelectSemifield:
+        return _CompiledSelectSemifield(
+            cuda.jit(semifield.add_select, device=True, inline="always", cache=True),
             cuda.jit(semifield.times, device=True, inline="always", cache=True),
             cuda.jit(semifield.d_times_d_img, device=True, inline="always", cache=True),
             cuda.jit(
                 semifield.d_times_d_kernel, device=True, inline="always", cache=True
             ),
-            cuda.jit(semifield.subtract, device=True, inline="always", cache=True),
-            cuda.jit(semifield.d_add_d_right, device=True, inline="always", cache=True),
             semifield.neutral,
         )
 
 
-def _compile_forwards(
-    semifield: _CompiledSubtractSemifield,
+class _ProvType(NamedTuple):
+    typename: str
+    maxval: int
+
+    @classmethod
+    def smallest_required(cls, meta: ConvMeta):
+        largest = max(meta.krn_xs, meta.krn_ys, meta.krn_cs)
+        if largest < np.iinfo(np.uint8).max:
+            return cls("uint8", np.iinfo(np.uint8).max)
+
+        assert largest < np.iinfo(np.uint16).max, "That's not going to fit in memory"
+        return cls("uint16", np.iinfo(np.uint16).max)
+
+    @property
+    def torch_type(self):
+        if self.typename == "uint8":
+            return torch.uint8
+        if self.typename == "uint16":
+            return torch.uint16
+
+        raise ValueError
+
+
+def _compile_forwards(  # noqa: C901
+    semifield: _CompiledSelectSemifield,
     meta: ConvMeta,
+    prov_t: _ProvType,
     thread_block_size: int = 256,
     debug: bool = False,
     cache_name: str = "",
@@ -163,26 +191,27 @@ def _compile_forwards(
 ):
     # noinspection DuplicatedCode
     @ptex.jit(
-        [
-            ptex.InputTensor(
-                "img", "f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)
-            ),
-            ptex.InputTensor(
-                "kernel", "f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)
-            ),
-            ptex.OutputTensor(
-                "out_img",
-                "f32",
-                ("img.shape[0]", meta.out_cs, meta.out_ys, meta.out_xs),
-            ),
-        ],
         n_threads="out_img",
-        compile_extension=to_extension,
+        to_extension=to_extension,
         verbose=debug,
         threads_per_block=thread_block_size,
-        cache_id=f"subtract_{cache_name}_{meta.cache_id()}",
+        cache_id=f"select_{cache_name}_{meta.cache_id()}",
     )
-    def forwards(img, kernel, out_img):
+    def forwards(
+        img: ptex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
+        kernel: ptex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
+        out_img: ptex.Out("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
+        out_prov: ptex.Out(
+            prov_t.torch_type,
+            (
+                "img.shape[0]",
+                meta.out_cs,
+                meta.out_ys,
+                meta.out_xs,
+                3 if meta.krn_cs > 1 else 2,
+            ),
+        ),
+    ):
         rem, o_x = divmod(cuda.grid(1), meta.out_xs)
         rem, o_y = divmod(rem, meta.out_ys)
         b, o_c = divmod(rem, meta.out_cs)
@@ -192,7 +221,8 @@ def _compile_forwards(
         i_top_y = o_y * meta.str_y - meta.pad_y_beg
         i_left_x = o_x * meta.str_x - meta.pad_x_beg
 
-        acc = semifield.neutral
+        prov_x = prov_y = prov_group_idx = prov_t.maxval
+        selected_val = semifield.neutral
 
         group_number = o_c // meta.grp_o
         # If we're not broadcasting, then we have a separate kernel
@@ -216,7 +246,6 @@ def _compile_forwards(
                         continue
 
                     # Need to explicitly use seperate variable, due to compiler error
-
                     if meta.mirror_kernel:
                         k_x = meta.krn_xs - 1 - x_step
                         k_y = meta.krn_ys - 1 - y_step
@@ -229,108 +258,115 @@ def _compile_forwards(
                     kernel_val = kernel[k_o, group_idx, k_y, k_x]
 
                     val = semifield.times(img_val, kernel_val)
-                    acc = semifield.add(acc, val)
+                    if semifield.add_select(selected_val, val):
+                        selected_val = val
+                        prov_y, prov_x = k_y, k_x
+                        if meta.krn_cs > 1:
+                            prov_group_idx = group_idx
 
-        out_img[b, o_c, o_y, o_x] = acc
+        out_img[b, o_c, o_y, o_x] = selected_val
+
+        out_prov[b, o_c, o_y, o_x, 0] = prov_y
+        out_prov[b, o_c, o_y, o_x, 1] = prov_x
+        if meta.krn_cs > 1:
+            # out_prov is only size 3 if we require an index within the group
+            out_prov[b, o_c, o_y, o_x, 2] = prov_group_idx
 
     return forwards
 
 
 def _compile_backwards(
-    semifield: _CompiledSubtractSemifield,
+    semifield: _CompiledSelectSemifield,
     meta: ConvMeta,
+    prov_t: _ProvType,
     thread_block_size: int = 256,
     debug: bool = False,
     cache_name: str = "",
     to_extension: bool = True,
 ):
-    # noinspection PyArgumentList,DuplicatedCode
+    # noinspection PyArgumentList
     @ptex.jit(
-        [
-            ptex.InputTensor(
-                "img", "f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)
-            ),
-            ptex.InputTensor(
-                "kernel", "f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)
-            ),
-            ptex.InputTensor(
-                "gradient",
-                "f32",
-                ("img.shape[0]", meta.out_cs, meta.out_ys, meta.out_xs),
-            ),
-            ptex.InputTensor("res_img", "f32", "gradient"),
-            ptex.OutputTensor("out_img_grad", "f32", "img", init=0),
-            ptex.OutputTensor("out_kernel_grad", "f32", "kernel", init=0),
-        ],
         n_threads="gradient",
-        compile_extension=to_extension,
+        to_extension=to_extension,
         verbose=debug,
         threads_per_block=thread_block_size,
-        cache_id=f"subtract_{cache_name}_{meta.cache_id()}",
+        cache_id=f"select_{cache_name}_{meta.cache_id()}",
     )
-    def backwards(img, kernel, gradient, res_img, out_img_grad, out_kernel_grad):
+    def backwards(
+        img: ptex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
+        kernel: ptex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
+        gradient: ptex.In(
+            "f32",
+            ("img.shape[0]", meta.out_cs, meta.out_ys, meta.out_xs),
+        ),
+        prov: ptex.In(
+            prov_t.torch_type,
+            (
+                "img.shape[0]",
+                meta.out_cs,
+                meta.out_ys,
+                meta.out_xs,
+                3 if meta.krn_cs > 1 else 2,
+            ),
+        ),
+        out_img_grad: ptex.Out("f32", "img", init=0),
+        out_kernel_grad: ptex.Out("f32", "kernel", init=0),
+    ):
         rem, o_x = divmod(cuda.grid(1), meta.out_xs)
         rem, o_y = divmod(rem, meta.out_ys)
         b, o_c = divmod(rem, meta.out_cs)
         if b >= img.shape[0]:
             return
 
-        i_top_y = o_y * meta.str_y - meta.pad_y_beg
-        i_left_x = o_x * meta.str_x - meta.pad_x_beg
-
-        res = res_img[b, o_c, o_y, o_x]
-        res_grad = gradient[b, o_c, o_y, o_x]
-
         group_number = o_c // meta.grp_o
         k_o = o_c if not meta.group_broadcasting else o_c % meta.grp_o
-        for group_idx in range(meta.krn_cs):
-            for y_step, i_y in enumerate(
-                range(i_top_y, i_top_y + meta.krn_ys * meta.dil_y, meta.dil_y)
-            ):
-                for x_step, i_x in enumerate(
-                    range(
-                        i_left_x,
-                        i_left_x + meta.krn_xs * meta.dil_x,
-                        meta.dil_x,
-                    )
-                ):
-                    if i_x < 0 or i_x >= meta.img_xs or i_y < 0 or i_y >= meta.img_ys:
-                        continue
 
-                    if meta.mirror_kernel:
-                        k_x = meta.krn_xs - 1 - x_step
-                        k_y = meta.krn_ys - 1 - y_step
-                    else:
-                        k_x = x_step
-                        k_y = y_step
+        grad_val = gradient[b, o_c, o_y, o_x]
+        k_prov_y = prov[b, o_c, o_y, o_x, 0]
+        k_prov_x = prov[b, o_c, o_y, o_x, 1]
+        # Index within our group, for which of the channels we ended up picking
+        # If krn_cs == 1, we can only pick the singular channel we have: always 0
+        prov_group_idx = prov[b, o_c, o_y, o_x, 2] if meta.krn_cs > 1 else 0
 
-                    i_c = group_number * meta.krn_cs + group_idx
-                    img_val = img[b, i_c, i_y, i_x]
-                    kernel_val = kernel[k_o, group_idx, k_y, k_x]
+        if k_prov_y == prov_t.maxval:
+            # We kept the original neutral element,
+            # so our gradient can't be related to the image
+            return
 
-                    val = semifield.times(img_val, kernel_val)
-                    acc = semifield.subtract(res, val)
-                    val_grad = semifield.d_add_d_right(acc, val) * res_grad
+        if meta.mirror_kernel:
+            x_steps = meta.krn_xs - 1 - k_prov_x
+            y_steps = meta.krn_ys - 1 - k_prov_y
+        else:
+            x_steps = k_prov_x
+            y_steps = k_prov_y
 
-                    cuda.atomic.add(
-                        out_img_grad,
-                        (b, i_c, i_y, i_x),
-                        semifield.d_times_d_img(img_val, kernel_val) * val_grad,
-                    )
-                    cuda.atomic.add(
-                        out_kernel_grad,
-                        (k_o, group_idx, k_y, k_x),
-                        semifield.d_times_d_kernel(img_val, kernel_val) * val_grad,
-                    )
+        i_top_y = o_y * meta.str_y - meta.pad_y_beg
+        i_left_x = o_x * meta.str_x - meta.pad_x_beg
+        i_prov_c = group_number * meta.krn_cs + prov_group_idx
+        i_prov_y = i_top_y + meta.dil_y * y_steps
+        i_prov_x = i_left_x + meta.dil_x * x_steps
+
+        kernel_val = kernel[k_o, prov_group_idx, k_prov_y, k_prov_x]
+        img_val = img[b, i_prov_c, i_prov_y, i_prov_x]
+
+        d_img = semifield.d_times_d_img(img_val, kernel_val) * grad_val
+        d_kernel = semifield.d_times_d_kernel(img_val, kernel_val) * grad_val
+
+        cuda.atomic.add(out_img_grad, (b, i_prov_c, i_prov_y, i_prov_x), d_img)
+        cuda.atomic.add(
+            out_kernel_grad, (k_o, prov_group_idx, k_prov_y, k_prov_x), d_kernel
+        )
 
     def backwards_setup(ctx, inputs, output):
         img, kernel = inputs
+        _out_img, prov = output
         ctx.img = img
         ctx.kernel = kernel
-        ctx.res_img = output
+        ctx.prov = prov
 
-    def backwards_entry(ctx, grad_output):
-        g_img, g_kern = backwards(ctx.img, ctx.kernel, grad_output, ctx.res_img)
+    def backwards_entry(ctx, grad_output, _grad_prov):
+        # return backwards_wrapper(ctx.img, ctx.kernel, grad_output, ctx.prov)
+        g_img, g_kern = backwards(ctx.img, ctx.kernel, grad_output, ctx.prov)
         return g_img, g_kern
 
     return backwards_entry, backwards_setup

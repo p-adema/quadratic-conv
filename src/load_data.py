@@ -71,6 +71,22 @@ class Dataset(NamedTuple):
             self.label_names,
         )
 
+    def upsample(self, factor: int) -> Dataset:
+        assert factor > 1
+        return Dataset(
+            self.x_train.repeat_interleave(factor, dim=2).repeat_interleave(
+                factor, dim=3
+            ),
+            self.x_test.repeat_interleave(factor, dim=2).repeat_interleave(
+                factor, dim=3
+            ),
+            self.y_train,
+            self.y_test,
+            self.img_channels,
+            self.num_classes,
+            self.label_names,
+        )
+
 
 def _mnist_like_normalisation(
     train: torchvision.datasets.VisionDataset,

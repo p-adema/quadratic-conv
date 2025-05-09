@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import math
-from typing import Literal, NamedTuple
+from typing import Any, Literal, NamedTuple
 
 import torch
 from torch import nn
 
 
-class CoerceImage4D(nn.Module):
+class CoerceImageBCHW(nn.Module):
     def __init__(self, img_channels: int):
         super().__init__()
         self.img_channels = img_channels
@@ -35,10 +35,110 @@ class CoerceImage4D(nn.Module):
         return x
 
 
-class LinearConv2D(nn.Module):
-    """A convolution in the linear field"""
+class TorchLinearConv2D(nn.Module):
+    """torch.nn.functional.conv2d with additional arguments"""
 
-    forward = staticmethod(nn.functional.conv2d)
+    @staticmethod
+    def forward(
+        img: torch.Tensor,
+        kernel: torch.Tensor,
+        stride: int | tuple[int, int] = 1,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal["valid", "same"]
+        ) = 0,
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        group_broadcasting: bool = False,
+        kind: Literal["conv", "corr"] = "conv",
+    ):
+        if group_broadcasting:
+            if kernel.shape[0] != 1:
+                raise ValueError("Torch conv2d cannot broadcast groups with grp_o > 1")
+
+            kernel = kernel.broadcast_to(
+                (groups, kernel.shape[1], kernel.shape[2], kernel.shape[3])
+            )
+        if kind == "conv":
+            kernel = kernel.flip((2, 3))
+
+        dil_y, dil_x = as_tup2(dilation)
+        (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
+            padding, dil_x, dil_y, kernel.shape[2], kernel.shape[3]
+        )
+
+        if pad_y_beg != pad_y_end or pad_x_beg != pad_x_end:
+            padded = torch.constant_pad_nd(
+                img,
+                # Yes, the padding really is in this order.
+                (pad_x_beg, pad_x_end, pad_y_beg, pad_y_end),
+            )
+            return torch.nn.functional.conv2d(
+                padded, kernel, stride=stride, dilation=dilation, groups=groups
+            )
+
+        return torch.nn.functional.conv2d(
+            img,
+            kernel,
+            stride=stride,
+            dilation=dilation,
+            groups=groups,
+            padding=(pad_y_beg, pad_x_beg),
+        )
+
+
+class TorchMaxpool2D(nn.Module):
+    """torch.nn.MaxPool2d with additional padding options"""
+
+    def __init__(
+        self,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = None,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal["valid", "same"]
+        ) = 0,
+        dilation: int | tuple[int, int] = 1,
+    ):
+        super().__init__()
+        self.kernel_size = kernel_size
+        self.stride = kernel_size if stride is None else stride
+        self.padding = padding
+        self.dilation = dilation
+
+    def forward(
+        self,
+        img: torch.Tensor,
+    ):
+        dil_y, dil_x = as_tup2(self.dilation)
+        krn_y, krn_x = as_tup2(self.kernel_size)
+        (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
+            self.padding, dil_x, dil_y, krn_y, krn_x
+        )
+
+        if pad_y_beg == pad_y_end and pad_x_beg == pad_x_end:
+            use_padding = (pad_y_beg, pad_x_beg)
+        else:
+            img = torch.constant_pad_nd(
+                img,
+                # Yes, the padding really is in this order.
+                (pad_x_beg, pad_x_end, pad_y_beg, pad_y_end),
+            )
+            use_padding = 0
+
+        return torch.nn.functional.max_pool2d(
+            input=img,
+            kernel_size=(krn_y, krn_x),
+            stride=self.stride,
+            padding=use_padding,
+            dilation=(dil_y, dil_x),
+            ceil_mode=False,
+            return_indices=False,
+        )
 
 
 class ConvMeta(NamedTuple):
@@ -72,17 +172,19 @@ class ConvMeta(NamedTuple):
         img_shape: tuple[int, ...],
         kernel_shape: tuple[int, ...],
         stride: int | tuple[int, int] = 1,
-        padding: int | tuple[int, int] | tuple[tuple[int, int], tuple[int, int]] = 0,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal["valid", "same"]
+        ) = 0,
         dilation: int | tuple[int, int] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",
     ) -> ConvMeta:
-        str_y, str_x = _as_tup(stride)
-        pad_y, pad_x = _as_tup(padding)
-        pad_y_beg, pad_y_end = _as_tup(pad_y)
-        pad_x_beg, pad_x_end = _as_tup(pad_x)
-        dil_y, dil_x = _as_tup(dilation)
+        str_y, str_x = as_tup2(stride)
+        dil_y, dil_x = as_tup2(dilation)
 
         # === Check params
         assert str_y > 0, f"{str_y=} must be positive"
@@ -90,6 +192,7 @@ class ConvMeta(NamedTuple):
         assert dil_x > 0, f"{dil_x=} must be positive"
         assert dil_y > 0, f"{dil_y=} must be positive"
         assert groups > 0, f"{groups=} must be positive"
+        assert kind in ("conv", "corr"), f"Invalid {kind=}"
         # Negative padding is strange, but not a logic error.
 
         # === Check imgs
@@ -111,8 +214,12 @@ class ConvMeta(NamedTuple):
         else:
             grp_o = krn_os
 
-        out_xs = _output_size(img_xs, krn_xs, str_x, pad_x_beg, pad_x_end, dil_x)
-        out_ys = _output_size(img_ys, krn_ys, str_y, pad_y_beg, pad_y_end, dil_y)
+        (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
+            padding, dil_x, dil_y, krn_ys, krn_xs
+        )
+
+        out_xs = output_size(img_xs, krn_xs, str_x, pad_x_beg, pad_x_end, dil_x)
+        out_ys = output_size(img_ys, krn_ys, str_y, pad_y_beg, pad_y_end, dil_y)
 
         out_cs = krn_os if not group_broadcasting else krn_os * groups
         assert out_xs > 0, f"Output image collapsed in x-direction: {out_xs=}"
@@ -149,17 +256,31 @@ class ConvMeta(NamedTuple):
         img_shape: tuple[int, ...],
         kernel_shape: tuple[int, ...],
         stride: int | tuple[int, int] = 1,
-        padding: int | tuple[int, int] | tuple[tuple[int, int], tuple[int, int]] = 0,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal["valid", "same"]
+        ) = 0,
         dilation: int | tuple[int, int] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",
     ):
-        str_y, str_x = _as_tup(stride)
-        pad_y, pad_x = _as_tup(padding)
-        pad_y_beg, pad_y_end = _as_tup(pad_y)
-        pad_x_beg, pad_x_end = _as_tup(pad_x)
-        dil_y, dil_x = _as_tup(dilation)
+        assert len(img_shape) == 4, "Image shape is not BCHW?"
+        assert len(kernel_shape) == 4, "Kernel shape is not OIHW?"
+        assert kind in ("conv", "corr"), f"Invalid {kind=}"
+
+        str_y, str_x = as_tup2(stride)
+        dil_y, dil_x = as_tup2(dilation)
+
+        (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
+            padding,
+            dil_x,
+            dil_y,
+            kernel_shape[2],
+            kernel_shape[3],
+        )
         return (
             img_shape[1] == self.img_cs
             and img_shape[2] == self.img_ys
@@ -195,7 +316,7 @@ class ConvMeta(NamedTuple):
         )
 
 
-def _as_tup(v: int | tuple[int] | tuple[int, int]):
+def as_tup2(v: int | tuple[Any] | tuple[Any, Any]):
     if isinstance(v, int):
         return v, v
     if len(v) == 1:
@@ -206,7 +327,7 @@ def _as_tup(v: int | tuple[int] | tuple[int, int]):
     raise ValueError(f"Invalid 2-tuple-like object {v=}")
 
 
-def _output_size(
+def output_size(
     input_size: int,
     kernel_size: int,
     stride: int,
@@ -219,3 +340,45 @@ def _output_size(
         / stride
         + 1
     )
+
+
+def get_padding(
+    padding: int
+    | tuple[int, int]
+    | tuple[tuple[int, int], tuple[int, int]]
+    | Literal["valid", "same"],
+    dil_x: int,
+    dil_y: int,
+    krn_ys: int,
+    krn_xs: int,
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    if isinstance(padding, str):
+        if padding == "valid":
+            return (0, 0), (0, 0)
+        if padding == "same":
+            return (
+                calculate_same(krn_ys, dil_y),
+                calculate_same(krn_xs, dil_x),
+            )
+
+        raise ValueError(f"Invalid {padding=}")
+
+    pad_y, pad_x = as_tup2(padding)
+    return as_tup2(pad_y), as_tup2(pad_x)
+
+
+def calculate_same(kernel_size: int, dilation: int) -> tuple[int, int]:
+    zero_out = output_size(0, kernel_size, 1, 0, 0, dilation)
+    padding_total = -zero_out
+    assert padding_total % dilation == 0
+    # We calculate padding in terms of dilated steps, to ensure that the output is
+    # centred on the input for even kernel sizes.
+    # i.e. for calculate_same(4, 2) we return (2, 4) not (3, 3)
+    padding = padding_total // dilation
+    # If the required padding is odd, we place the extra padding at the end, such that
+    # the kernel centre is offset to the top-left.
+    pad_beg = (padding // 2) * dilation
+    pad_end = (padding // 2 + (padding % 2)) * dilation
+    same_out = output_size(0, kernel_size, 1, pad_beg, pad_end, dilation)
+    assert same_out == 0, f"calculate_same failed! {same_out=}"
+    return pad_beg, pad_end

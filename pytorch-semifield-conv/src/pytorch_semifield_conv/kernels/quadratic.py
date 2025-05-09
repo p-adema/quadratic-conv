@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from src.kernels import utils
+from .utils import make_pos_grid, plot_kernels
 
 from .learned_pos_def import LearnedCholesky2D, LearnedSpectral2D
 
@@ -25,7 +25,7 @@ class QuadraticKernelSpectral2D(nn.Module):
         self.in_channels = in_channels
         self.register_buffer(
             "pos_grid",
-            utils.make_pos_grid(kernel_size).reshape(kernel_size * kernel_size, 2),
+            make_pos_grid(kernel_size).reshape(kernel_size * kernel_size, 2),
         )
 
     def forward(self):
@@ -47,7 +47,7 @@ class QuadraticKernelSpectral2D(nn.Module):
 
     @torch.no_grad()
     def plot(self):
-        utils.plot_kernels(self.forward())
+        plot_kernels(self.forward())
 
 
 class QuadraticKernelCholesky2D(nn.Module):
@@ -67,9 +67,7 @@ class QuadraticKernelCholesky2D(nn.Module):
         self.kernel_size = kernel_size
         self.out_channels = out_channels
         self.in_channels = in_channels
-        self.register_buffer(
-            "pos_grid", utils.make_pos_grid(kernel_size, grid_at_end=True)
-        )
+        self.register_buffer("pos_grid", make_pos_grid(kernel_size, grid_at_end=True))
 
     def forward(self):
         # [o, i, 2, k*k]
@@ -96,7 +94,7 @@ class QuadraticKernelCholesky2D(nn.Module):
 
     @torch.no_grad()
     def plot(self):
-        utils.plot_kernels(self.forward())
+        plot_kernels(self.forward())
 
 
 class QuadraticKernelIso2D(nn.Module):
@@ -133,9 +131,7 @@ class QuadraticKernelIso2D(nn.Module):
         self.kernel_size = kernel_size
         self.out_channels = out_channels
         self.in_channels = in_channels
-        self.register_buffer(
-            "pos_grid", utils.make_pos_grid(kernel_size, grid_at_end=True)
-        )
+        self.register_buffer("pos_grid", make_pos_grid(kernel_size, grid_at_end=True))
 
     def forward(self):
         dists = (
@@ -151,4 +147,4 @@ class QuadraticKernelIso2D(nn.Module):
 
     @torch.no_grad()
     def plot(self):
-        utils.plot_kernels(self.forward())
+        plot_kernels(self.forward())

@@ -5,7 +5,7 @@ import torch
 
 sys.path.extend(".")
 
-from pytorch_semifield_conv import TropicalConv2D
+from pytorch_semifield_conv import BroadcastSemifield
 
 from src import load_data
 
@@ -23,12 +23,12 @@ def try_tropical_conv(kernels: torch.Tensor | list, num_img: int = 0):
     ax_original.imshow(img)
     ax_original.set_title("Original")
     repeat_img = img.unsqueeze(0).repeat((1, out_channels, 1, 1))
-    conv_max = TropicalConv2D(is_max=True)(repeat_img, kernels)[0]
+    conv_max = BroadcastSemifield.tropical_max().dynamic()(repeat_img, kernels)
     for i, (ax, img_channel) in enumerate(zip(ax_maxs, conv_max, strict=True), 1):
         ax.set_axis_off()
         ax.imshow(img_channel)
         ax.set_title(f"Max #{i}")
-    conv_min = TropicalConv2D(is_max=False)(repeat_img, kernels)[0]
+    conv_min = BroadcastSemifield.tropical_min_negated().dynamic()(repeat_img, kernels)
     for i, (ax, img_channel) in enumerate(zip(ax_mins, conv_min, strict=True), 1):
         ax.set_axis_off()
         ax.imshow(img_channel)

@@ -1,10 +1,10 @@
-from .codegen import InputScalar, InputTensor, KernelParam, OutputTensor
-from .compile import jit
+from ._typehint_interface import In, InMut, Out, Scalar, Unused, jit
 
 __all__ = [
-    "InputScalar",
-    "InputTensor",
-    "KernelParam",
-    "OutputTensor",
+    "In",
+    "InMut",
+    "Out",
+    "Scalar",
+    "Unused",
     "jit",
 ]

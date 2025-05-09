@@ -63,7 +63,8 @@ class AsDType:
         torch.int64: np.int64,
     }
     any_to_torch: typing.Final = (
-        {k: k for k in torch_to_c}
+        {int: torch.int64, float: torch.float32}
+        | {k: k for k in torch_to_c}
         | {v: k for k, v in torch_to_tcpp.items()}
         | {v: k for k, v in torch_to_c.items()}
         | {v: k for k, v in torch_to_rs.items()}

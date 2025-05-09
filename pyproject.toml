@@ -6,8 +6,8 @@ requires-python = ">=3.10"
 dependencies = [
     "altair>=5.5.0",
     "jupyter>=1.1.1",
-    "matplotlib>=3.10.1",
-    "numba-cuda>=0.9.0",
+    "matplotlib>=3.10.3",
+    "numba-cuda>=0.10.0",
     "numpy>=2.2.5",
     "pandas>=2.2.3",
     "polars>=1.27.1",
@@ -51,6 +51,6 @@ reinstall-package = ["pytorch-numba-extension-jit", "pytorch-semifield-conv"]
 [dependency-groups]
 dev = [
     "hatchling>=1.27.0",
-    "ruff>=0.11.7",
+    "ruff>=0.11.8",
     "morphological_torch ; sys_platform == 'linux' and platform_machine == 'x86_64'"
 ]

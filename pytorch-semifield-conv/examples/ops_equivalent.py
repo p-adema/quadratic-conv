@@ -5,6 +5,7 @@ import warnings
 import torch
 from pytorch_semifield_conv import (
     BroadcastSemifield,
+    LinearConv2D,
     SelectSemifield,
     SubtractSemifield,
 )
@@ -24,22 +25,7 @@ broadcast_lin = BroadcastSemifield.linear().dynamic(unfold_copy=False)
 copy_lin = BroadcastSemifield.linear().dynamic(unfold_copy=True)
 ext_lin = SubtractSemifield.linear().dynamic(to_extension=True)
 numba_lin = SubtractSemifield.linear().dynamic(to_extension=False)
-
-
-def torch_lin(
-    img: torch.Tensor,
-    kernel: torch.Tensor,
-    stride: tuple[int, int] = 1,
-    padding: tuple[tuple[int, int], tuple[int, int]] = 0,
-    dilation: tuple[int, int] = 1,
-    groups: int = 1,
-):
-    padded = torch.constant_pad_nd(
-        img, (padding[1][0], padding[1][1], padding[0][0], padding[0][1])
-    )
-    return torch.nn.functional.conv2d(
-        padded, kernel.flip((2, 3)), stride=stride, dilation=dilation, groups=groups
-    )
+torch_lin = LinearConv2D()
 
 
 IN_CHANNELS = 6

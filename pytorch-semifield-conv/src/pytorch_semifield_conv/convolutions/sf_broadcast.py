@@ -94,9 +94,14 @@ class BroadcastConv(nn.Module):
         self,
         imgs: torch.Tensor,
         kernel: torch.Tensor,
-        stride: int = 1,
-        padding: int = 0,
-        dilation: int = 1,
+        stride: int | tuple[int, int] = 1,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal["valid", "same"]
+        ) = 0,
+        dilation: int | tuple[int, int] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",
@@ -170,7 +175,12 @@ class BroadcastConv(nn.Module):
         imgs: torch.Tensor,
         kernel: torch.Tensor,
         stride: int | tuple[int, int] = 1,
-        padding: int | tuple[int, int] | tuple[tuple[int, int], tuple[int, int]] = 0,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal["valid", "same"]
+        ) = 0,
         dilation: int | tuple[int, int] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,

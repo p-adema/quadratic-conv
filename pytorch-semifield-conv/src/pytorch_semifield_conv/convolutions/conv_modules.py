@@ -10,9 +10,14 @@ class GenericConv2D(nn.Module):
         self,
         kernel: nn.Module,
         conv: nn.Module,
-        dilation: int = 1,
-        padding: int = 0,
-        stride: int = 1,
+        stride: int | tuple[int, int] = 1,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal["valid", "same"]
+        ) = 0,
+        dilation: int | tuple[int, int] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",
@@ -64,18 +69,22 @@ class GenericConv2D(nn.Module):
         return ", ".join(res)
 
 
-class Closing2D(nn.Module):
+class GenericClosing2D(nn.Module):
     def __init__(
         self,
         kernel: nn.Module,
         conv_dilation: nn.Module,
         conv_erosion: nn.Module,
-        dilation: int = 1,
-        padding: int = 0,
-        stride: int = 1,
+        stride: int | tuple[int, int] = 1,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal["valid", "same"]
+        ) = 0,
+        dilation: int | tuple[int, int] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
-        kind: Literal["conv", "corr"] = "conv",
     ):
         super().__init__()
         self.padding = padding
@@ -86,15 +95,13 @@ class Closing2D(nn.Module):
         self.conv_erosion = conv_erosion
         self.groups = groups
         self.group_broadcasting = group_broadcasting
-        self.kind = kind
+        self.kind = "closing"
 
         # Since these are custom arguments, we only want to pass them if they differ
         # from the default values (otherwise, they may be unexpected)
         self.kwargs = {}
         if self.group_broadcasting:
             self.kwargs["group_broadcasting"] = True
-        if self.kind == "corr":
-            self.kwargs["kind"] = "corr"
 
     def forward(self, x):
         kernel = self.kernel()
@@ -105,6 +112,7 @@ class Closing2D(nn.Module):
             padding=self.padding,
             stride=self.stride,
             groups=self.groups,
+            kind="conv",
             **self.kwargs,
         )
         closed = self.conv_erosion(
@@ -114,6 +122,7 @@ class Closing2D(nn.Module):
             padding=self.padding,
             stride=self.stride,
             groups=self.groups,
+            kind="corr",
             **self.kwargs,
         )
         return closed

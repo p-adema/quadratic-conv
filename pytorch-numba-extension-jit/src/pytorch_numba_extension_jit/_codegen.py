@@ -8,7 +8,7 @@ from typing import Literal, NamedTuple
 import numpy as np
 import torch
 
-from .as_dtype import AsDType
+from ._as_dtype import AsDType
 
 # Replace a.shape[2] with a.size(2)
 _cpp_replace_shape = re.compile(r"\w+\.shape\[([^]]+)]")
@@ -217,6 +217,9 @@ class UnusedParam(NamedTuple):
         else:
             args.append("0")
 
+    def __class_getitem__(cls, item):
+        raise ValueError(f"UnusedParam does not take type arguments (was given {item})")
+
 
 KernelParam: typing.TypeAlias = InputTensor | OutputTensor | InputScalar | UnusedParam
 
@@ -311,27 +314,38 @@ def _return_values(outputs: list[str]):
 def _cpp_kernel_invocation(name: str, use_runtime_api: bool):
     return (
         f"""
-    static cudaKernel_t ptex_internal_kernel;
-    if (!ptex_internal_kernel) {{
+    static cudaKernel_t pnex_internal_kernel;
+    if (!pnex_internal_kernel) {{
         cudaLibrary_t library;
         CHK(cudaLibraryLoadData(&library, ptx, 0,0,0,0,0,0));
-        CHK(cudaLibraryGetKernel(&ptex_internal_kernel, library, "{name}"));
+        CHK(cudaLibraryGetKernel(&pnex_internal_kernel, library, "{name}"));
     }}
-    CHK(cudaLaunchKernel((void*)ptex_internal_kernel, 
-                        {{blocks_per_grid, 1, 1}}, {{threads_per_block, 1, 1}},
+    CHK(cudaLaunchKernel((void*)pnex_internal_kernel, 
+                        {{bpg_x, bpg_y, bpg_z}}, {{tpb_x, tpb_y, tpb_z}},
                          args, 0, NULL));
 """
         if use_runtime_api
         else f"""
-    static CUfunction ptex_internal_kernel;
-    if (!ptex_internal_kernel) {{
+    static CUfunction pnex_internal_kernel;
+    if (!pnex_internal_kernel) {{
         CUmodule cuModule;
         CHK(cuModuleLoadData(&cuModule, ptx));
-        CHK(cuModuleGetFunction(&ptex_internal_kernel, cuModule, "{name}"));
+        CHK(cuModuleGetFunction(&pnex_internal_kernel, cuModule, "{name}"));
     }}
-    CHK(cuLaunchKernel(ptex_internal_kernel, blocks_per_grid, 1, 1, 
-                       threads_per_block, 1, 1, 0, 0, args, NULL));
+    CHK(cuLaunchKernel(pnex_internal_kernel, bpg_x, bpg_y, bpg_z, 
+                       tpb_x, tpb_y, tpb_z, 0, 0, args, NULL));
 """
+    )
+
+
+def _thread_calculation(tpb: int, bpg: str, suffix: str, lang: str):
+    return (
+        f"""
+    unsigned int tpb_{suffix} = {tpb};
+    unsigned int bpg_{suffix} = ( ({bpg}) + {tpb} - 1) / {tpb} );"""
+        if lang == "cpp"
+        else f"""
+    bpg = ( ({bpg}) + {tpb} - 1) // {tpb}"""
     )
 
 
@@ -344,8 +358,8 @@ def kernel_wrapper(
     name: str,
     kernel_params: Iterable[KernelParam],
     *,
-    n_threads: str,
-    threads_per_block: int = 256,
+    n_threads: tuple[str, str, str],
+    threads_per_block: tuple[int, int, int],
     use_runtime_api: bool = False,
     lang: Literal["cpp", "py"],
 ) -> str:
@@ -379,16 +393,17 @@ def kernel_wrapper(
         if isinstance(param, OutputTensor):
             outputs.append(param.name)
 
-    if n_threads in tensor_ndims:
-        n_threads = f"{n_threads}.numel()"
-    else:
-        n_threads = _to_size(n_threads)
+    n_threads = (
+        _to_size(n_threads[0]),
+        _to_size(n_threads[1]),
+        _to_size(n_threads[2]),
+    )
 
     newline = "\n    "
     return (
         f"""
 #include <{"cuda_runtime.h" if use_runtime_api else "cuda.h"}>
-namespace ptex_jit {{
+namespace pnex_jit {{
     {_chk_macro_runtime if use_runtime_api else _chk_macro_driver}
     const char *ptx = "{kernel_inner}";
     
@@ -398,9 +413,10 @@ namespace ptex_jit {{
         {newline.join(declarations)}
     
         void *args[] = {{{", ".join(args)}}};
-        unsigned int threads_per_block = {threads_per_block};
-        unsigned int blocks_per_grid = ( ({n_threads}) 
-                                          + threads_per_block - 1) / threads_per_block;
+        
+        {_thread_calculation(threads_per_block[0], n_threads[0], "x", "cpp")}
+        {_thread_calculation(threads_per_block[1], n_threads[1], "y", "cpp")}
+        {_thread_calculation(threads_per_block[2], n_threads[2], "z", "cpp")}
     
         {_cpp_kernel_invocation(name, use_runtime_api)}
         return {{{_return_values(outputs)}}};

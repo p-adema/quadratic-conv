@@ -9,7 +9,6 @@ sys.path.extend(".")
 from src import load_data
 from src.models import LeNet
 from src.models.configurations.simple_lenet import (
-    grad_configs,
     group_configs,
     standard_configs,
 )
@@ -47,13 +46,3 @@ for desc, config_kwargs in group_configs(name="Groups (fashion)"):
         **config_kwargs,
     ).scores
 pl.DataFrame(result).write_parquet("./.data/groups_fashion.pq")
-
-result = {}
-for desc, config_kwargs in grad_configs(name="Grad (fashion)"):
-    result[desc] = LeNet.fit_many(
-        data=fashion,
-        description=desc,
-        **base_kwargs,
-        **config_kwargs,
-    ).scores
-pl.DataFrame(result).write_parquet("./.data/grad_fashion.pq")

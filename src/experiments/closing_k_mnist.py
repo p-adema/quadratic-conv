@@ -29,14 +29,14 @@ for closing in (False, True):
     result[f"aniso-7{extra_desc}"] = LeNet.fit_many(
         data=k_mnist,
         description=f"aniso-7{extra_desc}",
-        pool_fn=make_pooling_function("aniso", 7, closing=closing),
+        pool_fn=make_pooling_function("aniso", 7, is_closing=closing),
         init={"var": "ss-iso", "theta": "spin"},
         **base_kwargs,
     ).scores
     result[f"iso-7{extra_desc}"] = LeNet.fit_many(
         data=k_mnist,
         description=f"iso-7{extra_desc}",
-        pool_fn=make_pooling_function("iso", 7, closing=closing),
+        pool_fn=make_pooling_function("iso", 7, is_closing=closing),
         init={"var": "ss"},
         **base_kwargs,
     ).scores
