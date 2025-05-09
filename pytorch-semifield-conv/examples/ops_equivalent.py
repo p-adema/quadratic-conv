@@ -5,9 +5,9 @@ import warnings
 import torch
 from pytorch_semifield_conv import (
     BroadcastSemifield,
-    LinearConv2D,
     SelectSemifield,
     SubtractSemifield,
+    TorchLinearConv2D,
 )
 from tqdm.auto import tqdm
 
@@ -25,7 +25,7 @@ broadcast_lin = BroadcastSemifield.linear().dynamic(unfold_copy=False)
 copy_lin = BroadcastSemifield.linear().dynamic(unfold_copy=True)
 ext_lin = SubtractSemifield.linear().dynamic(to_extension=True)
 numba_lin = SubtractSemifield.linear().dynamic(to_extension=False)
-torch_lin = LinearConv2D()
+torch_lin = TorchLinearConv2D()
 
 
 IN_CHANNELS = 6

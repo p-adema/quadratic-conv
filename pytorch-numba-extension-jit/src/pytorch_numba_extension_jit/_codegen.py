@@ -338,14 +338,14 @@ def _cpp_kernel_invocation(name: str, use_runtime_api: bool):
     )
 
 
-def _thread_calculation(tpb: int, bpg: str, suffix: str, lang: str):
+def _thread_calculation(tpb: int, bpg: str, suffix: str, lang: Literal["cpp", "py"]):
     return (
         f"""
     unsigned int tpb_{suffix} = {tpb};
-    unsigned int bpg_{suffix} = ( ({bpg}) + {tpb} - 1) / {tpb} );"""
+    unsigned int bpg_{suffix} = ( ({bpg}) + {tpb} - 1) / {tpb};"""
         if lang == "cpp"
         else f"""
-    bpg = ( ({bpg}) + {tpb} - 1) // {tpb}"""
+    bpg_{suffix} = ( ({bpg}) + {tpb} - 1) // {tpb}"""
     )
 
 
@@ -428,9 +428,11 @@ namespace pnex_jit {{
 def kernel_{name}({", ".join(parameters)}):
     {newline.join(f"assert {cond}, '{cond}'" for cond in asserts)}
     {newline.join(declarations)}
-    blocks_per_grid = ( ({n_threads}) 
-                        + {threads_per_block} - 1) // {threads_per_block}
-    kernel_inner[blocks_per_grid, {threads_per_block}]({", ".join(args)})
+    
+    {_thread_calculation(threads_per_block[0], n_threads[0], "x", "py")}
+    {_thread_calculation(threads_per_block[1], n_threads[1], "y", "py")}
+    {_thread_calculation(threads_per_block[2], n_threads[2], "z", "py")}
+    kernel_inner[(bpg_x, bpg_y, bpg_z), {threads_per_block}]({", ".join(args)})
     return {_return_values(outputs)}
 """
     )

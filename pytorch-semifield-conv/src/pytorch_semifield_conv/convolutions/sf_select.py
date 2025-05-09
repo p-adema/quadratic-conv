@@ -191,7 +191,7 @@ def _compile_forwards(  # noqa: C901
 ):
     # noinspection DuplicatedCode
     @ptex.jit(
-        n_threads="out_img",
+        n_threads="out_img.numel()",
         to_extension=to_extension,
         verbose=debug,
         threads_per_block=thread_block_size,
@@ -286,7 +286,7 @@ def _compile_backwards(
 ):
     # noinspection PyArgumentList
     @ptex.jit(
-        n_threads="gradient",
+        n_threads="gradient.numel()",
         to_extension=to_extension,
         verbose=debug,
         threads_per_block=thread_block_size,

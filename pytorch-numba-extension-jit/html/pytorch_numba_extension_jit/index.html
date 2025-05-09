@@ -113,7 +113,7 @@ documentation, where we take 2D inputs instead of flattening.
 A variety of methods for specifying dtype and shape are used in this example, but
 keeping to one convention may be better for readability.</p>
 <pre><code class="language-python-repl">&gt;&gt;&gt; import pytorch_numba_extension_jit as pnex
-&gt;&gt;&gt; @pnex.jit(n_threads=&quot;result&quot;)
+&gt;&gt;&gt; @pnex.jit(n_threads=&quot;result.numel()&quot;)
 ... def mymuladd_2d(
 ...     a: pnex.In(torch.float32, (None, None)),
 ...     b: pnex.In(&quot;f32&quot;, (&quot;a.shape[0]&quot;, &quot;a&quot;)),
