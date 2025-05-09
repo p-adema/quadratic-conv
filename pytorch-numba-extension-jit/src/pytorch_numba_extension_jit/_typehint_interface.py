@@ -349,7 +349,7 @@ def jit(
     keeping to one convention may be better for readability.
 
     >>> import pytorch_numba_extension_jit as pnex
-    >>> @pnex.jit(n_threads="result")
+    >>> @pnex.jit(n_threads="result.numel()")
     ... def mymuladd_2d(
     ...     a: pnex.In(torch.float32, (None, None)),
     ...     b: pnex.In("f32", ("a.shape[0]", "a")),

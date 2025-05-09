@@ -2,7 +2,7 @@ import pytorch_numba_extension_jit as ptex
 from numba import cuda
 
 
-@ptex.jit(n_threads="result")
+@ptex.jit(n_threads="result.numel()")
 def mymuladd_2d(
     a: ptex.In("f32", (None, None)),
     b: ptex.In("f32", "a"),

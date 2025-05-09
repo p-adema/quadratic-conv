@@ -5,7 +5,7 @@ import torch
 from numba import cuda
 
 
-@ptex.jit(n_threads="rawr", to_extension=True, verbose=True)
+@ptex.jit(n_threads="rawr.numel()", to_extension=True, verbose=True)
 def hoo(
     ree: ptex.In("f32", (None, 3)),
     rawr: ptex.Out("f32", ("ree", "ree.shape[1]", 2)),
