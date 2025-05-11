@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 import time
 import warnings
 from collections.abc import Callable
@@ -12,8 +11,6 @@ import torch
 from sklearn.metrics import classification_report
 from torch import nn
 from tqdm.auto import tqdm, trange
-
-sys.path.extend(".")
 
 from ..load_data import Dataset
 from .utils import reports_to_df, split_seed

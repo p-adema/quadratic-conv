@@ -1,13 +1,13 @@
-import pytorch_numba_extension_jit as ptex
+import pytorch_numba_extension_jit as pnex
 from numba import cuda
 
 
-@ptex.jit(n_threads="result.numel()")
+@pnex.jit(n_threads="result.numel()")
 def mymuladd_2d(
-    a: ptex.In("f32", (None, None)),
-    b: ptex.In("f32", "a"),
+    a: pnex.In("f32", (None, None)),
+    b: pnex.In("f32", "a"),
     c: float,
-    result: ptex.Out("f32", ("a", "a.shape[1]")),
+    result: pnex.Out("f32", ("a", "a.shape[1]")),
 ):
     idx = cuda.grid(1)
     y, x = divmod(idx, result.shape[0])

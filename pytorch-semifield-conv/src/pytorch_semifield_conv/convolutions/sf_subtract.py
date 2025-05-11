@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import math
 import warnings
 from collections.abc import Callable
 from functools import lru_cache
 from typing import NamedTuple
 
 import numba
-import pytorch_numba_extension_jit as ptex
+import pytorch_numba_extension_jit as pnex
 import torch
 from numba import cuda
 from numba.cuda.dispatcher import CUDADispatcher
@@ -29,6 +30,10 @@ class SubtractSemifield(NamedTuple):
     neutral: float
     cache_name: str = None  # Cache identifier: distinct for different operators
 
+    post_sum: Callable[[float], float] = None  # (final_acc) -> res
+    undo_post_sum: Callable[[float], float] = None  # (res) -> final_acc
+    d_post_d_acc: Callable[[float], float] = None  # (final_acc) -> dacc
+
     @classmethod
     def linear(cls) -> SubtractSemifield:
         return cls(
@@ -40,6 +45,40 @@ class SubtractSemifield(NamedTuple):
             d_add_d_right=lambda _a, _v: 1,
             neutral=0,
             cache_name="_linear",
+        )
+
+    @classmethod
+    def root(cls, p: float) -> SubtractSemifield:
+        assert p != 0, f"Invalid value: {p=}"
+        return cls(
+            times=lambda img_val, kernel_val: (img_val * kernel_val) ** p,
+            add=lambda acc, val: (acc + val),
+            post_sum=lambda acc: acc ** (1 / p),
+            neutral=0,
+            cache_name=f"_root_{cls._number_to_cache(p)}",
+            undo_post_sum=lambda res: res**p,
+            subtract=lambda acc, val: acc - val,
+            d_times_d_img=lambda a, b: ((a * b) ** p) * p / a,
+            d_times_d_kernel=lambda a, b: ((a * b) ** p) * p / b,
+            d_add_d_right=lambda _a, _b: 1,
+            d_post_d_acc=lambda acc: (1 / p) * acc ** (1 / p - 1),
+        )
+
+    @classmethod
+    def log(cls, mu: float) -> SubtractSemifield:
+        assert mu != 0, f"Invalid value: {mu=}"
+        return cls(
+            times=lambda img_val, kernel_val: math.exp((img_val + kernel_val) * mu),
+            add=lambda acc, val: (acc + val),
+            post_sum=lambda acc: math.log(acc) / mu,
+            neutral=0,
+            cache_name=f"_log_{cls._number_to_cache(mu)}",
+            d_times_d_img=lambda a, b: mu * math.exp((a + b) * mu),
+            d_times_d_kernel=lambda a, b: mu * math.exp((a + b) * mu),
+            undo_post_sum=lambda res: math.exp(res * mu),
+            subtract=lambda acc, val: acc - val,
+            d_add_d_right=lambda _a, _v: 1,
+            d_post_d_acc=lambda acc: 1 / (mu * acc),
         )
 
     # The torch compiler doesn't understand the Numba compiler
@@ -128,6 +167,10 @@ class SubtractSemifield(NamedTuple):
     def get_result(res: torch.Tensor):
         return res
 
+    @staticmethod
+    def _number_to_cache(n: float):
+        return str(n).replace(".", "_").replace("-", "_minus_")
+
 
 class _CompiledSubtractSemifield(NamedTuple):
     add: CUDADispatcher
@@ -138,8 +181,24 @@ class _CompiledSubtractSemifield(NamedTuple):
     d_add_d_right: CUDADispatcher
     neutral: float
 
+    # Optional:
+    post_sum: CUDADispatcher
+    undo_post: CUDADispatcher
+    post_sum_bwd: CUDADispatcher
+
     @classmethod
     def compile(cls, semifield: SubtractSemifield) -> _CompiledSubtractSemifield:
+        if semifield.post_sum is None:
+            assert semifield.undo_post_sum is None, "post_sum not specified"
+            assert semifield.d_post_d_acc is None, "post_sum not specified"
+            post_sum, undo_post, post_bwd = lambda i: i, lambda i: i, lambda _: 1
+        else:
+            assert semifield.undo_post_sum is not None, "need inverse of post_sum"
+            assert semifield.d_post_d_acc is not None, "need derivative of post_sum"
+            post_sum = semifield.post_sum
+            undo_post = semifield.undo_post_sum
+            post_bwd = semifield.d_post_d_acc
+
         return _CompiledSubtractSemifield(
             cuda.jit(semifield.add, device=True, inline="always", cache=True),
             cuda.jit(semifield.times, device=True, inline="always", cache=True),
@@ -150,6 +209,9 @@ class _CompiledSubtractSemifield(NamedTuple):
             cuda.jit(semifield.subtract, device=True, inline="always", cache=True),
             cuda.jit(semifield.d_add_d_right, device=True, inline="always", cache=True),
             semifield.neutral,
+            cuda.jit(post_sum, device=True, inline="always", cache=True),
+            cuda.jit(undo_post, device=True, inline="always", cache=True),
+            cuda.jit(post_bwd, device=True, inline="always", cache=True),
         )
 
 
@@ -162,7 +224,7 @@ def _compile_forwards(
     to_extension: bool = True,
 ):
     # noinspection DuplicatedCode
-    @ptex.jit(
+    @pnex.jit(
         n_threads="out_img.numel()",
         to_extension=to_extension,
         verbose=debug,
@@ -170,9 +232,9 @@ def _compile_forwards(
         cache_id=f"subtract_{cache_name}_{meta.cache_id()}",
     )
     def forwards(
-        img: ptex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
-        kernel: ptex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
-        out_img: ptex.Out("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
+        img: pnex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
+        kernel: pnex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
+        out_img: pnex.Out("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
     ):
         rem, o_x = divmod(cuda.grid(1), meta.out_xs)
         rem, o_y = divmod(rem, meta.out_ys)
@@ -222,7 +284,7 @@ def _compile_forwards(
                     val = semifield.times(img_val, kernel_val)
                     acc = semifield.add(acc, val)
 
-        out_img[b, o_c, o_y, o_x] = acc
+        out_img[b, o_c, o_y, o_x] = semifield.post_sum(acc)
 
     return forwards
 
@@ -236,7 +298,7 @@ def _compile_backwards(
     to_extension: bool = True,
 ):
     # noinspection PyArgumentList,DuplicatedCode
-    @ptex.jit(
+    @pnex.jit(
         n_threads="gradient.numel()",
         to_extension=to_extension,
         verbose=debug,
@@ -244,12 +306,12 @@ def _compile_backwards(
         cache_id=f"subtract_{cache_name}_{meta.cache_id()}",
     )
     def backwards(
-        img: ptex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
-        kernel: ptex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
-        gradient: ptex.In("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
-        res_img: ptex.In("f32", "gradient"),
-        out_img_grad: ptex.Out("f32", "img", init=0),
-        out_kernel_grad: ptex.Out("f32", "kernel", init=0),
+        img: pnex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
+        kernel: pnex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
+        gradient: pnex.In("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
+        res_img: pnex.In("f32", "gradient"),
+        out_img_grad: pnex.Out("f32", "img", init=0),
+        out_kernel_grad: pnex.Out("f32", "kernel", init=0),
     ):
         rem, o_x = divmod(cuda.grid(1), meta.out_xs)
         rem, o_y = divmod(rem, meta.out_ys)
@@ -260,8 +322,8 @@ def _compile_backwards(
         i_top_y = o_y * meta.str_y - meta.pad_y_beg
         i_left_x = o_x * meta.str_x - meta.pad_x_beg
 
-        res = res_img[b, o_c, o_y, o_x]
-        res_grad = gradient[b, o_c, o_y, o_x]
+        res = semifield.undo_post(res_img[b, o_c, o_y, o_x])
+        res_grad = gradient[b, o_c, o_y, o_x] * semifield.post_sum_bwd(res)
 
         group_number = o_c // meta.grp_o
         k_o = o_c if not meta.group_broadcasting else o_c % meta.grp_o

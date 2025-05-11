@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import pytorch_numba_extension_jit as ptex_jit
+import pytorch_numba_extension_jit as pnex_jit
 import torch
 from numba import cuda
 
@@ -74,10 +74,10 @@ if run_hardcoded_ptx:
 
     }
     """  # noqa: E501
-    test_fun = ptex_jit.ptx_to_extension(
+    test_fun = pnex_jit.ptx_to_extension(
         test_ptx,
         "hello_world",
-        [ptex_jit.InputTensor("ree", "f32", (None,), mutable=True)],
+        [pnex_jit.InputTensor("ree", "f32", (None,), mutable=True)],
         n_threads_expr="ree",
     )
     print(test_fun)
@@ -110,11 +110,11 @@ torch.cuda.synchronize()
 
 if run_jit_ptx:
 
-    @ptex_jit.jit(
+    @pnex_jit.jit(
         "hoooo",
         [
-            ptex_jit.InputTensor("ree", "f32", (None, 3)),
-            ptex_jit.OutputTensor("rawr", "f32", (("ree", 0), ("ree", 1), 2)),
+            pnex_jit.InputTensor("ree", "f32", (None, 3)),
+            pnex_jit.OutputTensor("rawr", "f32", (("ree", 0), ("ree", 1), 2)),
         ],
         n_threads_expr="rawr",
     )

@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import sys
 from collections.abc import Callable
 
 import torch
 from torch import nn
-
-sys.path.extend(".")
 
 from .trainer import Trainer
 from .utils import EXAMPLE_POOLING_FUNCTIONS, CheckNan
@@ -35,26 +32,22 @@ class CIFAR10CNN(Trainer):
         if isinstance(pool_fn, str):
             pool_fn = EXAMPLE_POOLING_FUNCTIONS[pool_fn]
 
-        def conv_block(in_chan: int, out_chan: int):
+        def conv_block(in_chan: int, out_chan: int, dropout: float):
             return (
                 nn.Conv2d(in_chan, out_chan, conv_kernel_size, padding="same"),
                 nn.ReLU(),
                 nn.LazyBatchNorm2d(),
+                nn.Conv2d(out_chan, out_chan, conv_kernel_size, padding="same"),
+                nn.ReLU(),
+                nn.LazyBatchNorm2d(),
+                pool_fn(out_chan, init),
+                nn.Dropout2d(p=dropout),
             )
 
         modules = [
-            *conv_block(img_channels, conv_channels[0]),
-            *conv_block(conv_channels[0], conv_channels[0]),
-            pool_fn(conv_channels[0], init),
-            nn.Dropout2d(p=0.3),
-            *conv_block(conv_channels[0], conv_channels[1]),
-            *conv_block(conv_channels[1], conv_channels[1]),
-            pool_fn(conv_channels[1], init),
-            nn.Dropout2d(p=0.5),
-            *conv_block(conv_channels[1], conv_channels[2]),
-            *conv_block(conv_channels[2], conv_channels[2]),
-            pool_fn(conv_channels[2], init),
-            nn.Dropout2d(p=0.5),
+            *conv_block(img_channels, conv_channels[0], dropout=0.3),
+            *conv_block(conv_channels[0], conv_channels[1], dropout=0.5),
+            *conv_block(conv_channels[1], conv_channels[2], dropout=0.5),
             nn.Flatten(),
             nn.LazyLinear(linear_units),
             nn.ReLU(),

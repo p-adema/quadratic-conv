@@ -197,9 +197,7 @@ parameter is provided, this is equivalent to <code>param_name.shape[nth_dim]</co
 <div class="desc"><p>A type annotation for <strong>mutable</strong> input tensor parameters in a <code><a title="pytorch_numba_extension_jit.jit" href="#pytorch_numba_extension_jit.jit">jit()</a></code> function</p>
 <p>An input tensor is part of the argument list in the final operator, meaning it must
 be provided by the caller. This variant <strong>is mutable</strong>, meaning the kernel <strong>may</strong>
-modify the tensor. The tensor is not, however, returned: as such, the modifications
-will not receive a gradient, and it is typically a logic error to pass tensors with
-<code>requires_grad=True</code> as <code><a title="pytorch_numba_extension_jit.InMut" href="#pytorch_numba_extension_jit.InMut">InMut</a></code>.</p>
+modify the tensor.</p>
 <p>To use this annotation, use the syntax <code>param: InMut(dtype, shape)</code>.</p>
 <p>For information on the parameters, see <code><a title="pytorch_numba_extension_jit.In" href="#pytorch_numba_extension_jit.In">In</a></code>.</p></div>
 </dd>

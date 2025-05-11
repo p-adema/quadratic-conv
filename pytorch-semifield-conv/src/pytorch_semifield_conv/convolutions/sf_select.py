@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import warnings
 from collections.abc import Callable
 from functools import lru_cache
@@ -7,7 +8,7 @@ from typing import NamedTuple
 
 import numba
 import numpy as np
-import pytorch_numba_extension_jit as ptex
+import pytorch_numba_extension_jit as pnex
 import torch
 from numba import cuda
 from numba.cuda.dispatcher import CUDADispatcher
@@ -33,7 +34,7 @@ class SelectSemifield(NamedTuple):
             times=lambda img_val, kernel_val: img_val + kernel_val,
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: 1.0,
-            neutral=-float("inf"),
+            neutral=-math.inf,
             cache_name="_tropical_max",
         )
 
@@ -44,7 +45,7 @@ class SelectSemifield(NamedTuple):
             times=lambda img_val, kernel_val: img_val - kernel_val,
             d_times_d_img=lambda _i, _k: 1.0,
             d_times_d_kernel=lambda _i, _k: -1.0,
-            neutral=float("inf"),
+            neutral=math.inf,
             cache_name="_tropical_min",
         )
 
@@ -190,7 +191,7 @@ def _compile_forwards(  # noqa: C901
     to_extension: bool = True,
 ):
     # noinspection DuplicatedCode
-    @ptex.jit(
+    @pnex.jit(
         n_threads="out_img.numel()",
         to_extension=to_extension,
         verbose=debug,
@@ -198,10 +199,10 @@ def _compile_forwards(  # noqa: C901
         cache_id=f"select_{cache_name}_{meta.cache_id()}",
     )
     def forwards(
-        img: ptex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
-        kernel: ptex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
-        out_img: ptex.Out("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
-        out_prov: ptex.Out(
+        img: pnex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
+        kernel: pnex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
+        out_img: pnex.Out("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
+        out_prov: pnex.Out(
             prov_t.torch_type,
             (
                 "img.shape[0]",
@@ -285,7 +286,7 @@ def _compile_backwards(
     to_extension: bool = True,
 ):
     # noinspection PyArgumentList
-    @ptex.jit(
+    @pnex.jit(
         n_threads="gradient.numel()",
         to_extension=to_extension,
         verbose=debug,
@@ -293,13 +294,13 @@ def _compile_backwards(
         cache_id=f"select_{cache_name}_{meta.cache_id()}",
     )
     def backwards(
-        img: ptex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
-        kernel: ptex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
-        gradient: ptex.In(
+        img: pnex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
+        kernel: pnex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
+        gradient: pnex.In(
             "f32",
             ("img.shape[0]", meta.out_cs, meta.out_ys, meta.out_xs),
         ),
-        prov: ptex.In(
+        prov: pnex.In(
             prov_t.torch_type,
             (
                 "img.shape[0]",
@@ -309,8 +310,8 @@ def _compile_backwards(
                 3 if meta.krn_cs > 1 else 2,
             ),
         ),
-        out_img_grad: ptex.Out("f32", "img", init=0),
-        out_kernel_grad: ptex.Out("f32", "kernel", init=0),
+        out_img_grad: pnex.Out("f32", "img", init=0),
+        out_kernel_grad: pnex.Out("f32", "kernel", init=0),
     ):
         rem, o_x = divmod(cuda.grid(1), meta.out_xs)
         rem, o_y = divmod(rem, meta.out_ys)

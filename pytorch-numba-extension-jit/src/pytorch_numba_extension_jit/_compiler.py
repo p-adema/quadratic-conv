@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
 import warnings
@@ -56,7 +57,6 @@ def ptx_to_extension(
 ):
     _cuda_major, _cuda_minor = cuda.get_current_device().compute_capability
     os.environ.setdefault("TORCH_CUDA_ARCH_LIST", f"{_cuda_major}.{_cuda_minor}")
-    cuda.jit()
     cpp = kernel_wrapper(
         ptx,
         name,
@@ -70,16 +70,31 @@ def ptx_to_extension(
         print("=" * 10, f"BEGIN CPP {name}", "=" * 10)
         print(cpp)
         print("=" * 10, f"END CPP {name}", "=" * 10)
+    try:
+        mod = cpp_extension.load_inline(
+            f"pnex_jit_{name}",
+            cpp,
+            with_cuda=True,
+            verbose=verbose,
+            functions=[f"pnex_jit::kernel_{name}"],
+            keep_intermediates=True,
+            extra_ldflags=[f"-L{_find_cudart()}"]
+            + ([] if use_runtime_api else ["-lcuda"]),
+            use_pch=True,
+        )
+    except KeyboardInterrupt as e:
+        with contextlib.suppress(AttributeError):
+            msg = (
+                ("=" * 20) + "\nWARNING: interrupted compilations can result in "
+                "invalid intermediaries. If you encounter an error regarding Torch "
+                "being unable to open the appropriate shared object, please delete the "
+                "cache folder in which Torch is looking for the shared object\n"
+                f"(something like ~/.cache/torch_extensions/<python>/pnex_jit_{name})\n"
+                + ("=" * 20)
+            )
+            e.add_note(msg)
+        raise
 
-    mod = cpp_extension.load_inline(
-        f"pnex_jit_{name}",
-        cpp,
-        with_cuda=True,
-        verbose=verbose,
-        functions=[f"pnex_jit::kernel_{name}"],
-        keep_intermediates=True,
-        extra_ldflags=[f"-L{_find_cudart()}"] + ([] if use_runtime_api else ["-lcuda"]),
-    )
     return getattr(mod, f"pnex_jit::kernel_{name}")
 
 

@@ -41,4 +41,11 @@ for closing in (False, True):
         **base_kwargs,
     ).scores
 
+result["subsample"] = LeNet.fit_many(
+    data=k_mnist,
+    description="subsample",
+    pool_fn=make_pooling_function("standard", 1),
+    **base_kwargs,
+).scores
+
 pl.DataFrame(result).write_parquet("./.data/closing_k_mnist.pq")

@@ -34,7 +34,7 @@ class BroadcastSemifield(typing.NamedTuple):
                 )
             ),
             multiply=lambda img, krn: img + krn,
-            zero=-float("inf"),
+            zero=-torch.inf,
             add_reduce_channels=(
                 (lambda multiplied, dim: torch.sum(multiplied, dim=dim))
                 if channels_add
@@ -55,7 +55,7 @@ class BroadcastSemifield(typing.NamedTuple):
                 )
             ),
             multiply=lambda img, krn: img - krn,
-            zero=float("inf"),
+            zero=torch.inf,
             add_reduce_channels=(
                 (lambda multiplied, dim: torch.sum(multiplied, dim=dim))
                 if channels_add
@@ -69,6 +69,28 @@ class BroadcastSemifield(typing.NamedTuple):
             add_reduce=(lambda multiplied, dim: torch.sum(multiplied, dim=dim)),
             multiply=lambda img, krn: img * krn,
             zero=0,
+        )
+
+    @classmethod
+    def root(cls, p: float):
+        assert p != 0, f"Invalid value: {p=}"
+        return cls(
+            add_reduce=(
+                lambda multiplied, dim: multiplied.pow(p).sum(dim=dim).pow(1 / p)
+            ),
+            multiply=lambda img, krn: img * krn,
+            zero=0,
+        )
+
+    @classmethod
+    def log(cls, mu: float):
+        assert mu != 0, f"Invalid value: {mu=}"
+        return cls(
+            add_reduce=(
+                lambda multiplied, dim: torch.logsumexp(multiplied * mu, dim=dim) / mu
+            ),
+            multiply=lambda img, krn: img + krn,
+            zero=-torch.inf if mu > 0 else torch.inf,
         )
 
     def dynamic(

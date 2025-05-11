@@ -66,9 +66,7 @@ class InMut:
 
     An input tensor is part of the argument list in the final operator, meaning it must
     be provided by the caller. This variant **is mutable**, meaning the kernel **may**
-    modify the tensor. The tensor is not, however, returned: as such, the modifications
-    will not receive a gradient, and it is typically a logic error to pass tensors with
-    `requires_grad=True` as `InMut`.
+    modify the tensor.
 
     To use this annotation, use the syntax `param: InMut(dtype, shape)`.
 

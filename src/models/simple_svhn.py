@@ -9,20 +9,21 @@ from .trainer import Trainer
 from .utils import EXAMPLE_POOLING_FUNCTIONS, CheckNan
 
 
-class LeNet(Trainer):
-    """LeNet-like model, returns logits"""
+# This model and the CIFAR10 model are very similar
+# Based on:  https://www.kaggle.com/code/dimitriosroussis/svhn-classification-with-cnn-keras-96-acc
+class SVHNCNN(Trainer):
+    """CNN model for SVNH, returns logits"""
 
     def __init__(
         self,
         img_channels: int,
         num_classes: int,
         pool_fn: Callable[[int, dict], nn.Module] | str,
-        conv_kernel_size: int = 5,
-        linear_units: int = 500,
-        conv_channels: tuple[int, int] = (20, 50),
+        conv_kernel_size: int = 3,
+        linear_units: int = 128,
+        conv_channels: tuple[int, int, int] = (32, 64, 128),
         init: dict[str, str | float] | None = None,
         init_seed: int | None = None,
-        conv_dilation: int = 1,
         debug: bool = False,
     ):
         super().__init__()
@@ -32,26 +33,25 @@ class LeNet(Trainer):
         if isinstance(pool_fn, str):
             pool_fn = EXAMPLE_POOLING_FUNCTIONS[pool_fn]
 
+        def conv_block(in_chan: int, out_chan: int):
+            return (
+                nn.Conv2d(in_chan, out_chan, conv_kernel_size, padding="same"),
+                nn.ReLU(),
+                nn.LazyBatchNorm2d(),
+                nn.Conv2d(out_chan, out_chan, conv_kernel_size, padding="same"),
+                nn.ReLU(),
+                pool_fn(out_chan, init),
+                nn.Dropout2d(p=0.3),
+            )
+
         modules = [
-            nn.Conv2d(
-                img_channels,
-                conv_channels[0],
-                conv_kernel_size,
-                dilation=conv_dilation,
-            ),
-            nn.ReLU(),
-            pool_fn(conv_channels[0], init),
-            nn.Conv2d(
-                conv_channels[0],
-                conv_channels[1],
-                conv_kernel_size,
-                dilation=conv_dilation,
-            ),
-            nn.ReLU(),
-            pool_fn(conv_channels[1], init),
+            *conv_block(img_channels, conv_channels[0]),
+            *conv_block(conv_channels[0], conv_channels[1]),
+            *conv_block(conv_channels[1], conv_channels[2]),
             nn.Flatten(),
             nn.LazyLinear(linear_units),
             nn.ReLU(),
+            nn.Dropout(p=0.4),
             nn.Linear(linear_units, num_classes),
         ]
         if debug:
