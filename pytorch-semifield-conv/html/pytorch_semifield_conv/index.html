@@ -1,0 +1,2676 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.6">
+<title>pytorch_semifield_conv API documentation</title>
+<meta name="description" content="This package offers a generalisation of 2D linear convolutions and max-poolings using
+semifields, with many common choices for semifields being …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+/* Collapse source docstrings */
+setTimeout(() => {
+[...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+.filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+.forEach(el => {
+let d = document.createElement('details');
+d.classList.add('hljs-string');
+d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+el.replaceWith(d);
+});
+}, 100);
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Package <code>pytorch_semifield_conv</code></h1>
+</header>
+<section id="section-intro">
+<p>This package offers a generalisation of 2D linear convolutions and max-poolings using
+semifields, with many common choices for semifields being available.</p>
+<p>Additionally, this package provides implementations of isotropic and anisotropic
+quadratic kernels for use in e.g. dilation.
+These implementations are efficient when run under <code>torch.compile</code>.</p>
+<p>As an example of anisotropic quadratic dilation, consider replacing:</p>
+<pre><code>pooling = torch.nn.MaxPool2d(3, stride=2, padding=1)
+</code></pre>
+<p>with:</p>
+<pre><code>import pytorch_semifield_conv as semiconv
+
+dilation = semiconv.GenericConv2D(
+    semiconv.QuadraticKernelSpectral2D(
+        in_channels=5, out_channels=5, kernel_size=3
+    ),
+    semiconv.SelectSemifield.tropical_max().lazy_fixed(),
+    padding="same",
+    stride=2,
+    groups=5,
+)
+</code></pre>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="pytorch_semifield_conv.GenericConv2D"><code class="flex name class">
+<span>class <span class="ident">GenericConv2D</span></span>
+<span>(</span><span>kernel,<br>conv,<br>stride=1,<br>padding=0,<br>dilation=1,<br>groups=1,<br>group_broadcasting=False,<br>kind='conv')</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_conv_modules.py#L8-L147" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class GenericConv2D(nn.Module):
+    &#34;&#34;&#34;
+    A generic convolution Module using a kernel and a convolution Module
+
+    Parameters
+    -------
+    kernel : nn.Module
+        A module that produces a convolutional kernel from its `forward` method.
+        Must not take arguments.
+
+        See e.g. `QuadraticKernelSpectral2D` or `LearnedKernel`.
+    conv : nn.Module
+        A module that can take `image, kernel` as positional arguments, as well as
+        `dilation`, `padding`, `stride` and `groups` as keyword arguments, optionally
+        supporting `group_broadcasting` and `kind`.
+
+        See e.g. `BroadcastSemifield.dynamic` or `SelectSemifield.lazy_fixed`.
+    stride : int, (int, int) = 1
+        The stride passed to `conv`, either for both spatial dimensions or `(Y, X)`
+        seperately.
+    padding : int, (int, int), ((int, int), (int, int)), &#34;valid&#34;, &#34;same&#34; = 0
+        The padding passed to `conv`.
+        Depending on the type of `padding`:
+
+        - `P` indicates padding at the start and end of all spatial axes with `P`.
+        - `(Y, X)` indicates padding at start and end of the Y-axis with `Y`,
+          and padding at the start and end of the X-axis with `X`.
+        - `((BY, EY), (BX, EX))` indicates padding the start of the Y-axis with `BY` and
+          the end of the Y-axis with `EY`, similarly for X.
+        - `&#34;valid&#34;` indicates to only perform the convolution with valid values of the
+          image, i.e. no padding.
+        - `&#34;same&#34;` indicates to pad the input such that a stride-1 convolution would
+          produce an output of the same spatial size.
+          Convolutions with higher stride will use the same padding scheme, but result
+          in outputs of reduced size.
+    dilation : int, (int, int) = 1
+        The dilation passed to `conv`, either for both spatial dimensions or `(Y, X)`
+        seperately.
+    groups : int = 1
+        The number of convolutional groups for this convolution.
+    group_broadcasting : bool = False
+        Whether to take the input kernels as a single output group, and broadcast
+        across all input groups.
+        `group_broadcasting` has no effect for `groups=1`
+    kind : literal &#34;conv&#34; or &#34;corr&#34;
+        Represents whether the kernel should be mirrored during the convolution `&#34;conv&#34;`
+        or not `&#34;corr&#34;`.
+
+    Examples
+    -------
+    &gt;&gt;&gt; import pytorch_semifield_conv as semiconv
+    &gt;&gt;&gt; dilation = semiconv.GenericConv2D(
+    ...     semiconv.QuadraticKernelSpectral2D(5, 5, 3),
+    ...     semiconv.SelectSemifield.tropical_max().lazy_fixed(),
+    ...     padding=&#34;same&#34;,
+    ...     stride=2,
+    ...     groups=5,
+    ... )
+    &gt;&gt;&gt; root = semiconv.GenericConv2D(
+    ...     semiconv.QuadraticKernelIso2D(5, 10, 3),
+    ...     semiconv.BroadcastSemifield.root(3.0).dynamic(),
+    ...     padding=&#34;same&#34;,
+    ... )
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        kernel: nn.Module,
+        conv: nn.Module,
+        stride: int | tuple[int, int] = 1,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal[&#34;valid&#34;, &#34;same&#34;]
+        ) = 0,
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        group_broadcasting: bool = False,
+        kind: Literal[&#34;conv&#34;, &#34;corr&#34;] = &#34;conv&#34;,
+    ):
+        super().__init__()
+        self.padding = padding
+        self.stride = stride
+        self.dilation = dilation
+        self.kernel = kernel
+        self.conv = conv
+        self.groups = groups
+        self.group_broadcasting = group_broadcasting
+        self.kind = kind
+
+        # Since these are custom arguments, we only want to pass them if they differ
+        # from the default values (otherwise, they may be unexpected)
+        self.kwargs = {}
+        if self.group_broadcasting:
+            self.kwargs[&#34;group_broadcasting&#34;] = True
+        if self.kind == &#34;corr&#34;:
+            self.kwargs[&#34;kind&#34;] = &#34;corr&#34;
+
+    def forward(self, img):
+        &#34;&#34;&#34;
+        Run a forward step with this convolution.
+
+        Parameters
+        ----------
+        img : Tensor (B, C, H, W)
+            The input images as a 4D tensor, of shape (Batch, Channels, Height, Width)
+
+        Returns
+        -------
+        out_img : Tensor (B, C&#39;, H&#39;, W&#39;)
+            The output images as a 4D tensor, with the same batch shape but possibly
+            adjusted other dimensions
+        &#34;&#34;&#34;
+        return self.conv(
+            img,
+            self.kernel(),
+            dilation=self.dilation,
+            padding=self.padding,
+            stride=self.stride,
+            groups=self.groups,
+            **self.kwargs,
+        )
+
+    def extra_repr(self) -&gt; str:
+        res = []
+        if self.padding:
+            res.append(f&#34;padding={self.padding}&#34;)
+        if self.stride != 1:
+            res.append(f&#34;stride={self.stride}&#34;)
+        if self.dilation != 1:
+            res.append(f&#34;dilation={self.dilation}&#34;)
+        if self.groups != 1:
+            res.append(f&#34;groups={self.groups}&#34;)
+        if self.group_broadcasting:
+            res.append(&#34;group_broadcasting=True&#34;)
+        if self.kind == &#34;corr&#34;:
+            res.append(&#34;kind=corr&#34;)
+
+        return &#34;, &#34;.join(res)</code></pre>
+</details>
+<div class="desc"><p>A generic convolution Module using a kernel and a convolution Module</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>kernel</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>
+<p>A module that produces a convolutional kernel from its <code>forward</code> method.
+Must not take arguments.</p>
+<p>See e.g. <code><a title="pytorch_semifield_conv.QuadraticKernelSpectral2D" href="#pytorch_semifield_conv.QuadraticKernelSpectral2D">QuadraticKernelSpectral2D</a></code> or <code><a title="pytorch_semifield_conv.LearnedKernel" href="#pytorch_semifield_conv.LearnedKernel">LearnedKernel</a></code>.</p>
+</dd>
+<dt><strong><code>conv</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>
+<p>A module that can take <code>image, kernel</code> as positional arguments, as well as
+<code>dilation</code>, <code>padding</code>, <code>stride</code> and <code>groups</code> as keyword arguments, optionally
+supporting <code>group_broadcasting</code> and <code>kind</code>.</p>
+<p>See e.g. <code><a title="pytorch_semifield_conv.BroadcastSemifield.dynamic" href="#pytorch_semifield_conv.BroadcastSemifield.dynamic">BroadcastSemifield.dynamic()</a></code> or <code><a title="pytorch_semifield_conv.SelectSemifield.lazy_fixed" href="#pytorch_semifield_conv.SelectSemifield.lazy_fixed">SelectSemifield.lazy_fixed()</a></code>.</p>
+</dd>
+<dt><strong><code>stride</code></strong> :&ensp;<code>int, (int, int) = 1</code></dt>
+<dd>The stride passed to <code>conv</code>, either for both spatial dimensions or <code>(Y, X)</code>
+seperately.</dd>
+<dt><strong><code>padding</code></strong> :&ensp;<code>int, (int, int), ((int, int), (int, int)), "valid", "same" = 0</code></dt>
+<dd>
+<p>The padding passed to <code>conv</code>.
+Depending on the type of <code>padding</code>:</p>
+<ul>
+<li><code>P</code> indicates padding at the start and end of all spatial axes with <code>P</code>.</li>
+<li><code>(Y, X)</code> indicates padding at start and end of the Y-axis with <code>Y</code>,
+and padding at the start and end of the X-axis with <code>X</code>.</li>
+<li><code>((BY, EY), (BX, EX))</code> indicates padding the start of the Y-axis with <code>BY</code> and
+the end of the Y-axis with <code>EY</code>, similarly for X.</li>
+<li><code>"valid"</code> indicates to only perform the convolution with valid values of the
+image, i.e. no padding.</li>
+<li><code>"same"</code> indicates to pad the input such that a stride-1 convolution would
+produce an output of the same spatial size.
+Convolutions with higher stride will use the same padding scheme, but result
+in outputs of reduced size.</li>
+</ul>
+</dd>
+<dt><strong><code>dilation</code></strong> :&ensp;<code>int, (int, int) = 1</code></dt>
+<dd>The dilation passed to <code>conv</code>, either for both spatial dimensions or <code>(Y, X)</code>
+seperately.</dd>
+<dt><strong><code>groups</code></strong> :&ensp;<code>int = 1</code></dt>
+<dd>The number of convolutional groups for this convolution.</dd>
+<dt><strong><code>group_broadcasting</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to take the input kernels as a single output group, and broadcast
+across all input groups.
+<code>group_broadcasting</code> has no effect for <code>groups=1</code></dd>
+<dt><strong><code>kind</code></strong> :&ensp;<code>literal "conv"</code> or <code>"corr"</code></dt>
+<dd>Represents whether the kernel should be mirrored during the convolution <code>"conv"</code>
+or not <code>"corr"</code>.</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; import pytorch_semifield_conv as semiconv
+&gt;&gt;&gt; dilation = semiconv.GenericConv2D(
+...     semiconv.QuadraticKernelSpectral2D(5, 5, 3),
+...     semiconv.SelectSemifield.tropical_max().lazy_fixed(),
+...     padding=&quot;same&quot;,
+...     stride=2,
+...     groups=5,
+... )
+&gt;&gt;&gt; root = semiconv.GenericConv2D(
+...     semiconv.QuadraticKernelIso2D(5, 10, 3),
+...     semiconv.BroadcastSemifield.root(3.0).dynamic(),
+...     padding=&quot;same&quot;,
+... )
+</code></pre></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.GenericConv2D.forward"><code class="name flex">
+<span>def <span class="ident">forward</span></span>(<span>self, img)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_conv_modules.py#L107-L130" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">def forward(self, img):
+    &#34;&#34;&#34;
+    Run a forward step with this convolution.
+
+    Parameters
+    ----------
+    img : Tensor (B, C, H, W)
+        The input images as a 4D tensor, of shape (Batch, Channels, Height, Width)
+
+    Returns
+    -------
+    out_img : Tensor (B, C&#39;, H&#39;, W&#39;)
+        The output images as a 4D tensor, with the same batch shape but possibly
+        adjusted other dimensions
+    &#34;&#34;&#34;
+    return self.conv(
+        img,
+        self.kernel(),
+        dilation=self.dilation,
+        padding=self.padding,
+        stride=self.stride,
+        groups=self.groups,
+        **self.kwargs,
+    )</code></pre>
+</details>
+<div class="desc"><p>Run a forward step with this convolution.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>img</code></strong> :&ensp;<code>Tensor (B, C, H, W)</code></dt>
+<dd>The input images as a 4D tensor, of shape (Batch, Channels, Height, Width)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>out_img</code></strong> :&ensp;<code>Tensor (B, C', H', W')</code></dt>
+<dd>The output images as a 4D tensor, with the same batch shape but possibly
+adjusted other dimensions</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="pytorch_semifield_conv.BroadcastSemifield"><code class="flex name class">
+<span>class <span class="ident">BroadcastSemifield</span></span>
+<span>(</span><span>add_reduce, multiply, zero, add_reduce_channels=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_broadcast.py#L13-L214" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class BroadcastSemifield(typing.NamedTuple):
+    r&#34;&#34;&#34;
+    A semifield definition using PyTorch broadcasting operators
+
+    Using a technique similar to nn.Unfold, we can create a view of the input array and
+    apply broadcasting functions along kernel axes to perform a semifield convolution.
+    All functions must take PyTorch Tensors, and should have a backwards implementation.
+
+    This function does not use JIT components, and therefore has no compilation time
+    (and can be run on non-CUDA devices as well).
+
+    Parameters
+    -------
+    add_reduce : (Tensor, tuple of ints) -&gt; Tensor
+        To characterise semifield summation \(\bigoplus\), this function takes a single
+        tensor with several axes, and performs reduction with \(\oplus\) along the axes
+        indicated in the second argument.
+
+        Example: ``lambda arr, dims: torch.sum(arr, dim=dims)``
+    multiply : (Tensor, Tensor) -&gt; Tensor
+        To characterise semifield multiplication \(\otimes\), this function takes two
+        tensors and performs a broadcasting, element-wise version of \(\otimes\).
+    zero : float
+        The absorbing semifield zero.
+
+    Other Parameters
+    -------
+    add_reduce_channels : (Tensor, int) -&gt; Tensor, optional
+        An alternate reduction function (similar to `add_reduce`) that is applied along
+        specifically the channel dimension.
+        This alternate function could be e.g. addition in a modified version of \(T_+\)
+        (see `channels_add` parameter of `BroadcastSemifield.tropical_max`).
+
+    Examples
+    -------
+    \(T_+\) convolution:
+
+    &gt;&gt;&gt; dilation = BroadcastSemifield.tropical_max().dynamic()
+
+    \(L_{-3}\) convolution:
+
+    &gt;&gt;&gt; log = BroadcastSemifield.log(-3.0).dynamic()
+
+    For examples of how to construct a `BroadcastSemifield` manually, see the source code.
+    &#34;&#34;&#34;
+
+    # (multiplied, dims) -&gt; `multipled` reduced with (+) along every dim in `dims`
+    add_reduce: Callable[[torch.Tensor, tuple[int, ...]], torch.Tensor]
+    # (img, krn) -&gt; `img` (x) `krn`
+    multiply: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+    # forall a, b: `zero` (x) a  (+) b  ==  b
+    zero: float
+    # Similar to add_reduce, but only used for channel axis (so takes one dimension)
+    add_reduce_channels: Callable[[torch.Tensor, int], torch.Tensor] = None
+
+    @classmethod
+    def tropical_max(cls, channels_add: bool = False, spread_gradient: bool = False):
+        r&#34;&#34;&#34;
+        Construct a \(T_+\) `BroadcastSemifield`.
+
+        Parameters
+        ----------
+        channels_add : bool = False
+            Whether to use standard addition \(+\) instead of the semifield addition
+            \(\max\) along specifically the channel axis.
+        spread_gradient : bool = False
+            Whether to, in cases of multiple equal maxima, spread the gradient equally
+            amongst all maxima.
+        &#34;&#34;&#34;
+        return cls(
+            add_reduce=(lambda multiplied, dim: torch.amax(multiplied, dim=dim))
+            if spread_gradient
+            else (
+                _repeated_dim(
+                    lambda multiplied, dim: torch.max(multiplied, dim=dim).values
+                )
+            ),
+            multiply=lambda img, krn: img + krn,
+            zero=-torch.inf,
+            add_reduce_channels=(
+                (lambda multiplied, dim: torch.sum(multiplied, dim=dim))
+                if channels_add
+                else None
+            ),
+        )
+
+    @classmethod
+    def tropical_min_negated(
+        cls, channels_add: bool = False, spread_gradient: bool = False
+    ):
+        r&#34;&#34;&#34;
+        Construct a `BroadcastSemifield` similar to \(T_-\), where the kernel is negated
+
+        While performing erosion using \(T_-\) requires first negating the kernel, this
+        modified semifield has \(-\) instead of \(+\) as the semifield multiplication.
+        As such, the resulting convolution will work with non-negated kernels as inputs,
+        making the interface more similar to the dilation in \(T_+\).
+
+        Parameters
+        ----------
+        channels_add : bool = False
+            Whether to use standard addition \(+\) instead of the semifield addition
+            \(\min\) along specifically the channel axis.
+        spread_gradient : bool = False
+            Whether to, in cases of multiple equal minima, spread the gradient equally
+            amongst all minima.
+        &#34;&#34;&#34;
+        return cls(
+            add_reduce=(lambda multiplied, dim: torch.amin(multiplied, dim=dim))
+            if spread_gradient
+            else (
+                _repeated_dim(
+                    lambda multiplied, dim: torch.min(multiplied, dim=dim).values
+                )
+            ),
+            multiply=lambda img, krn: img - krn,
+            zero=torch.inf,
+            add_reduce_channels=(
+                (lambda multiplied, dim: torch.sum(multiplied, dim=dim))
+                if channels_add
+                else None
+            ),
+        )
+
+    @classmethod
+    def linear(cls):
+        &#34;&#34;&#34;Construct a linear `BroadcastSemifield`&#34;&#34;&#34;
+        return cls(
+            add_reduce=(lambda multiplied, dim: torch.sum(multiplied, dim=dim)),
+            multiply=lambda img, krn: img * krn,
+            zero=0,
+        )
+
+    @classmethod
+    def root(cls, p: float):
+        r&#34;&#34;&#34;
+        Construct a \(R_p\) `BroadcastSemifield`.
+
+        The root semifields are defined as:
+        \[(\mathbb{R}_+, \oplus_p, \times) \textrm{ for all } p\ne0 \textrm{ where }
+        a\oplus_p b= \sqrt[p]{a^p+b^p} \]
+        with the semifield zero being \(0\) and the semifield one being \(1\).
+
+        Parameters
+        ----------
+        p : int
+            The power to use in \(\oplus_p\).
+            May not be zero.
+        &#34;&#34;&#34;
+        assert p != 0, f&#34;Invalid value: {p=}&#34;
+        return cls(
+            add_reduce=(
+                lambda multiplied, dim: multiplied.pow(p).sum(dim=dim).pow(1 / p)
+            ),
+            multiply=lambda img, krn: img * krn,
+            zero=0,
+        )
+
+    @classmethod
+    def log(cls, mu: float):
+        r&#34;&#34;&#34;
+        Construct a \(L_+\mu\) or \(L_-\mu\) `BroadcastSemifield`.
+
+        The log semifields are defined as:
+        \[(\mathbb{R}\cup \{\pm\infty\}, \oplus_\mu, +) \textrm{ for all } \mu\ne0
+        \textrm{ where }
+        a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b}) \]
+        with the semifield zero being \(-\infty\) for \(\mu&gt;0\) and \(\infty\)
+        otherwise, and the semifield one being \(0\).
+
+        Parameters
+        ----------
+        mu : int
+            The base to use in \(\oplus_mu\).
+            May not be zero.
+        &#34;&#34;&#34;
+        assert mu != 0, f&#34;Invalid value: {mu=}&#34;
+        return cls(
+            add_reduce=(
+                lambda multiplied, dim: torch.logsumexp(multiplied * mu, dim=dim) / mu
+            ),
+            multiply=lambda img, krn: img + krn,
+            zero=-torch.inf if mu &gt; 0 else torch.inf,
+        )
+
+    def dynamic(self, unfold_copy: bool = False) -&gt; torch.nn.Module:
+        &#34;&#34;&#34;
+        Create a convolution Module based on this `BroadcastSemifield`.
+
+        Parameters
+        ----------
+        unfold_copy : bool = False
+            Whether to use `nn.functional.unfold` during computation, which results in
+            a copy of the data.
+            Mainly for comparison purposes: in tests, it always results in slowdown.
+
+        Returns
+        -------
+        conv : nn.Module
+            A convolution module, suitable for use in `GenericConv2D`
+        &#34;&#34;&#34;
+        return BroadcastConv(self, unfold_copy)</code></pre>
+</details>
+<div class="desc"><p>A semifield definition using PyTorch broadcasting operators</p>
+<p>Using a technique similar to nn.Unfold, we can create a view of the input array and
+apply broadcasting functions along kernel axes to perform a semifield convolution.
+All functions must take PyTorch Tensors, and should have a backwards implementation.</p>
+<p>This function does not use JIT components, and therefore has no compilation time
+(and can be run on non-CUDA devices as well).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>add_reduce</code></strong> :&ensp;<code>(Tensor, tuple</code> of <code>ints) -&gt; Tensor</code></dt>
+<dd>
+<p>To characterise semifield summation <span><span class="MathJax_Preview">\bigoplus</span><script type="math/tex">\bigoplus</script></span>, this function takes a single
+tensor with several axes, and performs reduction with <span><span class="MathJax_Preview">\oplus</span><script type="math/tex">\oplus</script></span> along the axes
+indicated in the second argument.</p>
+<p>Example: <code>lambda arr, dims: torch.sum(arr, dim=dims)</code></p>
+</dd>
+<dt><strong><code>multiply</code></strong> :&ensp;<code>(Tensor, Tensor) -&gt; Tensor</code></dt>
+<dd>To characterise semifield multiplication <span><span class="MathJax_Preview">\otimes</span><script type="math/tex">\otimes</script></span>, this function takes two
+tensors and performs a broadcasting, element-wise version of <span><span class="MathJax_Preview">\otimes</span><script type="math/tex">\otimes</script></span>.</dd>
+<dt><strong><code>zero</code></strong> :&ensp;<code>float</code></dt>
+<dd>The absorbing semifield zero.</dd>
+</dl>
+<h2 id="other-parameters">Other Parameters</h2>
+<dl>
+<dt><strong><code>add_reduce_channels</code></strong> :&ensp;<code>(Tensor, int) -&gt; Tensor</code>, optional</dt>
+<dd>An alternate reduction function (similar to <code>add_reduce</code>) that is applied along
+specifically the channel dimension.
+This alternate function could be e.g. addition in a modified version of <span><span class="MathJax_Preview">T_+</span><script type="math/tex">T_+</script></span>
+(see <code>channels_add</code> parameter of <code><a title="pytorch_semifield_conv.BroadcastSemifield.tropical_max" href="#pytorch_semifield_conv.BroadcastSemifield.tropical_max">BroadcastSemifield.tropical_max()</a></code>).</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<p><span><span class="MathJax_Preview">T_+</span><script type="math/tex">T_+</script></span> convolution:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; dilation = BroadcastSemifield.tropical_max().dynamic()
+</code></pre>
+<p><span><span class="MathJax_Preview">L_{-3}</span><script type="math/tex">L_{-3}</script></span> convolution:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; log = BroadcastSemifield.log(-3.0).dynamic()
+</code></pre>
+<p>For examples of how to construct a <code><a title="pytorch_semifield_conv.BroadcastSemifield" href="#pytorch_semifield_conv.BroadcastSemifield">BroadcastSemifield</a></code> manually, see the source code.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.tuple</li>
+</ul>
+<h3>Static methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.BroadcastSemifield.tropical_max"><code class="name flex">
+<span>def <span class="ident">tropical_max</span></span>(<span>channels_add=False, spread_gradient=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a <span><span class="MathJax_Preview">T_+</span><script type="math/tex">T_+</script></span> <code><a title="pytorch_semifield_conv.BroadcastSemifield" href="#pytorch_semifield_conv.BroadcastSemifield">BroadcastSemifield</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>channels_add</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to use standard addition <span><span class="MathJax_Preview">+</span><script type="math/tex">+</script></span> instead of the semifield addition
+<span><span class="MathJax_Preview">\max</span><script type="math/tex">\max</script></span> along specifically the channel axis.</dd>
+<dt><strong><code>spread_gradient</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to, in cases of multiple equal maxima, spread the gradient equally
+amongst all maxima.</dd>
+</dl></div>
+</dd>
+<dt id="pytorch_semifield_conv.BroadcastSemifield.tropical_min_negated"><code class="name flex">
+<span>def <span class="ident">tropical_min_negated</span></span>(<span>channels_add=False, spread_gradient=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a <code><a title="pytorch_semifield_conv.BroadcastSemifield" href="#pytorch_semifield_conv.BroadcastSemifield">BroadcastSemifield</a></code> similar to <span><span class="MathJax_Preview">T_-</span><script type="math/tex">T_-</script></span>, where the kernel is negated</p>
+<p>While performing erosion using <span><span class="MathJax_Preview">T_-</span><script type="math/tex">T_-</script></span> requires first negating the kernel, this
+modified semifield has <span><span class="MathJax_Preview">-</span><script type="math/tex">-</script></span> instead of <span><span class="MathJax_Preview">+</span><script type="math/tex">+</script></span> as the semifield multiplication.
+As such, the resulting convolution will work with non-negated kernels as inputs,
+making the interface more similar to the dilation in <span><span class="MathJax_Preview">T_+</span><script type="math/tex">T_+</script></span>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>channels_add</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to use standard addition <span><span class="MathJax_Preview">+</span><script type="math/tex">+</script></span> instead of the semifield addition
+<span><span class="MathJax_Preview">\min</span><script type="math/tex">\min</script></span> along specifically the channel axis.</dd>
+<dt><strong><code>spread_gradient</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to, in cases of multiple equal minima, spread the gradient equally
+amongst all minima.</dd>
+</dl></div>
+</dd>
+<dt id="pytorch_semifield_conv.BroadcastSemifield.linear"><code class="name flex">
+<span>def <span class="ident">linear</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a linear <code><a title="pytorch_semifield_conv.BroadcastSemifield" href="#pytorch_semifield_conv.BroadcastSemifield">BroadcastSemifield</a></code></p></div>
+</dd>
+<dt id="pytorch_semifield_conv.BroadcastSemifield.root"><code class="name flex">
+<span>def <span class="ident">root</span></span>(<span>p)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a <span><span class="MathJax_Preview">R_p</span><script type="math/tex">R_p</script></span> <code><a title="pytorch_semifield_conv.BroadcastSemifield" href="#pytorch_semifield_conv.BroadcastSemifield">BroadcastSemifield</a></code>.</p>
+<p>The root semifields are defined as:
+<span><span class="MathJax_Preview">(\mathbb{R}_+, \oplus_p, \times) \textrm{ for all } p\ne0 \textrm{ where }
+a\oplus_p b= \sqrt[p]{a^p+b^p} </span><script type="math/tex; mode=display">(\mathbb{R}_+, \oplus_p, \times) \textrm{ for all } p\ne0 \textrm{ where }
+a\oplus_p b= \sqrt[p]{a^p+b^p} </script></span>
+with the semifield zero being <span><span class="MathJax_Preview">0</span><script type="math/tex">0</script></span> and the semifield one being <span><span class="MathJax_Preview">1</span><script type="math/tex">1</script></span>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>p</code></strong> :&ensp;<code>int</code></dt>
+<dd>The power to use in <span><span class="MathJax_Preview">\oplus_p</span><script type="math/tex">\oplus_p</script></span>.
+May not be zero.</dd>
+</dl></div>
+</dd>
+<dt id="pytorch_semifield_conv.BroadcastSemifield.log"><code class="name flex">
+<span>def <span class="ident">log</span></span>(<span>mu)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a <span><span class="MathJax_Preview">L_+\mu</span><script type="math/tex">L_+\mu</script></span> or <span><span class="MathJax_Preview">L_-\mu</span><script type="math/tex">L_-\mu</script></span> <code><a title="pytorch_semifield_conv.BroadcastSemifield" href="#pytorch_semifield_conv.BroadcastSemifield">BroadcastSemifield</a></code>.</p>
+<p>The log semifields are defined as:
+<span><span class="MathJax_Preview">(\mathbb{R}\cup \{\pm\infty\}, \oplus_\mu, +) \textrm{ for all } \mu\ne0
+\textrm{ where }
+a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b}) </span><script type="math/tex; mode=display">(\mathbb{R}\cup \{\pm\infty\}, \oplus_\mu, +) \textrm{ for all } \mu\ne0
+\textrm{ where }
+a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b}) </script></span>
+with the semifield zero being <span><span class="MathJax_Preview">-\infty</span><script type="math/tex">-\infty</script></span> for <span><span class="MathJax_Preview">\mu&gt;0</span><script type="math/tex">\mu>0</script></span> and <span><span class="MathJax_Preview">\infty</span><script type="math/tex">\infty</script></span>
+otherwise, and the semifield one being <span><span class="MathJax_Preview">0</span><script type="math/tex">0</script></span>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>mu</code></strong> :&ensp;<code>int</code></dt>
+<dd>The base to use in <span><span class="MathJax_Preview">\oplus_mu</span><script type="math/tex">\oplus_mu</script></span>.
+May not be zero.</dd>
+</dl></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.BroadcastSemifield.dynamic"><code class="name flex">
+<span>def <span class="ident">dynamic</span></span>(<span>self, unfold_copy=False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_broadcast.py#L198-L214" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">def dynamic(self, unfold_copy: bool = False) -&gt; torch.nn.Module:
+    &#34;&#34;&#34;
+    Create a convolution Module based on this `BroadcastSemifield`.
+
+    Parameters
+    ----------
+    unfold_copy : bool = False
+        Whether to use `nn.functional.unfold` during computation, which results in
+        a copy of the data.
+        Mainly for comparison purposes: in tests, it always results in slowdown.
+
+    Returns
+    -------
+    conv : nn.Module
+        A convolution module, suitable for use in `GenericConv2D`
+    &#34;&#34;&#34;
+    return BroadcastConv(self, unfold_copy)</code></pre>
+</details>
+<div class="desc"><p>Create a convolution Module based on this <code><a title="pytorch_semifield_conv.BroadcastSemifield" href="#pytorch_semifield_conv.BroadcastSemifield">BroadcastSemifield</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>unfold_copy</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to use <code>nn.functional.unfold</code> during computation, which results in
+a copy of the data.
+Mainly for comparison purposes: in tests, it always results in slowdown.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>conv</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>A convolution module, suitable for use in <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code></dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="pytorch_semifield_conv.SelectSemifield"><code class="flex name class">
+<span>class <span class="ident">SelectSemifield</span></span>
+<span>(</span><span>add_select, times, d_times_d_img, d_times_d_kernel, zero, cache_name=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_select.py#L20-L219" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class SelectSemifield(NamedTuple):
+    r&#34;&#34;&#34;
+    A semifield definition where semifield addition selects a single value
+
+    For such semifields, the backwards pass can be done very efficiently by memoizing
+    the output provenance (index of the chosen value).
+    The resulting module is compiled and works only on CUDA devices.
+
+    Parameters
+    -------
+    add_select : (float, float) -&gt; bool
+        Given two values, return whether we should pick the second value (`True`), or
+        instead keep the first (`False`).
+        If there is no meaningful difference between the two values, `False` should be
+        preferred.
+    times : (float, float) -&gt; float
+        Given an image and a kernel value, perform scalar semifield multiplication
+        \(\otimes\).
+    d_times_d_img : (float, float) -&gt; float
+        Given the two arguments to `times`, compute the derivative to the first:
+        \[\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{img}}\]
+    d_times_d_kernel : (float, float) -&gt; float
+        Given the two arguments to `times`, compute the derivative to the second:
+        \[\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{kernel}}\]
+    zero : float
+        The semifield zero.
+    cache_name : str, optional
+        Identifier for this semifield, allows for compilations to be cached.
+
+        Instances of `SelectSemifield` that are meaningfully different should not have
+        the same `cache_name`, as this may lead to the wrong compilation being used.
+
+    Examples
+    -------
+    \(T_+\) convolution that will recompile for new inputs:
+
+    &gt;&gt;&gt; dilation = SelectSemifield.tropical_max().dynamic()
+
+    \(T_-\) convolution that will compile only once:
+
+    &gt;&gt;&gt; erosion = SelectSemifield.tropical_min_negated().lazy_fixed()
+
+    For examples of how to construct a `SelectSemifield` manually, see the source code.
+    &#34;&#34;&#34;
+
+    add_select: Callable[[float, float], bool]  # Return True if we should pick right
+    times: Callable[[float, float], float]  # (img_val, krn_val) -&gt; multiplied_val
+    d_times_d_img: Callable[[float, float], float]
+    d_times_d_kernel: Callable[[float, float], float]
+    zero: float
+    cache_name: str = None  # Cache identifier: distinct for different operators
+
+    @classmethod
+    def tropical_max(cls) -&gt; Self:
+        r&#34;&#34;&#34;Construct a \(T_+\) `SelectSemifield`.&#34;&#34;&#34;
+        return cls(
+            add_select=lambda left, right: left &lt; right,
+            times=lambda img_val, kernel_val: img_val + kernel_val,
+            d_times_d_img=lambda _i, _k: 1.0,
+            d_times_d_kernel=lambda _i, _k: 1.0,
+            zero=-math.inf,
+            cache_name=&#34;_tropical_max&#34;,
+        )
+
+    @classmethod
+    def tropical_min_negated(cls) -&gt; Self:
+        r&#34;&#34;&#34;
+        Construct a `SelectSemifield` similar to \(T_-\), where the kernel is negated
+
+        While performing erosion using \(T_-\) requires first negating the kernel, this
+        modified semifield has \(-\) instead of \(+\) as the semifield multiplication.
+        As such, the resulting convolution will work with non-negated kernels as inputs,
+        making the interface more similar to the dilation in \(T_+\).
+        &#34;&#34;&#34;
+        return cls(
+            add_select=lambda left, right: left &gt; right,
+            times=lambda img_val, kernel_val: img_val - kernel_val,
+            d_times_d_img=lambda _i, _k: 1.0,
+            d_times_d_kernel=lambda _i, _k: -1.0,
+            zero=math.inf,
+            cache_name=&#34;_tropical_min&#34;,
+        )
+
+    # The torch compiler doesn&#39;t understand the Numba compiler
+    @torch.compiler.disable
+    @lru_cache  # noqa: B019
+    def _compile(
+        self,
+        meta: ConvMeta,
+        thread_block_size: int = 256,
+        debug: bool = False,
+        to_extension: bool = True,
+    ) -&gt; Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]:
+        prov_t = _ProvType.smallest_required(meta)
+        cmp_semi = _CompiledSelectSemifield.compile(self)
+
+        forwards = _compile_forwards(
+            semifield=cmp_semi,
+            meta=meta,
+            prov_t=prov_t,
+            thread_block_size=thread_block_size,
+            debug=debug,
+            cache_name=&#34;_temporary&#34; if self.cache_name is None else self.cache_name,
+            to_extension=to_extension,
+        )
+        backwards, backwards_setup = _compile_backwards(
+            semifield=cmp_semi,
+            meta=meta,
+            prov_t=prov_t,
+            thread_block_size=thread_block_size,
+            debug=debug,
+            cache_name=&#34;_temporary&#34; if self.cache_name is None else self.cache_name,
+            to_extension=to_extension,
+        )
+        forwards.register_autograd(backwards, setup_context=backwards_setup)
+
+        return forwards
+
+    def dynamic(
+        self,
+        thread_block_size: int = 256,
+        to_extension: bool = True,
+        debug: bool = False,
+    ) -&gt; torch.nn.Module:
+        &#34;&#34;&#34;
+        Create a *recompiling* convolution Module based on this `SelectSemifield`.
+
+        Parameters
+        ----------
+        thread_block_size : int = 256
+            The number of threads per CUDA block
+        to_extension : bool = True
+            Whether the resulting module should compile to a PyTorch extension.
+            Doing so increases compilation times, but reduces per-call overhead.
+        debug : bool = False
+            Whether to print additional debugging and compilation information.
+
+        Returns
+        -------
+        conv : nn.Module
+            A convolution module, suitable for use in `GenericConv2D`.
+            Note that the compilation process is not traceable, and recompilations
+            **may cause errors when using `torch.compile`**.
+        &#34;&#34;&#34;
+        return CompiledConv(self, thread_block_size, debug, to_extension)
+
+    def lazy_fixed(
+        self,
+        thread_block_size: int = 256,
+        debug: bool = False,
+        to_extension: bool = True,
+    ) -&gt; torch.nn.Module:
+        &#34;&#34;&#34;
+        Create a *once-compiling* convolution Module based on this `SelectSemifield`.
+
+        Parameters
+        ----------
+        thread_block_size : int = 256
+            The number of threads per CUDA block
+        to_extension : bool = True
+            Whether the resulting module should compile to a PyTorch extension.
+            Doing so increases compilation times, but reduces per-call overhead.
+        debug : bool = False
+            Whether to print additional debugging and compilation information.
+
+        Returns
+        -------
+        conv : nn.Module
+            A convolution module, suitable for use in `GenericConv2D`.
+            Note that compilation will be based on the first inputs seen, after which
+            the operation will be fixed: **only batch size may be changed afterwards**.
+            The module is, however, traceable by e.g. `torch.compile`.
+        &#34;&#34;&#34;
+        return CompiledConvFixedLazy(self, thread_block_size, debug, to_extension)
+
+    def __hash__(self):
+        if self.cache_name is not None:
+            return hash(self.cache_name)
+
+        return hash(
+            (
+                self.add_select,
+                self.times,
+                self.d_times_d_img,
+                self.d_times_d_kernel,
+                self.zero,
+            )
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, SelectSemifield):
+            return False
+        if self.cache_name is not None:
+            return self.cache_name == other.cache_name
+
+        return self is other
+
+    @staticmethod
+    def _get_result(res: tuple[torch.Tensor, torch.Tensor]):
+        return res[0]</code></pre>
+</details>
+<div class="desc"><p>A semifield definition where semifield addition selects a single value</p>
+<p>For such semifields, the backwards pass can be done very efficiently by memoizing
+the output provenance (index of the chosen value).
+The resulting module is compiled and works only on CUDA devices.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>add_select</code></strong> :&ensp;<code>(float, float) -&gt; bool</code></dt>
+<dd>Given two values, return whether we should pick the second value (<code>True</code>), or
+instead keep the first (<code>False</code>).
+If there is no meaningful difference between the two values, <code>False</code> should be
+preferred.</dd>
+<dt><strong><code>times</code></strong> :&ensp;<code>(float, float) -&gt; float</code></dt>
+<dd>Given an image and a kernel value, perform scalar semifield multiplication
+<span><span class="MathJax_Preview">\otimes</span><script type="math/tex">\otimes</script></span>.</dd>
+<dt><strong><code>d_times_d_img</code></strong> :&ensp;<code>(float, float) -&gt; float</code></dt>
+<dd>Given the two arguments to <code>times</code>, compute the derivative to the first:
+<span><span class="MathJax_Preview">\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{img}}</span><script type="math/tex; mode=display">\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{img}}</script></span></dd>
+<dt><strong><code>d_times_d_kernel</code></strong> :&ensp;<code>(float, float) -&gt; float</code></dt>
+<dd>Given the two arguments to <code>times</code>, compute the derivative to the second:
+<span><span class="MathJax_Preview">\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{kernel}}</span><script type="math/tex; mode=display">\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{kernel}}</script></span></dd>
+<dt><strong><code>zero</code></strong> :&ensp;<code>float</code></dt>
+<dd>The semifield zero.</dd>
+<dt><strong><code>cache_name</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>
+<p>Identifier for this semifield, allows for compilations to be cached.</p>
+<p>Instances of <code><a title="pytorch_semifield_conv.SelectSemifield" href="#pytorch_semifield_conv.SelectSemifield">SelectSemifield</a></code> that are meaningfully different should not have
+the same <code>cache_name</code>, as this may lead to the wrong compilation being used.</p>
+</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<p><span><span class="MathJax_Preview">T_+</span><script type="math/tex">T_+</script></span> convolution that will recompile for new inputs:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; dilation = SelectSemifield.tropical_max().dynamic()
+</code></pre>
+<p><span><span class="MathJax_Preview">T_-</span><script type="math/tex">T_-</script></span> convolution that will compile only once:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; erosion = SelectSemifield.tropical_min_negated().lazy_fixed()
+</code></pre>
+<p>For examples of how to construct a <code><a title="pytorch_semifield_conv.SelectSemifield" href="#pytorch_semifield_conv.SelectSemifield">SelectSemifield</a></code> manually, see the source code.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.tuple</li>
+</ul>
+<h3>Static methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.SelectSemifield.tropical_max"><code class="name flex">
+<span>def <span class="ident">tropical_max</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a <span><span class="MathJax_Preview">T_+</span><script type="math/tex">T_+</script></span> <code><a title="pytorch_semifield_conv.SelectSemifield" href="#pytorch_semifield_conv.SelectSemifield">SelectSemifield</a></code>.</p></div>
+</dd>
+<dt id="pytorch_semifield_conv.SelectSemifield.tropical_min_negated"><code class="name flex">
+<span>def <span class="ident">tropical_min_negated</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a <code><a title="pytorch_semifield_conv.SelectSemifield" href="#pytorch_semifield_conv.SelectSemifield">SelectSemifield</a></code> similar to <span><span class="MathJax_Preview">T_-</span><script type="math/tex">T_-</script></span>, where the kernel is negated</p>
+<p>While performing erosion using <span><span class="MathJax_Preview">T_-</span><script type="math/tex">T_-</script></span> requires first negating the kernel, this
+modified semifield has <span><span class="MathJax_Preview">-</span><script type="math/tex">-</script></span> instead of <span><span class="MathJax_Preview">+</span><script type="math/tex">+</script></span> as the semifield multiplication.
+As such, the resulting convolution will work with non-negated kernels as inputs,
+making the interface more similar to the dilation in <span><span class="MathJax_Preview">T_+</span><script type="math/tex">T_+</script></span>.</p></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.SelectSemifield.dynamic"><code class="name flex">
+<span>def <span class="ident">dynamic</span></span>(<span>self, thread_block_size=256, to_extension=True, debug=False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_select.py#L138-L164" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">def dynamic(
+    self,
+    thread_block_size: int = 256,
+    to_extension: bool = True,
+    debug: bool = False,
+) -&gt; torch.nn.Module:
+    &#34;&#34;&#34;
+    Create a *recompiling* convolution Module based on this `SelectSemifield`.
+
+    Parameters
+    ----------
+    thread_block_size : int = 256
+        The number of threads per CUDA block
+    to_extension : bool = True
+        Whether the resulting module should compile to a PyTorch extension.
+        Doing so increases compilation times, but reduces per-call overhead.
+    debug : bool = False
+        Whether to print additional debugging and compilation information.
+
+    Returns
+    -------
+    conv : nn.Module
+        A convolution module, suitable for use in `GenericConv2D`.
+        Note that the compilation process is not traceable, and recompilations
+        **may cause errors when using `torch.compile`**.
+    &#34;&#34;&#34;
+    return CompiledConv(self, thread_block_size, debug, to_extension)</code></pre>
+</details>
+<div class="desc"><p>Create a <em>recompiling</em> convolution Module based on this <code><a title="pytorch_semifield_conv.SelectSemifield" href="#pytorch_semifield_conv.SelectSemifield">SelectSemifield</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>thread_block_size</code></strong> :&ensp;<code>int = 256</code></dt>
+<dd>The number of threads per CUDA block</dd>
+<dt><strong><code>to_extension</code></strong> :&ensp;<code>bool = True</code></dt>
+<dd>Whether the resulting module should compile to a PyTorch extension.
+Doing so increases compilation times, but reduces per-call overhead.</dd>
+<dt><strong><code>debug</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to print additional debugging and compilation information.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>conv</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>A convolution module, suitable for use in <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code>.
+Note that the compilation process is not traceable, and recompilations
+<strong>may cause errors when using <code>torch.compile</code></strong>.</dd>
+</dl></div>
+</dd>
+<dt id="pytorch_semifield_conv.SelectSemifield.lazy_fixed"><code class="name flex">
+<span>def <span class="ident">lazy_fixed</span></span>(<span>self, thread_block_size=256, debug=False, to_extension=True)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_select.py#L166-L193" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">def lazy_fixed(
+    self,
+    thread_block_size: int = 256,
+    debug: bool = False,
+    to_extension: bool = True,
+) -&gt; torch.nn.Module:
+    &#34;&#34;&#34;
+    Create a *once-compiling* convolution Module based on this `SelectSemifield`.
+
+    Parameters
+    ----------
+    thread_block_size : int = 256
+        The number of threads per CUDA block
+    to_extension : bool = True
+        Whether the resulting module should compile to a PyTorch extension.
+        Doing so increases compilation times, but reduces per-call overhead.
+    debug : bool = False
+        Whether to print additional debugging and compilation information.
+
+    Returns
+    -------
+    conv : nn.Module
+        A convolution module, suitable for use in `GenericConv2D`.
+        Note that compilation will be based on the first inputs seen, after which
+        the operation will be fixed: **only batch size may be changed afterwards**.
+        The module is, however, traceable by e.g. `torch.compile`.
+    &#34;&#34;&#34;
+    return CompiledConvFixedLazy(self, thread_block_size, debug, to_extension)</code></pre>
+</details>
+<div class="desc"><p>Create a <em>once-compiling</em> convolution Module based on this <code><a title="pytorch_semifield_conv.SelectSemifield" href="#pytorch_semifield_conv.SelectSemifield">SelectSemifield</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>thread_block_size</code></strong> :&ensp;<code>int = 256</code></dt>
+<dd>The number of threads per CUDA block</dd>
+<dt><strong><code>to_extension</code></strong> :&ensp;<code>bool = True</code></dt>
+<dd>Whether the resulting module should compile to a PyTorch extension.
+Doing so increases compilation times, but reduces per-call overhead.</dd>
+<dt><strong><code>debug</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to print additional debugging and compilation information.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>conv</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>A convolution module, suitable for use in <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code>.
+Note that compilation will be based on the first inputs seen, after which
+the operation will be fixed: <strong>only batch size may be changed afterwards</strong>.
+The module is, however, traceable by e.g. <code>torch.compile</code>.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="pytorch_semifield_conv.SubtractSemifield"><code class="flex name class">
+<span>class <span class="ident">SubtractSemifield</span></span>
+<span>(</span><span>add,<br>times,<br>d_times_d_img,<br>d_times_d_kernel,<br>subtract,<br>d_add_d_right,<br>neutral,<br>cache_name=None,<br>post_sum=None,<br>undo_post_sum=None,<br>d_post_d_acc=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_subtract.py#L19-L312" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class SubtractSemifield(NamedTuple):
+    r&#34;&#34;&#34;
+    A semifield definition where semifield addition has an inverse
+
+    For such semifields, the backwards pass can be done by &#39;subtracting&#39; every value
+    from the result to get the arguments for the additive derivative.
+    The resulting module is compiled and works only on CUDA devices.
+
+    Parameters
+    -------
+    add : (float, float) -&gt; float
+        Given an accumulator and a multiplied value, perform scalar semifield addition
+        \(\oplus\).
+    times : (float, float) -&gt; float
+        Given an image and a kernel value, perform scalar semifield multiplication
+        \(\otimes\).
+    d_times_d_img : (float, float) -&gt; float
+        Given the two arguments to `times`, compute the derivative to the first:
+        \[\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{img}}\]
+    d_times_d_kernel : (float, float) -&gt; float
+        Given the two arguments to `times`, compute the derivative to the second:
+        \[\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{kernel}}\]
+    subtract : (float, float) -&gt; float
+        Given the final accumulator value `res` and a multiplied value `val`,
+
+        return an `acc` such that `add(acc, val) == res`.
+        In other words: perform semifield subtraction.
+    d_add_d_right : (float, float) -&gt; float
+        Given the two arguments to `add`, compute the derivative to the second:
+        \[\frac{\delta (\textrm{acc} \oplus \textrm{val}) }{\delta\textrm{val}}\]
+    zero : float
+        The semifield zero.
+    cache_name : str, optional
+        Identifier for this semifield, allows for compilations to be cached.
+
+        Instances of `SelectSemifield` that are meaningfully different should not have
+        the same `cache_name`, as this may lead to the wrong compilation being used.
+
+    Other Parameters
+    -------
+    post_sum : (float) -&gt; float, optional
+        Some semifield additions are fairly complex and computationally expensive, but
+        can be reinterpreted as a repeated simpler operation, followed by a scalar
+        transformation of the final accumulator value.
+        `post_sum` is then this scalar transformation, taking the final accumulator
+        value `res` and transforming it into a value `out`.
+
+        Taking the root semifield \(R_3\) as an example, we can see that if we use
+
+        - `times` as \(a \otimes_3 b = (a \times b)^3 \)
+        - `add` as \(+\)
+        - `post_sum` as \(\textrm{out} = \sqrt[3]{\textrm{res}} \)
+
+        then we can perform the reduction in terms of simple scalar addition, instead
+        of having to take the power and root at every step.
+
+        Using such a transfrom does, however, require defining two other operators,
+        namely the inverse and the derivative.
+        When these are given, `subtract` and `d_add_d_right` will be given untransformed
+        arguments: in the root semifield example, that would mean that the arguments
+        to `subtract` and `d_add_d_right` are not yet taken to the `p`&#39;th root.
+    undo_post_sum : (float) -&gt; float, optional
+        The inverse of `post_sum`, required if `post_sum` is given.
+    d_post_d_acc : (float) -&gt; float, optional
+        The derivative of `post_sum` to its argument, required if `post_sum` is given:
+        \[\frac{\delta \textrm{post_sum}(\textrm{res}) }{\delta\textrm{res}}\]
+
+    Examples
+    -------
+    Linear convolution that will recompile for new parameters:
+
+    &gt;&gt;&gt; linear = SubtractSemifield.linear().dynamic()
+
+    \(R_3\) convolution that will compile only once:
+
+    &gt;&gt;&gt; root = SubtractSemifield.root(3.0).lazy_fixed()
+
+    For examples of how to construct a `SubtractSemifield` manually, see the source code.
+    &#34;&#34;&#34;
+
+    add: Callable[[float, float], float]  # (acc, val) -&gt; acc (+) val
+    times: Callable[[float, float], float]  # (img_val, krn_val) -&gt; multiplied_val
+    d_times_d_img: Callable[[float, float], float]
+    d_times_d_kernel: Callable[[float, float], float]
+    # (res, val) -&gt; res-val, such that val (+) (res - val) == res
+    subtract: Callable[[float, float], float]
+    # d(acc (+) val) / dval
+    d_add_d_right: Callable[[float, float], float]
+    neutral: float
+    cache_name: str = None  # Cache identifier: distinct for different operators
+
+    post_sum: Callable[[float], float] = None  # (final_acc) -&gt; res
+    undo_post_sum: Callable[[float], float] = None  # (res) -&gt; final_acc
+    d_post_d_acc: Callable[[float], float] = None  # (final_acc) -&gt; dacc
+
+    @classmethod
+    def linear(cls) -&gt; Self:
+        &#34;&#34;&#34;Construct a linear `SubtractSemifield`&#34;&#34;&#34;
+        return cls(
+            add=lambda acc, val: acc + val,
+            times=lambda img_val, kernel_val: img_val * kernel_val,
+            d_times_d_img=lambda _i, kernel_val: kernel_val,
+            d_times_d_kernel=lambda img_val, _k: img_val,
+            subtract=lambda res, val: res - val,
+            d_add_d_right=lambda _a, _v: 1,
+            neutral=0,
+            cache_name=&#34;_linear&#34;,
+        )
+
+    @classmethod
+    def root(cls, p: float) -&gt; Self:
+        r&#34;&#34;&#34;
+        Construct a \(R_p\) `SubtractSemifield`.
+
+        The root semifields are defined as:
+        \[(\mathbb{R}_+, \oplus_p, \times) \textrm{ for all } p\ne0 \textrm{ where }
+        a\oplus_p b= \sqrt[p]{a^p+b^p} \]
+        with the semifield zero being \(0\) and the semifield one being \(1\).
+
+        Parameters
+        ----------
+        p : int
+            The power to use in \(\oplus_p\).
+            May not be zero.
+        &#34;&#34;&#34;
+        assert p != 0, f&#34;Invalid value: {p=}&#34;
+        return cls(
+            times=lambda img_val, kernel_val: (img_val * kernel_val) ** p,
+            add=lambda acc, val: (acc + val),
+            post_sum=lambda acc: acc ** (1 / p),
+            neutral=0,
+            cache_name=f&#34;_root_{cls._number_to_cache(p)}&#34;,
+            undo_post_sum=lambda res: res**p,
+            subtract=lambda acc, val: acc - val,
+            d_times_d_img=lambda a, b: ((a * b) ** p) * p / a,
+            d_times_d_kernel=lambda a, b: ((a * b) ** p) * p / b,
+            d_add_d_right=lambda _a, _b: 1,
+            d_post_d_acc=lambda acc: (1 / p) * acc ** (1 / p - 1),
+        )
+
+    @classmethod
+    def log(cls, mu: float) -&gt; Self:
+        r&#34;&#34;&#34;
+        Construct a \(L_+\mu\) or \(L_-\mu\) `SubtractSemifield`.
+
+        The log semifields are defined as:
+        \[(\mathbb{R}\cup \{\pm\infty\}, \oplus_\mu, +) \textrm{ for all } \mu\ne0
+        \textrm{ where }
+        a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b}) \]
+        with the semifield zero being \(-\infty\) for \(\mu&gt;0\) and \(\infty\)
+        otherwise, and the semifield one being \(0\).
+
+        Parameters
+        ----------
+        mu : int
+            The base to use in \(\oplus_mu\).
+            May not be zero.
+        &#34;&#34;&#34;
+        assert mu != 0, f&#34;Invalid value: {mu=}&#34;
+        return cls(
+            times=lambda img_val, kernel_val: math.exp((img_val + kernel_val) * mu),
+            add=lambda acc, val: (acc + val),
+            post_sum=lambda acc: math.log(acc) / mu,
+            neutral=0,
+            cache_name=f&#34;_log_{cls._number_to_cache(mu)}&#34;,
+            d_times_d_img=lambda a, b: mu * math.exp((a + b) * mu),
+            d_times_d_kernel=lambda a, b: mu * math.exp((a + b) * mu),
+            undo_post_sum=lambda res: math.exp(res * mu),
+            subtract=lambda acc, val: acc - val,
+            d_add_d_right=lambda _a, _v: 1,
+            d_post_d_acc=lambda acc: 1 / (mu * acc),
+        )
+
+    # The torch compiler doesn&#39;t understand the Numba compiler
+    @torch.compiler.disable
+    @lru_cache  # noqa: B019
+    def _compile(
+        self,
+        meta: ConvMeta,
+        thread_block_size: int = 256,
+        debug: bool = False,
+        to_extension: bool = True,
+    ) -&gt; Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
+        cmp_semi = _CompiledSubtractSemifield.compile(self)
+
+        forwards = _compile_forwards(
+            semifield=cmp_semi,
+            meta=meta,
+            thread_block_size=thread_block_size,
+            debug=debug,
+            cache_name=&#34;_temporary&#34; if self.cache_name is None else self.cache_name,
+            to_extension=to_extension,
+        )
+        backwards, backwards_setup = _compile_backwards(
+            semifield=cmp_semi,
+            meta=meta,
+            thread_block_size=thread_block_size,
+            debug=debug,
+            cache_name=&#34;_temporary&#34; if self.cache_name is None else self.cache_name,
+            to_extension=to_extension,
+        )
+        forwards.register_autograd(backwards, setup_context=backwards_setup)
+
+        return forwards
+
+    def dynamic(
+        self,
+        thread_block_size: int = 256,
+        debug: bool = False,
+        to_extension: bool = True,
+    ) -&gt; torch.nn.Module:
+        &#34;&#34;&#34;
+        Create a *recompiling* convolution Module based on this `SubtractSemifield`.
+
+
+        Parameters
+        ----------
+        thread_block_size : int = 256
+            The number of threads per CUDA block
+        to_extension : bool = True
+            Whether the resulting module should compile to a PyTorch extension.
+            Doing so increases compilation times, but reduces per-call overhead.
+        debug : bool = False
+            Whether to print additional debugging and compilation information.
+
+        Returns
+        -------
+        conv : nn.Module
+            A convolution module, suitable for use in `GenericConv2D`.
+            Note that the compilation process is not traceable, and recompilations
+            **may cause errors when using `torch.compile`**.
+        &#34;&#34;&#34;
+        return CompiledConv(self, thread_block_size, debug, to_extension)
+
+    def lazy_fixed(
+        self,
+        thread_block_size: int = 256,
+        debug: bool = False,
+        to_extension: bool = True,
+    ) -&gt; torch.nn.Module:
+        &#34;&#34;&#34;
+        Create a *once-compiling* convolution Module based on this `SubtractSemifield`.
+
+        Parameters
+        ----------
+        thread_block_size : int = 256
+            The number of threads per CUDA block
+        to_extension : bool = True
+            Whether the resulting module should compile to a PyTorch extension.
+            Doing so increases compilation times, but reduces per-call overhead.
+        debug : bool = False
+            Whether to print additional debugging and compilation information.
+
+        Returns
+        -------
+        conv : nn.Module
+            A convolution module, suitable for use in `GenericConv2D`.
+            Note that compilation will be based on the first inputs seen, after which
+            the operation will be fixed: **only batch size may be changed afterwards**.
+            The module is, however, traceable by e.g. `torch.compile`.
+        &#34;&#34;&#34;
+        return CompiledConvFixedLazy(self, thread_block_size, debug, to_extension)
+
+    def __hash__(self):
+        if self.cache_name is not None:
+            return hash(self.cache_name)
+
+        return hash(
+            (
+                self.add,
+                self.times,
+                self.d_times_d_img,
+                self.d_times_d_kernel,
+                self.subtract,
+                self.d_add_d_right,
+                self.neutral,
+            )
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, SubtractSemifield):
+            return False
+        if self.cache_name is not None:
+            return self.cache_name == other.cache_name
+
+        return self is other
+
+    @staticmethod
+    def _get_result(res: torch.Tensor):
+        return res
+
+    @staticmethod
+    def _number_to_cache(n: float):
+        return str(n).replace(&#34;.&#34;, &#34;_&#34;).replace(&#34;-&#34;, &#34;_minus_&#34;)</code></pre>
+</details>
+<div class="desc"><p>A semifield definition where semifield addition has an inverse</p>
+<p>For such semifields, the backwards pass can be done by 'subtracting' every value
+from the result to get the arguments for the additive derivative.
+The resulting module is compiled and works only on CUDA devices.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>add</code></strong> :&ensp;<code>(float, float) -&gt; float</code></dt>
+<dd>Given an accumulator and a multiplied value, perform scalar semifield addition
+<span><span class="MathJax_Preview">\oplus</span><script type="math/tex">\oplus</script></span>.</dd>
+<dt><strong><code>times</code></strong> :&ensp;<code>(float, float) -&gt; float</code></dt>
+<dd>Given an image and a kernel value, perform scalar semifield multiplication
+<span><span class="MathJax_Preview">\otimes</span><script type="math/tex">\otimes</script></span>.</dd>
+<dt><strong><code>d_times_d_img</code></strong> :&ensp;<code>(float, float) -&gt; float</code></dt>
+<dd>Given the two arguments to <code>times</code>, compute the derivative to the first:
+<span><span class="MathJax_Preview">\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{img}}</span><script type="math/tex; mode=display">\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{img}}</script></span></dd>
+<dt><strong><code>d_times_d_kernel</code></strong> :&ensp;<code>(float, float) -&gt; float</code></dt>
+<dd>Given the two arguments to <code>times</code>, compute the derivative to the second:
+<span><span class="MathJax_Preview">\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{kernel}}</span><script type="math/tex; mode=display">\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{kernel}}</script></span></dd>
+<dt><strong><code>subtract</code></strong> :&ensp;<code>(float, float) -&gt; float</code></dt>
+<dd>
+<p>Given the final accumulator value <code>res</code> and a multiplied value <code>val</code>,</p>
+<p>return an <code>acc</code> such that <code>add(acc, val) == res</code>.
+In other words: perform semifield subtraction.</p>
+</dd>
+<dt><strong><code>d_add_d_right</code></strong> :&ensp;<code>(float, float) -&gt; float</code></dt>
+<dd>Given the two arguments to <code>add</code>, compute the derivative to the second:
+<span><span class="MathJax_Preview">\frac{\delta (\textrm{acc} \oplus \textrm{val}) }{\delta\textrm{val}}</span><script type="math/tex; mode=display">\frac{\delta (\textrm{acc} \oplus \textrm{val}) }{\delta\textrm{val}}</script></span></dd>
+<dt><strong><code>zero</code></strong> :&ensp;<code>float</code></dt>
+<dd>The semifield zero.</dd>
+<dt><strong><code>cache_name</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>
+<p>Identifier for this semifield, allows for compilations to be cached.</p>
+<p>Instances of <code><a title="pytorch_semifield_conv.SelectSemifield" href="#pytorch_semifield_conv.SelectSemifield">SelectSemifield</a></code> that are meaningfully different should not have
+the same <code>cache_name</code>, as this may lead to the wrong compilation being used.</p>
+</dd>
+</dl>
+<h2 id="other-parameters">Other Parameters</h2>
+<dl>
+<dt><strong><code>post_sum</code></strong> :&ensp;<code>(float) -&gt; float</code>, optional</dt>
+<dd>
+<p>Some semifield additions are fairly complex and computationally expensive, but
+can be reinterpreted as a repeated simpler operation, followed by a scalar
+transformation of the final accumulator value.
+<code>post_sum</code> is then this scalar transformation, taking the final accumulator
+value <code>res</code> and transforming it into a value <code>out</code>.</p>
+<p>Taking the root semifield <span><span class="MathJax_Preview">R_3</span><script type="math/tex">R_3</script></span> as an example, we can see that if we use</p>
+<ul>
+<li><code>times</code> as <span><span class="MathJax_Preview">a \otimes_3 b = (a \times b)^3 </span><script type="math/tex">a \otimes_3 b = (a \times b)^3 </script></span></li>
+<li><code>add</code> as <span><span class="MathJax_Preview">+</span><script type="math/tex">+</script></span></li>
+<li><code>post_sum</code> as <span><span class="MathJax_Preview">\textrm{out} = \sqrt[3]{\textrm{res}} </span><script type="math/tex">\textrm{out} = \sqrt[3]{\textrm{res}} </script></span></li>
+</ul>
+<p>then we can perform the reduction in terms of simple scalar addition, instead
+of having to take the power and root at every step.</p>
+<p>Using such a transfrom does, however, require defining two other operators,
+namely the inverse and the derivative.
+When these are given, <code>subtract</code> and <code>d_add_d_right</code> will be given untransformed
+arguments: in the root semifield example, that would mean that the arguments
+to <code>subtract</code> and <code>d_add_d_right</code> are not yet taken to the <code>p</code>'th root.</p>
+</dd>
+<dt><strong><code>undo_post_sum</code></strong> :&ensp;<code>(float) -&gt; float</code>, optional</dt>
+<dd>The inverse of <code>post_sum</code>, required if <code>post_sum</code> is given.</dd>
+<dt><strong><code>d_post_d_acc</code></strong> :&ensp;<code>(float) -&gt; float</code>, optional</dt>
+<dd>The derivative of <code>post_sum</code> to its argument, required if <code>post_sum</code> is given:
+<span><span class="MathJax_Preview">\frac{\delta \textrm{post_sum}(\textrm{res}) }{\delta\textrm{res}}</span><script type="math/tex; mode=display">\frac{\delta \textrm{post_sum}(\textrm{res}) }{\delta\textrm{res}}</script></span></dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<p>Linear convolution that will recompile for new parameters:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; linear = SubtractSemifield.linear().dynamic()
+</code></pre>
+<p><span><span class="MathJax_Preview">R_3</span><script type="math/tex">R_3</script></span> convolution that will compile only once:</p>
+<pre><code class="language-python-repl">&gt;&gt;&gt; root = SubtractSemifield.root(3.0).lazy_fixed()
+</code></pre>
+<p>For examples of how to construct a <code><a title="pytorch_semifield_conv.SubtractSemifield" href="#pytorch_semifield_conv.SubtractSemifield">SubtractSemifield</a></code> manually, see the source code.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>builtins.tuple</li>
+</ul>
+<h3>Static methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.SubtractSemifield.linear"><code class="name flex">
+<span>def <span class="ident">linear</span></span>(<span>)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a linear <code><a title="pytorch_semifield_conv.SubtractSemifield" href="#pytorch_semifield_conv.SubtractSemifield">SubtractSemifield</a></code></p></div>
+</dd>
+<dt id="pytorch_semifield_conv.SubtractSemifield.root"><code class="name flex">
+<span>def <span class="ident">root</span></span>(<span>p)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a <span><span class="MathJax_Preview">R_p</span><script type="math/tex">R_p</script></span> <code><a title="pytorch_semifield_conv.SubtractSemifield" href="#pytorch_semifield_conv.SubtractSemifield">SubtractSemifield</a></code>.</p>
+<p>The root semifields are defined as:
+<span><span class="MathJax_Preview">(\mathbb{R}_+, \oplus_p, \times) \textrm{ for all } p\ne0 \textrm{ where }
+a\oplus_p b= \sqrt[p]{a^p+b^p} </span><script type="math/tex; mode=display">(\mathbb{R}_+, \oplus_p, \times) \textrm{ for all } p\ne0 \textrm{ where }
+a\oplus_p b= \sqrt[p]{a^p+b^p} </script></span>
+with the semifield zero being <span><span class="MathJax_Preview">0</span><script type="math/tex">0</script></span> and the semifield one being <span><span class="MathJax_Preview">1</span><script type="math/tex">1</script></span>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>p</code></strong> :&ensp;<code>int</code></dt>
+<dd>The power to use in <span><span class="MathJax_Preview">\oplus_p</span><script type="math/tex">\oplus_p</script></span>.
+May not be zero.</dd>
+</dl></div>
+</dd>
+<dt id="pytorch_semifield_conv.SubtractSemifield.log"><code class="name flex">
+<span>def <span class="ident">log</span></span>(<span>mu)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a <span><span class="MathJax_Preview">L_+\mu</span><script type="math/tex">L_+\mu</script></span> or <span><span class="MathJax_Preview">L_-\mu</span><script type="math/tex">L_-\mu</script></span> <code><a title="pytorch_semifield_conv.SubtractSemifield" href="#pytorch_semifield_conv.SubtractSemifield">SubtractSemifield</a></code>.</p>
+<p>The log semifields are defined as:
+<span><span class="MathJax_Preview">(\mathbb{R}\cup \{\pm\infty\}, \oplus_\mu, +) \textrm{ for all } \mu\ne0
+\textrm{ where }
+a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b}) </span><script type="math/tex; mode=display">(\mathbb{R}\cup \{\pm\infty\}, \oplus_\mu, +) \textrm{ for all } \mu\ne0
+\textrm{ where }
+a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b}) </script></span>
+with the semifield zero being <span><span class="MathJax_Preview">-\infty</span><script type="math/tex">-\infty</script></span> for <span><span class="MathJax_Preview">\mu&gt;0</span><script type="math/tex">\mu>0</script></span> and <span><span class="MathJax_Preview">\infty</span><script type="math/tex">\infty</script></span>
+otherwise, and the semifield one being <span><span class="MathJax_Preview">0</span><script type="math/tex">0</script></span>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>mu</code></strong> :&ensp;<code>int</code></dt>
+<dd>The base to use in <span><span class="MathJax_Preview">\oplus_mu</span><script type="math/tex">\oplus_mu</script></span>.
+May not be zero.</dd>
+</dl></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.SubtractSemifield.dynamic"><code class="name flex">
+<span>def <span class="ident">dynamic</span></span>(<span>self, thread_block_size=256, debug=False, to_extension=True)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_subtract.py#L224-L251" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">def dynamic(
+    self,
+    thread_block_size: int = 256,
+    debug: bool = False,
+    to_extension: bool = True,
+) -&gt; torch.nn.Module:
+    &#34;&#34;&#34;
+    Create a *recompiling* convolution Module based on this `SubtractSemifield`.
+
+
+    Parameters
+    ----------
+    thread_block_size : int = 256
+        The number of threads per CUDA block
+    to_extension : bool = True
+        Whether the resulting module should compile to a PyTorch extension.
+        Doing so increases compilation times, but reduces per-call overhead.
+    debug : bool = False
+        Whether to print additional debugging and compilation information.
+
+    Returns
+    -------
+    conv : nn.Module
+        A convolution module, suitable for use in `GenericConv2D`.
+        Note that the compilation process is not traceable, and recompilations
+        **may cause errors when using `torch.compile`**.
+    &#34;&#34;&#34;
+    return CompiledConv(self, thread_block_size, debug, to_extension)</code></pre>
+</details>
+<div class="desc"><p>Create a <em>recompiling</em> convolution Module based on this <code><a title="pytorch_semifield_conv.SubtractSemifield" href="#pytorch_semifield_conv.SubtractSemifield">SubtractSemifield</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>thread_block_size</code></strong> :&ensp;<code>int = 256</code></dt>
+<dd>The number of threads per CUDA block</dd>
+<dt><strong><code>to_extension</code></strong> :&ensp;<code>bool = True</code></dt>
+<dd>Whether the resulting module should compile to a PyTorch extension.
+Doing so increases compilation times, but reduces per-call overhead.</dd>
+<dt><strong><code>debug</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to print additional debugging and compilation information.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>conv</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>A convolution module, suitable for use in <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code>.
+Note that the compilation process is not traceable, and recompilations
+<strong>may cause errors when using <code>torch.compile</code></strong>.</dd>
+</dl></div>
+</dd>
+<dt id="pytorch_semifield_conv.SubtractSemifield.lazy_fixed"><code class="name flex">
+<span>def <span class="ident">lazy_fixed</span></span>(<span>self, thread_block_size=256, debug=False, to_extension=True)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_subtract.py#L253-L280" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">def lazy_fixed(
+    self,
+    thread_block_size: int = 256,
+    debug: bool = False,
+    to_extension: bool = True,
+) -&gt; torch.nn.Module:
+    &#34;&#34;&#34;
+    Create a *once-compiling* convolution Module based on this `SubtractSemifield`.
+
+    Parameters
+    ----------
+    thread_block_size : int = 256
+        The number of threads per CUDA block
+    to_extension : bool = True
+        Whether the resulting module should compile to a PyTorch extension.
+        Doing so increases compilation times, but reduces per-call overhead.
+    debug : bool = False
+        Whether to print additional debugging and compilation information.
+
+    Returns
+    -------
+    conv : nn.Module
+        A convolution module, suitable for use in `GenericConv2D`.
+        Note that compilation will be based on the first inputs seen, after which
+        the operation will be fixed: **only batch size may be changed afterwards**.
+        The module is, however, traceable by e.g. `torch.compile`.
+    &#34;&#34;&#34;
+    return CompiledConvFixedLazy(self, thread_block_size, debug, to_extension)</code></pre>
+</details>
+<div class="desc"><p>Create a <em>once-compiling</em> convolution Module based on this <code><a title="pytorch_semifield_conv.SubtractSemifield" href="#pytorch_semifield_conv.SubtractSemifield">SubtractSemifield</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>thread_block_size</code></strong> :&ensp;<code>int = 256</code></dt>
+<dd>The number of threads per CUDA block</dd>
+<dt><strong><code>to_extension</code></strong> :&ensp;<code>bool = True</code></dt>
+<dd>Whether the resulting module should compile to a PyTorch extension.
+Doing so increases compilation times, but reduces per-call overhead.</dd>
+<dt><strong><code>debug</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to print additional debugging and compilation information.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>conv</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>A convolution module, suitable for use in <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code>.
+Note that compilation will be based on the first inputs seen, after which
+the operation will be fixed: <strong>only batch size may be changed afterwards</strong>.
+The module is, however, traceable by e.g. <code>torch.compile</code>.</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="pytorch_semifield_conv.QuadraticKernelSpectral2D"><code class="flex name class">
+<span>class <span class="ident">QuadraticKernelSpectral2D</span></span>
+<span>(</span><span>in_channels, out_channels, kernel_size, init=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L8-L102" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class QuadraticKernelSpectral2D(nn.Module):
+    r&#34;&#34;&#34;
+    A kernel that evaluates \(x^T S^{-1} x\), with skew parameterised as an angle \(\theta\)
+
+    This module takes no arguments in `forward` and produces a
+    `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv2D`.
+
+    Parameters
+    -------
+    in_channels : int
+        The number of input channels: the `I` in `OIHW`.
+    out_channels : int
+        The number of output channels: the `O` in `OIHW`.
+    kernel_size : int
+        The height `H` and width `W` of the kernel (rectangular kernels are not supported).
+    init : dict, optional
+        The initialisation stratergy for the underlying covariance matrices.
+        If provided, the dictionary must have keys:
+
+        `&#34;var&#34;` for the variances, which can take values:
+
+        - `float` to indicate a constant initialisation
+        - `&#34;normal&#34;` to indicate values normally distributed around 2.0
+        - `&#34;uniform&#34;` to indicate uniform-random initialisation
+        - `&#34;uniform-iso&#34;` to indicate isotropic uniform-random initialisation
+        - `&#34;ss-iso&#34;` to indicate scale-space isotropic initialisation
+        - `&#34;skewed&#34;` to indicate uniform-random initialisation with the second primary
+          axis having a significantly higher variance (**default**)
+
+        and `&#34;theta&#34;` for the rotations, which can take values:
+
+        - `&#34;uniform&#34;` to indicate uniform-random initialisation
+        - `&#34;spin&#34;` to indicate shuffled but evenly spaced angles (**default**)
+
+    Examples
+    -------
+
+    &gt;&gt;&gt; kernel = QuadraticKernelSpectral2D(5, 6, 3, {&#34;var&#34;: 3.0, &#34;theta&#34;: &#34;spin&#34;})
+    &gt;&gt;&gt; tuple(kernel().shape)
+    (6, 5, 3, 3)
+    &#34;&#34;&#34;
+
+    _pos_grid: torch.Tensor
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        init: dict[str, str | float] | None = None,
+    ):
+        super().__init__()
+        self.covs = CovSpectral2D(in_channels, out_channels, init)
+        self.kernel_size = kernel_size
+        self.out_channels = out_channels
+        self.in_channels = in_channels
+        self.register_buffer(
+            &#34;_pos_grid&#34;,
+            make_pos_grid(kernel_size).reshape(kernel_size * kernel_size, 2),
+        )
+
+    def forward(self):
+        dists = torch.einsum(
+            &#34;kx,oixX,kX-&gt;oik&#34;, self._pos_grid, self.covs.inverse_cov(), self._pos_grid
+        ).view(
+            (
+                self.out_channels,
+                self.in_channels,
+                self.kernel_size,
+                self.kernel_size,
+            )
+        )
+        return dists.mul(-0.25)
+
+    def extra_repr(self):
+        kernel_size = self.kernel_size
+        return f&#34;{self.in_channels}, {self.out_channels}, {kernel_size=}&#34;
+
+    def inspect_parameters(self) -&gt; tuple[torch.Tensor, torch.Tensor]:
+        &#34;&#34;&#34;
+        Inspect the parameters of the underlying covariance matrices.
+
+        Returns
+        -------
+        log_std : Tensor of (O, I, 2)
+            The logathirms of the standard deviations in both axes for all kernels
+        theta : Tensor of (O, I)
+            The counter-clockwise angles between the first axis and the X-axis for all kernels
+        &#34;&#34;&#34;
+        return self.covs.log_std, self.covs.theta
+
+    @torch.no_grad()
+    def plot(self):
+        &#34;&#34;&#34;Provide a simple visualisation of some kernels. Requires `seaborn`.&#34;&#34;&#34;
+        plot_kernels(self.forward())</code></pre>
+</details>
+<div class="desc"><p>A kernel that evaluates <span><span class="MathJax_Preview">x^T S^{-1} x</span><script type="math/tex">x^T S^{-1} x</script></span>, with skew parameterised as an angle <span><span class="MathJax_Preview">\theta</span><script type="math/tex">\theta</script></span></p>
+<p>This module takes no arguments in <code>forward</code> and produces a
+<code>Tensor</code> of <code>OIHW</code>, making this Module suitable as a kernel for <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>in_channels</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of input channels: the <code>I</code> in <code>OIHW</code>.</dd>
+<dt><strong><code>out_channels</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of output channels: the <code>O</code> in <code>OIHW</code>.</dd>
+<dt><strong><code>kernel_size</code></strong> :&ensp;<code>int</code></dt>
+<dd>The height <code>H</code> and width <code>W</code> of the kernel (rectangular kernels are not supported).</dd>
+<dt><strong><code>init</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>
+<p>The initialisation stratergy for the underlying covariance matrices.
+If provided, the dictionary must have keys:</p>
+<p><code>"var"</code> for the variances, which can take values:</p>
+<ul>
+<li><code>float</code> to indicate a constant initialisation</li>
+<li><code>"normal"</code> to indicate values normally distributed around 2.0</li>
+<li><code>"uniform"</code> to indicate uniform-random initialisation</li>
+<li><code>"uniform-iso"</code> to indicate isotropic uniform-random initialisation</li>
+<li><code>"ss-iso"</code> to indicate scale-space isotropic initialisation</li>
+<li><code>"skewed"</code> to indicate uniform-random initialisation with the second primary
+axis having a significantly higher variance (<strong>default</strong>)</li>
+</ul>
+<p>and <code>"theta"</code> for the rotations, which can take values:</p>
+<ul>
+<li><code>"uniform"</code> to indicate uniform-random initialisation</li>
+<li><code>"spin"</code> to indicate shuffled but evenly spaced angles (<strong>default</strong>)</li>
+</ul>
+</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; kernel = QuadraticKernelSpectral2D(5, 6, 3, {&quot;var&quot;: 3.0, &quot;theta&quot;: &quot;spin&quot;})
+&gt;&gt;&gt; tuple(kernel().shape)
+(6, 5, 3, 3)
+</code></pre></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.QuadraticKernelSpectral2D.inspect_parameters"><code class="name flex">
+<span>def <span class="ident">inspect_parameters</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L86-L97" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">def inspect_parameters(self) -&gt; tuple[torch.Tensor, torch.Tensor]:
+    &#34;&#34;&#34;
+    Inspect the parameters of the underlying covariance matrices.
+
+    Returns
+    -------
+    log_std : Tensor of (O, I, 2)
+        The logathirms of the standard deviations in both axes for all kernels
+    theta : Tensor of (O, I)
+        The counter-clockwise angles between the first axis and the X-axis for all kernels
+    &#34;&#34;&#34;
+    return self.covs.log_std, self.covs.theta</code></pre>
+</details>
+<div class="desc"><p>Inspect the parameters of the underlying covariance matrices.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>log_std</code></strong> :&ensp;<code>Tensor</code> of <code>(O, I, 2)</code></dt>
+<dd>The logathirms of the standard deviations in both axes for all kernels</dd>
+<dt><strong><code>theta</code></strong> :&ensp;<code>Tensor</code> of <code>(O, I)</code></dt>
+<dd>The counter-clockwise angles between the first axis and the X-axis for all kernels</dd>
+</dl></div>
+</dd>
+<dt id="pytorch_semifield_conv.QuadraticKernelSpectral2D.plot"><code class="name flex">
+<span>def <span class="ident">plot</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L99-L102" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">@torch.no_grad()
+def plot(self):
+    &#34;&#34;&#34;Provide a simple visualisation of some kernels. Requires `seaborn`.&#34;&#34;&#34;
+    plot_kernels(self.forward())</code></pre>
+</details>
+<div class="desc"><p>Provide a simple visualisation of some kernels. Requires <code>seaborn</code>.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="pytorch_semifield_conv.QuadraticKernelCholesky2D"><code class="flex name class">
+<span>class <span class="ident">QuadraticKernelCholesky2D</span></span>
+<span>(</span><span>in_channels, out_channels, kernel_size, init=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L105-L198" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class QuadraticKernelCholesky2D(nn.Module):
+    r&#34;&#34;&#34;
+    A kernel that evaluates \(x^T S^{-1} x\), with skew parameterised as Pearson&#39;s R
+
+    This module takes no arguments in `forward` and produces a
+    `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv2D`.
+
+    Parameters
+    -------
+    in_channels : int
+        The number of input channels: the `I` in `OIHW`.
+    out_channels : int
+        The number of output channels: the `O` in `OIHW`.
+    kernel_size : int
+        The height `H` and width `W` of the kernel (rectangular kernels are not supported).
+    init : dict, optional
+        The initialisation stratergy for the underlying covariance matrices.
+        If provided, the dictionary must have the key `&#34;var&#34;`, which can take values:
+
+        - `float` to indicate a constant initialisation
+        - `&#34;normal&#34;` to indicate values normally distributed around 2.0
+        - `&#34;uniform&#34;` to indicate uniform-random initialisation
+        - `&#34;uniform-iso&#34;` to indicate isotropic uniform-random initialisation
+        - `&#34;ss-iso&#34;` to indicate scale-space isotropic initialisation
+        - `&#34;skewed&#34;` to indicate uniform-random initialisation with the second primary
+          axis having a significantly higher variance (**default**)
+
+        The skew parameter is always initialised using a clipped normal distribution
+        centred around 0.
+
+    Examples
+    -------
+
+    &gt;&gt;&gt; kernel = QuadraticKernelCholesky2D(5, 6, 3, {&#34;var&#34;: 3.0})
+    &gt;&gt;&gt; tuple(kernel().shape)
+    (6, 5, 3, 3)
+    &#34;&#34;&#34;
+
+    _pos_grid: torch.Tensor
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        init: dict[str, str | float] | None = None,
+    ):
+        super().__init__()
+        self.covs = CovCholesky2D(in_channels, out_channels, init)
+        self.kernel_size = kernel_size
+        self.out_channels = out_channels
+        self.in_channels = in_channels
+        self.register_buffer(&#34;_pos_grid&#34;, make_pos_grid(kernel_size, grid_at_end=True))
+
+    def forward(self):
+        # [o, i, 2, k*k]
+        bs = torch.linalg.solve_triangular(
+            self.covs.cholesky(), self._pos_grid, upper=False
+        )
+        dists = (
+            bs.pow(2)
+            .sum(-2)
+            .view(
+                (
+                    self.out_channels,
+                    self.in_channels,
+                    self.kernel_size,
+                    self.kernel_size,
+                )
+            )
+        )
+        return dists.mul(-0.25)
+
+    def extra_repr(self):
+        kernel_size = self.kernel_size
+        return f&#34;{self.in_channels}, {self.out_channels}, {kernel_size=}&#34;
+
+    def inspect_parameters(self) -&gt; tuple[torch.Tensor, torch.Tensor]:
+        &#34;&#34;&#34;
+        Inspect the parameters of the underlying covariance matrices.
+
+        Returns
+        -------
+        log_std : Tensor of (O, I, 2)
+            The logathirms of the standard deviations in both axes for all kernels
+        corr : Tensor of (O, I)
+            The skews, as values for Person&#39;s R, for all kernels
+        &#34;&#34;&#34;
+        return self.covs.log_std.moveaxis(0, 2), self.covs.corr
+
+    @torch.no_grad()
+    def plot(self):
+        &#34;&#34;&#34;Provide a simple visualisation of some kernels. Requires `seaborn`.&#34;&#34;&#34;
+        plot_kernels(self.forward())</code></pre>
+</details>
+<div class="desc"><p>A kernel that evaluates <span><span class="MathJax_Preview">x^T S^{-1} x</span><script type="math/tex">x^T S^{-1} x</script></span>, with skew parameterised as Pearson's R</p>
+<p>This module takes no arguments in <code>forward</code> and produces a
+<code>Tensor</code> of <code>OIHW</code>, making this Module suitable as a kernel for <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>in_channels</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of input channels: the <code>I</code> in <code>OIHW</code>.</dd>
+<dt><strong><code>out_channels</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of output channels: the <code>O</code> in <code>OIHW</code>.</dd>
+<dt><strong><code>kernel_size</code></strong> :&ensp;<code>int</code></dt>
+<dd>The height <code>H</code> and width <code>W</code> of the kernel (rectangular kernels are not supported).</dd>
+<dt><strong><code>init</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>
+<p>The initialisation stratergy for the underlying covariance matrices.
+If provided, the dictionary must have the key <code>"var"</code>, which can take values:</p>
+<ul>
+<li><code>float</code> to indicate a constant initialisation</li>
+<li><code>"normal"</code> to indicate values normally distributed around 2.0</li>
+<li><code>"uniform"</code> to indicate uniform-random initialisation</li>
+<li><code>"uniform-iso"</code> to indicate isotropic uniform-random initialisation</li>
+<li><code>"ss-iso"</code> to indicate scale-space isotropic initialisation</li>
+<li><code>"skewed"</code> to indicate uniform-random initialisation with the second primary
+axis having a significantly higher variance (<strong>default</strong>)</li>
+</ul>
+<p>The skew parameter is always initialised using a clipped normal distribution
+centred around 0.</p>
+</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; kernel = QuadraticKernelCholesky2D(5, 6, 3, {&quot;var&quot;: 3.0})
+&gt;&gt;&gt; tuple(kernel().shape)
+(6, 5, 3, 3)
+</code></pre></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.QuadraticKernelCholesky2D.inspect_parameters"><code class="name flex">
+<span>def <span class="ident">inspect_parameters</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L182-L193" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">def inspect_parameters(self) -&gt; tuple[torch.Tensor, torch.Tensor]:
+    &#34;&#34;&#34;
+    Inspect the parameters of the underlying covariance matrices.
+
+    Returns
+    -------
+    log_std : Tensor of (O, I, 2)
+        The logathirms of the standard deviations in both axes for all kernels
+    corr : Tensor of (O, I)
+        The skews, as values for Person&#39;s R, for all kernels
+    &#34;&#34;&#34;
+    return self.covs.log_std.moveaxis(0, 2), self.covs.corr</code></pre>
+</details>
+<div class="desc"><p>Inspect the parameters of the underlying covariance matrices.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><strong><code>log_std</code></strong> :&ensp;<code>Tensor</code> of <code>(O, I, 2)</code></dt>
+<dd>The logathirms of the standard deviations in both axes for all kernels</dd>
+<dt><strong><code>corr</code></strong> :&ensp;<code>Tensor</code> of <code>(O, I)</code></dt>
+<dd>The skews, as values for Person's R, for all kernels</dd>
+</dl></div>
+</dd>
+<dt id="pytorch_semifield_conv.QuadraticKernelCholesky2D.plot"><code class="name flex">
+<span>def <span class="ident">plot</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L195-L198" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">@torch.no_grad()
+def plot(self):
+    &#34;&#34;&#34;Provide a simple visualisation of some kernels. Requires `seaborn`.&#34;&#34;&#34;
+    plot_kernels(self.forward())</code></pre>
+</details>
+<div class="desc"><p>Provide a simple visualisation of some kernels. Requires <code>seaborn</code>.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="pytorch_semifield_conv.QuadraticKernelIso2D"><code class="flex name class">
+<span>class <span class="ident">QuadraticKernelIso2D</span></span>
+<span>(</span><span>in_channels, out_channels, kernel_size, init=None)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L201-L288" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class QuadraticKernelIso2D(nn.Module):
+    r&#34;&#34;&#34;
+    A kernel that evaluates \(x^T sI x\), representing an isotropic quadratic
+
+    This module takes no arguments in `forward` and produces a
+    `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv2D`.
+
+    Parameters
+    -------
+    in_channels : int
+        The number of input channels: the `I` in `OIHW`.
+    out_channels : int
+        The number of output channels: the `O` in `OIHW`.
+    kernel_size : int
+        The height `H` and width `W` of the kernel (rectangular kernels are not supported).
+    init : dict, optional
+        The initialisation stratergy for the variances / scale parameters.
+        If provided, the dictionary must have the key `&#34;var&#34;`, which can take values:
+
+        - `float` to indicate a constant initialisation
+        - `&#34;normal&#34;` to indicate values normally distributed around 2.0
+        - `&#34;uniform&#34;` to indicate uniform-random initialisation
+        - `&#34;ss&#34;` to indicate scale-space initialisation (**default**)
+
+    Attributes
+    -------
+    log_std : Tensor of (O, I)
+        The logathirms of the standard deviations for all kernels
+
+    Examples
+    -------
+
+    &gt;&gt;&gt; kernel = QuadraticKernelIso2D(5, 6, 3, {&#34;var&#34;: 3.0})
+    &gt;&gt;&gt; tuple(kernel().shape)
+    (6, 5, 3, 3)
+    &#34;&#34;&#34;
+
+    _pos_grid: torch.Tensor
+    log_std: torch.Tensor
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int,
+        init: dict = None,
+    ):
+        super().__init__()
+        init: dict[str, str | float] = init or {&#34;var&#34;: &#34;ss&#34;}
+
+        variances = torch.empty((out_channels, in_channels))
+        if isinstance(init[&#34;var&#34;], float):
+            nn.init.constant_(variances, init[&#34;var&#34;])
+        elif init[&#34;var&#34;] == &#34;uniform&#34;:
+            nn.init.uniform_(variances, 0.1, 4.0)
+        elif init[&#34;var&#34;] == &#34;ss&#34;:
+            spaced_vars = torch.linspace(0.1, 4.0, steps=out_channels * in_channels)
+            permutation = torch.randperm(spaced_vars.shape[0])
+            variances[:] = spaced_vars[permutation].reshape(out_channels, in_channels)
+        elif init[&#34;var&#34;] == &#34;normal&#34;:
+            nn.init.trunc_normal_(variances, mean=2.0, a=0.1, b=4.0)
+        else:
+            raise ValueError(f&#34;Invalid {init[&#39;var&#39;]=}&#34;)
+
+        self.log_std = nn.Parameter(variances.log().mul(0.5))
+
+        self.kernel_size = kernel_size
+        self.out_channels = out_channels
+        self.in_channels = in_channels
+        self.register_buffer(&#34;_pos_grid&#34;, make_pos_grid(kernel_size, grid_at_end=True))
+
+    def forward(self):
+        dists = (
+            self._pos_grid.pow(2).sum(-2)
+            / (-4 * self.log_std.mul(2).exp().unsqueeze(2))
+        ).reshape(
+            self.out_channels, self.in_channels, self.kernel_size, self.kernel_size
+        )
+        return dists
+
+    def extra_repr(self):
+        kernel_size = self.kernel_size
+        return f&#34;{self.in_channels}, {self.out_channels}, {kernel_size=}&#34;
+
+    @torch.no_grad()
+    def plot(self):
+        &#34;&#34;&#34;Provide a simple visualisation of some kernels. Requires `seaborn`.&#34;&#34;&#34;
+        plot_kernels(self.forward())</code></pre>
+</details>
+<div class="desc"><p>A kernel that evaluates <span><span class="MathJax_Preview">x^T sI x</span><script type="math/tex">x^T sI x</script></span>, representing an isotropic quadratic</p>
+<p>This module takes no arguments in <code>forward</code> and produces a
+<code>Tensor</code> of <code>OIHW</code>, making this Module suitable as a kernel for <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>in_channels</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of input channels: the <code>I</code> in <code>OIHW</code>.</dd>
+<dt><strong><code>out_channels</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of output channels: the <code>O</code> in <code>OIHW</code>.</dd>
+<dt><strong><code>kernel_size</code></strong> :&ensp;<code>int</code></dt>
+<dd>The height <code>H</code> and width <code>W</code> of the kernel (rectangular kernels are not supported).</dd>
+<dt><strong><code>init</code></strong> :&ensp;<code>dict</code>, optional</dt>
+<dd>
+<p>The initialisation stratergy for the variances / scale parameters.
+If provided, the dictionary must have the key <code>"var"</code>, which can take values:</p>
+<ul>
+<li><code>float</code> to indicate a constant initialisation</li>
+<li><code>"normal"</code> to indicate values normally distributed around 2.0</li>
+<li><code>"uniform"</code> to indicate uniform-random initialisation</li>
+<li><code>"ss"</code> to indicate scale-space initialisation (<strong>default</strong>)</li>
+</ul>
+</dd>
+</dl>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>log_std</code></strong> :&ensp;<code>Tensor</code> of <code>(O, I)</code></dt>
+<dd>The logathirms of the standard deviations for all kernels</dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; kernel = QuadraticKernelIso2D(5, 6, 3, {&quot;var&quot;: 3.0})
+&gt;&gt;&gt; tuple(kernel().shape)
+(6, 5, 3, 3)
+</code></pre></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="pytorch_semifield_conv.QuadraticKernelIso2D.plot"><code class="name flex">
+<span>def <span class="ident">plot</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L285-L288" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">@torch.no_grad()
+def plot(self):
+    &#34;&#34;&#34;Provide a simple visualisation of some kernels. Requires `seaborn`.&#34;&#34;&#34;
+    plot_kernels(self.forward())</code></pre>
+</details>
+<div class="desc"><p>Provide a simple visualisation of some kernels. Requires <code>seaborn</code>.</p></div>
+</dd>
+</dl>
+</dd>
+<dt id="pytorch_semifield_conv.GenericClosing2D"><code class="flex name class">
+<span>class <span class="ident">GenericClosing2D</span></span>
+<span>(</span><span>kernel,<br>conv_dilation,<br>conv_erosion,<br>stride=1,<br>padding=0,<br>dilation=1,<br>groups=1,<br>group_broadcasting=False)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_conv_modules.py#L150-L269" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class GenericClosing2D(nn.Module):
+    &#34;&#34;&#34;
+    A generic Module for implement a morphological closing with a dilation and erosion.
+
+    `kind` is fixed to `&#34;conv&#34;` for dilation and `&#34;corr&#34;` for erosion, to simplify the
+    implementation of the common morphological closing.
+
+    Parameters
+    -------
+    kernel : nn.Module
+        A module that produces a convolutional kernel from its `forward` method.
+    conv_dilation : nn.Module
+        A module representing the adjoint dilation that can take `image, kernel`
+         as positional arguments, as well as
+        `dilation`, `padding`, `stride`, `groups` **and `kind`** as keyword arguments,
+        optionally supporting `group_broadcasting` and `kind`.
+    conv_erosion : nn.Module
+        A module representing the adjoint erosion that can take `image, kernel`
+         as positional arguments, as well as
+        `dilation`, `padding`, `stride`, `groups` **and `kind`** as keyword arguments,
+        optionally supporting `group_broadcasting`.
+    stride : int, (int, int) = 1
+        The stride passed to `conv`, either for both spatial dimensions or `(Y, X)`
+        seperately.
+    padding : int, (int, int), ((int, int), (int, int)), &#34;valid&#34;, &#34;same&#34; = 0
+        The padding passed to `conv`.
+        Depending on the type of `padding`:
+
+        - `P` indicates padding at the start and end of all spatial axes with `P`.
+        - `(Y, X)` indicates padding at start and end of the Y-axis with `Y`,
+          and padding at the start and end of the X-axis with `X`.
+        - `((BY, EY), (BX, EX))` indicates padding the start of the Y-axis with `BY` and
+          the end of the Y-axis with `EY`, similarly for X.
+        - `&#34;valid&#34;` indicates to only perform the convolution with valid values of the
+          image, i.e. no padding.
+        - `&#34;same&#34;` indicates to pad the input such that a stride-1 convolution would
+          produce an output of the same spatial size.
+          Convolutions with higher stride will use the same padding scheme, but result
+          in outputs of reduced size.
+    dilation : int, (int, int) = 1
+        The dilation passed to `conv`, either for both spatial dimensions or `(Y, X)`
+        seperately.
+    groups : int = 1
+        The number of convolutional groups for this convolution.
+    group_broadcasting : bool = False
+        Whether to take the input kernels as a single output group, and broadcast
+        across all input groups.
+        `group_broadcasting` has no effect for `groups=1`
+
+    Examples
+    -------
+
+    &gt;&gt;&gt; import pytorch_semifield_conv as semiconv
+    &gt;&gt;&gt; common_closing = semiconv.GenericClosing2D(
+    ...     semiconv.QuadraticKernelCholesky2D(5, 5, 3),
+    ...     semiconv.SelectSemifield.tropical_max().lazy_fixed(),
+    ...     semiconv.SelectSemifield.tropical_min_negated().lazy_fixed(),
+    ...     padding=&#34;same&#34;,
+    ...     groups=5,
+    ... )
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        kernel: nn.Module,
+        conv_dilation: nn.Module,
+        conv_erosion: nn.Module,
+        stride: int | tuple[int, int] = 1,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal[&#34;valid&#34;, &#34;same&#34;]
+        ) = 0,
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        group_broadcasting: bool = False,
+    ):
+        super().__init__()
+        self.padding = padding
+        self.stride = stride
+        self.dilation = dilation
+        self.kernel = kernel
+        self.conv_dilation = conv_dilation
+        self.conv_erosion = conv_erosion
+        self.groups = groups
+        self.group_broadcasting = group_broadcasting
+        self.kind = &#34;closing&#34;
+
+        # Since these are custom arguments, we only want to pass them if they differ
+        # from the default values (otherwise, they may be unexpected)
+        self.kwargs = {}
+        if self.group_broadcasting:
+            self.kwargs[&#34;group_broadcasting&#34;] = True
+
+    def forward(self, x):
+        kernel = self.kernel()
+        dilated = self.conv_dilation(
+            x,
+            kernel,
+            dilation=self.dilation,
+            padding=self.padding,
+            stride=self.stride,
+            groups=self.groups,
+            kind=&#34;conv&#34;,
+            **self.kwargs,
+        )
+        closed = self.conv_erosion(
+            dilated,
+            kernel,
+            dilation=self.dilation,
+            padding=self.padding,
+            stride=self.stride,
+            groups=self.groups,
+            kind=&#34;corr&#34;,
+            **self.kwargs,
+        )
+        return closed
+
+    extra_repr = GenericConv2D.extra_repr</code></pre>
+</details>
+<div class="desc"><p>A generic Module for implement a morphological closing with a dilation and erosion.</p>
+<p><code>kind</code> is fixed to <code>"conv"</code> for dilation and <code>"corr"</code> for erosion, to simplify the
+implementation of the common morphological closing.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>kernel</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>A module that produces a convolutional kernel from its <code>forward</code> method.</dd>
+<dt><strong><code>conv_dilation</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>A module representing the adjoint dilation that can take <code>image, kernel</code>
+as positional arguments, as well as
+<code>dilation</code>, <code>padding</code>, <code>stride</code>, <code>groups</code> <strong>and <code>kind</code></strong> as keyword arguments,
+optionally supporting <code>group_broadcasting</code> and <code>kind</code>.</dd>
+<dt><strong><code>conv_erosion</code></strong> :&ensp;<code>nn.Module</code></dt>
+<dd>A module representing the adjoint erosion that can take <code>image, kernel</code>
+as positional arguments, as well as
+<code>dilation</code>, <code>padding</code>, <code>stride</code>, <code>groups</code> <strong>and <code>kind</code></strong> as keyword arguments,
+optionally supporting <code>group_broadcasting</code>.</dd>
+<dt><strong><code>stride</code></strong> :&ensp;<code>int, (int, int) = 1</code></dt>
+<dd>The stride passed to <code>conv</code>, either for both spatial dimensions or <code>(Y, X)</code>
+seperately.</dd>
+<dt><strong><code>padding</code></strong> :&ensp;<code>int, (int, int), ((int, int), (int, int)), "valid", "same" = 0</code></dt>
+<dd>
+<p>The padding passed to <code>conv</code>.
+Depending on the type of <code>padding</code>:</p>
+<ul>
+<li><code>P</code> indicates padding at the start and end of all spatial axes with <code>P</code>.</li>
+<li><code>(Y, X)</code> indicates padding at start and end of the Y-axis with <code>Y</code>,
+and padding at the start and end of the X-axis with <code>X</code>.</li>
+<li><code>((BY, EY), (BX, EX))</code> indicates padding the start of the Y-axis with <code>BY</code> and
+the end of the Y-axis with <code>EY</code>, similarly for X.</li>
+<li><code>"valid"</code> indicates to only perform the convolution with valid values of the
+image, i.e. no padding.</li>
+<li><code>"same"</code> indicates to pad the input such that a stride-1 convolution would
+produce an output of the same spatial size.
+Convolutions with higher stride will use the same padding scheme, but result
+in outputs of reduced size.</li>
+</ul>
+</dd>
+<dt><strong><code>dilation</code></strong> :&ensp;<code>int, (int, int) = 1</code></dt>
+<dd>The dilation passed to <code>conv</code>, either for both spatial dimensions or <code>(Y, X)</code>
+seperately.</dd>
+<dt><strong><code>groups</code></strong> :&ensp;<code>int = 1</code></dt>
+<dd>The number of convolutional groups for this convolution.</dd>
+<dt><strong><code>group_broadcasting</code></strong> :&ensp;<code>bool = False</code></dt>
+<dd>Whether to take the input kernels as a single output group, and broadcast
+across all input groups.
+<code>group_broadcasting</code> has no effect for <code>groups=1</code></dd>
+</dl>
+<h2 id="examples">Examples</h2>
+<pre><code class="language-python-repl">&gt;&gt;&gt; import pytorch_semifield_conv as semiconv
+&gt;&gt;&gt; common_closing = semiconv.GenericClosing2D(
+...     semiconv.QuadraticKernelCholesky2D(5, 5, 3),
+...     semiconv.SelectSemifield.tropical_max().lazy_fixed(),
+...     semiconv.SelectSemifield.tropical_min_negated().lazy_fixed(),
+...     padding=&quot;same&quot;,
+...     groups=5,
+... )
+</code></pre></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+</dd>
+<dt id="pytorch_semifield_conv.LearnedKernel"><code class="flex name class">
+<span>class <span class="ident">LearnedKernel</span></span>
+<span>(</span><span>in_channels, out_channels, kernel_size)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_utils.py#L365-L387" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class LearnedKernel(nn.Module):
+    &#34;&#34;&#34;
+    A utility that provides a fully learnable kernel compatible with `GenericConv2D`
+
+    Parameters
+    -------
+    in_channels : int
+        The number of input channels: the `I` in `OIHW`.
+    out_channels : int
+        The number of output channels: the `O` in `OIHW`.
+    kernel_size : int
+        The height `H` and width `W` of the kernel (rectangular kernels are not supported).
+    &#34;&#34;&#34;
+
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: int):
+        super().__init__()
+        self.kernel = nn.Parameter(
+            torch.empty(out_channels, in_channels, kernel_size, kernel_size)
+        )
+        nn.init.normal_(self.kernel)
+
+    def forward(self):
+        return self.kernel</code></pre>
+</details>
+<div class="desc"><p>A utility that provides a fully learnable kernel compatible with <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>in_channels</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of input channels: the <code>I</code> in <code>OIHW</code>.</dd>
+<dt><strong><code>out_channels</code></strong> :&ensp;<code>int</code></dt>
+<dd>The number of output channels: the <code>O</code> in <code>OIHW</code>.</dd>
+<dt><strong><code>kernel_size</code></strong> :&ensp;<code>int</code></dt>
+<dd>The height <code>H</code> and width <code>W</code> of the kernel (rectangular kernels are not supported).</dd>
+</dl></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+</dd>
+<dt id="pytorch_semifield_conv.TorchLinearConv2D"><code class="flex name class">
+<span>class <span class="ident">TorchLinearConv2D</span></span>
+<span>(</span><span>*args, **kwargs)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_utils.py#L8-L61" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class TorchLinearConv2D(nn.Module):
+    &#34;&#34;&#34;
+    A utility that provides PyTorch Conv2D in a form compatible with `GenericConv2D`.
+    &#34;&#34;&#34;
+
+    @staticmethod
+    def forward(
+        img: torch.Tensor,
+        kernel: torch.Tensor,
+        stride: int | tuple[int, int] = 1,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal[&#34;valid&#34;, &#34;same&#34;]
+        ) = 0,
+        dilation: int | tuple[int, int] = 1,
+        groups: int = 1,
+        group_broadcasting: bool = False,
+        kind: Literal[&#34;conv&#34;, &#34;corr&#34;] = &#34;conv&#34;,
+    ):
+        if group_broadcasting:
+            if kernel.shape[0] != 1:
+                raise ValueError(&#34;Torch conv2d cannot broadcast groups with grp_o &gt; 1&#34;)
+
+            kernel = kernel.broadcast_to(
+                (groups, kernel.shape[1], kernel.shape[2], kernel.shape[3])
+            )
+        if kind == &#34;conv&#34;:
+            kernel = kernel.flip((2, 3))
+
+        dil_y, dil_x = as_tup2(dilation)
+        (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
+            padding, dil_x, dil_y, kernel.shape[2], kernel.shape[3]
+        )
+
+        if pad_y_beg != pad_y_end or pad_x_beg != pad_x_end:
+            padded = torch.constant_pad_nd(
+                img,
+                # Yes, the padding really is in this order.
+                (pad_x_beg, pad_x_end, pad_y_beg, pad_y_end),
+            )
+            return torch.nn.functional.conv2d(
+                padded, kernel, stride=stride, dilation=dilation, groups=groups
+            )
+
+        return torch.nn.functional.conv2d(
+            img,
+            kernel,
+            stride=stride,
+            dilation=dilation,
+            groups=groups,
+            padding=(pad_y_beg, pad_x_beg),
+        )</code></pre>
+</details>
+<div class="desc"><p>A utility that provides PyTorch Conv2D in a form compatible with <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+</dd>
+<dt id="pytorch_semifield_conv.TorchMaxPool2D"><code class="flex name class">
+<span>class <span class="ident">TorchMaxPool2D</span></span>
+<span>(</span><span>kernel_size, stride=None, padding=0, dilation=1)</span>
+</code></dt>
+<dd>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_utils.py#L64-L115" class="git-link" target="_blank">Browse git</a>
+</summary>
+<pre><code class="python">class TorchMaxPool2D(nn.Module):
+    &#34;&#34;&#34;
+    A utility that provides torch.nn.MaxPool2d with padding like `GenericConv2D`.
+    &#34;&#34;&#34;
+
+    def __init__(
+        self,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = None,
+        padding: (
+            int
+            | tuple[int, int]
+            | tuple[tuple[int, int], tuple[int, int]]
+            | Literal[&#34;valid&#34;, &#34;same&#34;]
+        ) = 0,
+        dilation: int | tuple[int, int] = 1,
+    ):
+        super().__init__()
+        self.kernel_size = kernel_size
+        self.stride = kernel_size if stride is None else stride
+        self.padding = padding
+        self.dilation = dilation
+
+    def forward(
+        self,
+        img: torch.Tensor,
+    ):
+        dil_y, dil_x = as_tup2(self.dilation)
+        krn_y, krn_x = as_tup2(self.kernel_size)
+        (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
+            self.padding, dil_x, dil_y, krn_y, krn_x
+        )
+
+        if pad_y_beg == pad_y_end and pad_x_beg == pad_x_end:
+            use_padding = (pad_y_beg, pad_x_beg)
+        else:
+            img = torch.constant_pad_nd(
+                img,
+                # Yes, the padding really is in this order.
+                (pad_x_beg, pad_x_end, pad_y_beg, pad_y_end),
+            )
+            use_padding = 0
+
+        return torch.nn.functional.max_pool2d(
+            input=img,
+            kernel_size=(krn_y, krn_x),
+            stride=self.stride,
+            padding=use_padding,
+            dilation=(dil_y, dil_x),
+            ceil_mode=False,
+            return_indices=False,
+        )</code></pre>
+</details>
+<div class="desc"><p>A utility that provides torch.nn.MaxPool2d with padding like <code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code>.</p></div>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>torch.nn.modules.module.Module</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="pytorch_semifield_conv.GenericConv2D" href="#pytorch_semifield_conv.GenericConv2D">GenericConv2D</a></code></h4>
+<ul class="">
+<li><code><a title="pytorch_semifield_conv.GenericConv2D.forward" href="#pytorch_semifield_conv.GenericConv2D.forward">forward</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.BroadcastSemifield" href="#pytorch_semifield_conv.BroadcastSemifield">BroadcastSemifield</a></code></h4>
+<ul class="">
+<li><code><a title="pytorch_semifield_conv.BroadcastSemifield.tropical_max" href="#pytorch_semifield_conv.BroadcastSemifield.tropical_max">tropical_max</a></code></li>
+<li><code><a title="pytorch_semifield_conv.BroadcastSemifield.tropical_min_negated" href="#pytorch_semifield_conv.BroadcastSemifield.tropical_min_negated">tropical_min_negated</a></code></li>
+<li><code><a title="pytorch_semifield_conv.BroadcastSemifield.linear" href="#pytorch_semifield_conv.BroadcastSemifield.linear">linear</a></code></li>
+<li><code><a title="pytorch_semifield_conv.BroadcastSemifield.root" href="#pytorch_semifield_conv.BroadcastSemifield.root">root</a></code></li>
+<li><code><a title="pytorch_semifield_conv.BroadcastSemifield.log" href="#pytorch_semifield_conv.BroadcastSemifield.log">log</a></code></li>
+<li><code><a title="pytorch_semifield_conv.BroadcastSemifield.dynamic" href="#pytorch_semifield_conv.BroadcastSemifield.dynamic">dynamic</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.SelectSemifield" href="#pytorch_semifield_conv.SelectSemifield">SelectSemifield</a></code></h4>
+<ul class="">
+<li><code><a title="pytorch_semifield_conv.SelectSemifield.tropical_max" href="#pytorch_semifield_conv.SelectSemifield.tropical_max">tropical_max</a></code></li>
+<li><code><a title="pytorch_semifield_conv.SelectSemifield.tropical_min_negated" href="#pytorch_semifield_conv.SelectSemifield.tropical_min_negated">tropical_min_negated</a></code></li>
+<li><code><a title="pytorch_semifield_conv.SelectSemifield.dynamic" href="#pytorch_semifield_conv.SelectSemifield.dynamic">dynamic</a></code></li>
+<li><code><a title="pytorch_semifield_conv.SelectSemifield.lazy_fixed" href="#pytorch_semifield_conv.SelectSemifield.lazy_fixed">lazy_fixed</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.SubtractSemifield" href="#pytorch_semifield_conv.SubtractSemifield">SubtractSemifield</a></code></h4>
+<ul class="">
+<li><code><a title="pytorch_semifield_conv.SubtractSemifield.linear" href="#pytorch_semifield_conv.SubtractSemifield.linear">linear</a></code></li>
+<li><code><a title="pytorch_semifield_conv.SubtractSemifield.root" href="#pytorch_semifield_conv.SubtractSemifield.root">root</a></code></li>
+<li><code><a title="pytorch_semifield_conv.SubtractSemifield.log" href="#pytorch_semifield_conv.SubtractSemifield.log">log</a></code></li>
+<li><code><a title="pytorch_semifield_conv.SubtractSemifield.dynamic" href="#pytorch_semifield_conv.SubtractSemifield.dynamic">dynamic</a></code></li>
+<li><code><a title="pytorch_semifield_conv.SubtractSemifield.lazy_fixed" href="#pytorch_semifield_conv.SubtractSemifield.lazy_fixed">lazy_fixed</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.QuadraticKernelSpectral2D" href="#pytorch_semifield_conv.QuadraticKernelSpectral2D">QuadraticKernelSpectral2D</a></code></h4>
+<ul class="">
+<li><code><a title="pytorch_semifield_conv.QuadraticKernelSpectral2D.inspect_parameters" href="#pytorch_semifield_conv.QuadraticKernelSpectral2D.inspect_parameters">inspect_parameters</a></code></li>
+<li><code><a title="pytorch_semifield_conv.QuadraticKernelSpectral2D.plot" href="#pytorch_semifield_conv.QuadraticKernelSpectral2D.plot">plot</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.QuadraticKernelCholesky2D" href="#pytorch_semifield_conv.QuadraticKernelCholesky2D">QuadraticKernelCholesky2D</a></code></h4>
+<ul class="">
+<li><code><a title="pytorch_semifield_conv.QuadraticKernelCholesky2D.inspect_parameters" href="#pytorch_semifield_conv.QuadraticKernelCholesky2D.inspect_parameters">inspect_parameters</a></code></li>
+<li><code><a title="pytorch_semifield_conv.QuadraticKernelCholesky2D.plot" href="#pytorch_semifield_conv.QuadraticKernelCholesky2D.plot">plot</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.QuadraticKernelIso2D" href="#pytorch_semifield_conv.QuadraticKernelIso2D">QuadraticKernelIso2D</a></code></h4>
+<ul class="">
+<li><code><a title="pytorch_semifield_conv.QuadraticKernelIso2D.plot" href="#pytorch_semifield_conv.QuadraticKernelIso2D.plot">plot</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.GenericClosing2D" href="#pytorch_semifield_conv.GenericClosing2D">GenericClosing2D</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.LearnedKernel" href="#pytorch_semifield_conv.LearnedKernel">LearnedKernel</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.TorchLinearConv2D" href="#pytorch_semifield_conv.TorchLinearConv2D">TorchLinearConv2D</a></code></h4>
+</li>
+<li>
+<h4><code><a title="pytorch_semifield_conv.TorchMaxPool2D" href="#pytorch_semifield_conv.TorchMaxPool2D">TorchMaxPool2D</a></code></h4>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>

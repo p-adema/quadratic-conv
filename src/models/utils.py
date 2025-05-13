@@ -110,7 +110,7 @@ def make_pooling_function(
         if kind == "standard":
             assert grp_size == 1, "Standard max pool doesn't support group sizes > 1"
             assert not group_broadcasting, "Standard max pool doesn't have parameters"
-            return TorchMaxpool2D(kernel_size, stride, padding)
+            return TorchMaxPool2D(kernel_size, stride, padding)
 
         out_channels = channels if not group_broadcasting else grp_size
 
