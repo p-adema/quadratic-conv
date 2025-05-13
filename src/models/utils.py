@@ -15,7 +15,7 @@ from pytorch_semifield_conv import (
     QuadraticKernelIso2D,
     QuadraticKernelSpectral2D,
     SelectSemifield,
-    TorchMaxpool2D,
+    TorchMaxPool2D,
 )
 from torch import nn
 

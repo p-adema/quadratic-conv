@@ -168,8 +168,6 @@ def check_params(stride, padding, dilation):
         for args in (args1, args2):
             torch.library.opcheck(op_e.op, args, atol=0.01, rtol=0.01)
 
-        torch.optim.SGD()
-
 
 def check_param_space(
     max_sy: int = 3,

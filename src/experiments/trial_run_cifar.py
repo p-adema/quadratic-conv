@@ -1,6 +1,5 @@
 import sys
 
-import polars as pl
 import torch
 
 sys.path.extend(".")

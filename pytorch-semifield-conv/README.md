@@ -1,4 +1,4 @@
-# Pytorch-Numba Extension JIT
+# Pytorch Semifield Convolutions
 
 [Documentation](https://p-adema.github.io/quadratic-conv/pytorch-semifield-conv/html/pytorch_semifield_conv/index.html)
 
