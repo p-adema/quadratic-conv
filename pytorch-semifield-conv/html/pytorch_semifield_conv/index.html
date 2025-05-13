@@ -78,7 +78,7 @@ dilation = semiconv.GenericConv2D(
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_conv_modules.py#L8-L147" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_conv_modules.py#L8-L147" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class GenericConv2D(nn.Module):
     &#34;&#34;&#34;
@@ -192,7 +192,7 @@ dilation = semiconv.GenericConv2D(
         -------
         out_img : Tensor (B, C&#39;, H&#39;, W&#39;)
             The output images as a 4D tensor, with the same batch shape but possibly
-            adjusted other dimensions
+            adjusted other dimensions.
         &#34;&#34;&#34;
         return self.conv(
             img,
@@ -299,7 +299,7 @@ or not <code>"corr"</code>.</dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_conv_modules.py#L107-L130" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_conv_modules.py#L107-L130" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">def forward(self, img):
     &#34;&#34;&#34;
@@ -314,7 +314,7 @@ or not <code>"corr"</code>.</dd>
     -------
     out_img : Tensor (B, C&#39;, H&#39;, W&#39;)
         The output images as a 4D tensor, with the same batch shape but possibly
-        adjusted other dimensions
+        adjusted other dimensions.
     &#34;&#34;&#34;
     return self.conv(
         img,
@@ -336,7 +336,7 @@ or not <code>"corr"</code>.</dd>
 <dl>
 <dt><strong><code>out_img</code></strong> :&ensp;<code>Tensor (B, C', H', W')</code></dt>
 <dd>The output images as a 4D tensor, with the same batch shape but possibly
-adjusted other dimensions</dd>
+adjusted other dimensions.</dd>
 </dl></div>
 </dd>
 </dl>
@@ -349,7 +349,7 @@ adjusted other dimensions</dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_broadcast.py#L13-L214" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_broadcast.py#L13-L214" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class BroadcastSemifield(typing.NamedTuple):
     r&#34;&#34;&#34;
@@ -684,7 +684,7 @@ May not be zero.</dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_broadcast.py#L198-L214" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_broadcast.py#L198-L214" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">def dynamic(self, unfold_copy: bool = False) -&gt; torch.nn.Module:
     &#34;&#34;&#34;
@@ -728,7 +728,7 @@ Mainly for comparison purposes: in tests, it always results in slowdown.</dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_select.py#L20-L219" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_select.py#L20-L219" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class SelectSemifield(NamedTuple):
     r&#34;&#34;&#34;
@@ -1000,7 +1000,7 @@ making the interface more similar to the dilation in <span><span class="MathJax_
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_select.py#L138-L164" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_select.py#L138-L164" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">def dynamic(
     self,
@@ -1056,7 +1056,7 @@ Note that the compilation process is not traceable, and recompilations
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_select.py#L166-L193" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_select.py#L166-L193" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">def lazy_fixed(
     self,
@@ -1117,7 +1117,7 @@ The module is, however, traceable by e.g. <code>torch.compile</code>.</dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_subtract.py#L19-L312" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_subtract.py#L19-L312" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class SubtractSemifield(NamedTuple):
     r&#34;&#34;&#34;
@@ -1546,7 +1546,7 @@ May not be zero.</dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_subtract.py#L224-L251" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_subtract.py#L224-L251" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">def dynamic(
     self,
@@ -1603,7 +1603,7 @@ Note that the compilation process is not traceable, and recompilations
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_subtract.py#L253-L280" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_sf_subtract.py#L253-L280" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">def lazy_fixed(
     self,
@@ -1664,7 +1664,7 @@ The module is, however, traceable by e.g. <code>torch.compile</code>.</dd>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L8-L102" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L8-L102" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class QuadraticKernelSpectral2D(nn.Module):
     r&#34;&#34;&#34;
@@ -1812,7 +1812,7 @@ axis having a significantly higher variance (<strong>default</strong>)</li>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L86-L97" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L86-L97" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">def inspect_parameters(self) -&gt; tuple[torch.Tensor, torch.Tensor]:
     &#34;&#34;&#34;
@@ -1843,7 +1843,7 @@ axis having a significantly higher variance (<strong>default</strong>)</li>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L99-L102" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L99-L102" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">@torch.no_grad()
 def plot(self):
@@ -1862,7 +1862,7 @@ def plot(self):
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L105-L198" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L105-L198" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class QuadraticKernelCholesky2D(nn.Module):
     r&#34;&#34;&#34;
@@ -2005,7 +2005,7 @@ centred around 0.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L182-L193" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L182-L193" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">def inspect_parameters(self) -&gt; tuple[torch.Tensor, torch.Tensor]:
     &#34;&#34;&#34;
@@ -2036,7 +2036,7 @@ centred around 0.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L195-L198" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L195-L198" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">@torch.no_grad()
 def plot(self):
@@ -2055,7 +2055,7 @@ def plot(self):
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L201-L288" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L201-L288" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class QuadraticKernelIso2D(nn.Module):
     r&#34;&#34;&#34;
@@ -2192,7 +2192,7 @@ If provided, the dictionary must have the key <code>"var"</code>, which can take
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L285-L288" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_quadratic.py#L285-L288" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">@torch.no_grad()
 def plot(self):
@@ -2211,7 +2211,7 @@ def plot(self):
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_conv_modules.py#L150-L269" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_conv_modules.py#L150-L269" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class GenericClosing2D(nn.Module):
     &#34;&#34;&#34;
@@ -2405,7 +2405,7 @@ across all input groups.
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_utils.py#L365-L387" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_utils.py#L361-L383" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class LearnedKernel(nn.Module):
     &#34;&#34;&#34;
@@ -2454,7 +2454,7 @@ across all input groups.
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_utils.py#L8-L61" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_utils.py#L8-L61" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class TorchLinearConv2D(nn.Module):
     &#34;&#34;&#34;
@@ -2525,7 +2525,7 @@ across all input groups.
 <details class="source">
 <summary>
 <span>Expand source code</span>
-<a href="https://github.com/p-adema/quadratic-conv/blob/edadda0d287b366f0e22e2716a04936178477dd3/pytorch-semifield-conv/src/pytorch_semifield_conv/_utils.py#L64-L115" class="git-link" target="_blank">Browse git</a>
+<a href="https://github.com/p-adema/quadratic-conv/blob/c709200fcd622d9b2ea6f7e272d00b8b270cfad0/pytorch-semifield-conv/src/pytorch_semifield_conv/_utils.py#L64-L115" class="git-link" target="_blank">Browse git</a>
 </summary>
 <pre><code class="python">class TorchMaxPool2D(nn.Module):
     &#34;&#34;&#34;

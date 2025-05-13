@@ -17,3 +17,6 @@ could be generated automatically.
 This project aims to do exactly that: take a Python function in the form of a Numba CUDA
 kernel, along with some type annotations, and compile a user-friendly and
 highly-performant PyTorch C++ extension.
+
+For an example usage of this package, see my other
+package [pytorch-semifield-conv](https://p-adema.github.io/quadratic-conv/pytorch-semifield-conv/html/pytorch_semifield_conv/index.html)
