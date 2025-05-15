@@ -148,25 +148,24 @@ Science Park 900\\
 \chapter{Introduction}
 In the field of computer vision, machine learning has been successfully applied for societal benefit in various ways, ranging from analysing medical imaging data \cite{esteva2021deep, jain2015computer} to classifying agricultural produce \cite{wan2020faster, sivaranjani2022overview} and recognising license plate numbers \cite{xie2018new}. One of the primary tools used in these applications is the Convolutional Neural Network (CNN) \cite{le1990handwritten}, a type of neural network that leverages existing theoretical knowledge of image processing to learn representations of images more efficiently.
 
-Two components are often seen within a typical CNN: the titular convolutional layer, which analyses the image, and a pooling layer, which compresses the image representation (see \cite{introconvnets} for an introduction). The latter pooling layer is often implemented as a max-pooling layer, which selects the highest value in a small area around every point in the image. Slightly more generally, a max-pooling layer can be seen as an operation that weighs neighbours around a point in the image and selects the neighbour with the highest weight, but with all neighbours being weighed equally. However, this general perspective suggests the possibility of a variation on a max-pooling layer where pixels are not weighed equally: perhaps pixels further away from the centre are considered less in the selection for the maximum.
+Two components are often seen within a typical CNN: the eponymous convolutional layer, which analyses the image, and a pooling layer, which compresses the image representation (see \cite{introconvnets} for an introduction). The latter pooling layer is often implemented as a max-pooling layer, which selects the highest value in a small area surrounding every point in the image. Slightly more generally, a max-pooling layer can be seen as an operation that weights neighbouring pixels around a point in the image and selects the pixel with the highest weight, but with all neighbours being weighted equally. However, this general perspective suggests the possibility of a variation on a max-pooling layer where pixels are not weighted equally: instead, pixels further away from the centre could be considered less in the selection for the maximum.
 
 This idea has been formalised in mathematical morphology as dilation \cite{heijmans1996morphological} and in tropical geometry as a max-plus convolution \cite{maragos}. Using this formalism, a separate function $G$ (the structuring element or kernel) defines the weighting for neighbouring pixels. This function can be parameterised in various ways, but a concave function centred around the origin is typically used for G. One such function is the quadratic function $f(x)=x^T\Sigma^{-1}x$, and another is its isotropic form $f(x)=x^T(sI)^{-1}x$, with parameters $\Sigma$ and $s$ respectively \cite{Boomgaard1999NumericalSS}.
 
-Previous studies \cite{groenendijk2022morphpool} and theses \cite{thierrybsc, koenbsc} have investigated the possibility of using such a dilation (generalised max-pooling) with an isotropic quadratic structuring element as a layer within a CNN, with the parameter $s$ being learned via gradient descent (a standard optimisation method within machine learning). These previous works showed that using an isotropic quadratic kernel (which is strictly more expressive than a standard max-pooling) resulted in higher performance on a small selection of datasets. This thesis aims to expand upon this by examining using an anisotropic quadratic structuring element within the dilation, specifically whether the anisotropic parameters $\Sigma$ could also be learned via gradient descent. The expectation would be that since anisotropic quadratic kernels are again strictly more expressive than the isotropic versions, such a dilation layer would further improve performance.
+Previous studies \cite{groenendijk2022morphpool} and theses \cite{thierrybsc, koenbsc} have investigated the possibility of using such a dilation (generalised max-pooling) with an isotropic quadratic structuring element as a layer within a CNN, with the parameter $s$ being learned via gradient descent (a standard optimisation method within machine learning). This previous research showed that using an isotropic quadratic kernel (which is strictly more expressive than a standard max-pooling) resulted in higher performance on a small selection of datasets. This thesis aims to expand upon this by examining the possibility of using an anisotropic quadratic structuring element within the dilation, specifically whether the anisotropic parameters $\Sigma$ could also be learned via gradient descent. The expectation is that, since anisotropic quadratic kernels are again strictly more expressive than the isotropic versions, such a dilation layer would further improve performance.
 
 \newpage
-\section{Related work \comment{TODO}}
-\comment{For now, I've just copied my literature survey from the project proposal.\\ I intend to rewrite this evenutally, though: no need to review this for now.}
+\section{Related work}
+Modern Convolutional Neural Networks (CNNs) often use linear convolutional layers to process images and max-pooling layers to condense information and shrink the feature space \cite{introconvnets}. However, both of these operations are equivalent to a semifield convolution: the first in the linear field (with a learned kernel) and the second in the tropical-max field (with a step-function-like kernel) \cite{bellaardaxiomatic}. In \cite{bellaardaxiomatic}, Bellaard et al.\ provide an axiomatic foundation for using various semifields within the context of PDE- (continuous) CNNs but do not discuss using semifields for conventional (discrete) CNNs. 
 
-Modern Convolutional Neural Networks (CNNs) often use linear convolutional layers to process images and max-pooling layers to condense information and shrink the feature space \cite{introconvnets}. However, both of these operations are equivalent to a semifield convolution: the first in the linear field (with a learned kernel) and the second in the tropical-max field (with a step-function-like kernel) \cite{bellaardaxiomatic}. In \cite{bellaardaxiomatic}, Bellaard et al. provide an axiomatic foundation for using various semifields within the context of PDE-CNNs but do not discuss using semifields for conventional (discrete) CNNs. 
+However, the ideas underlying tropical fields are older than \cite{bellaardaxiomatic}. The field of mathematical morphology researches the shapes and forms of objects and functions, and two of the core operators within mathematical morphology are dilation (equivalent to a tropical-max / max-plus convolution) and erosion (close to a tropical-min correlation) \cite{maragos}. Heijmans provides an excellent treatment of many of the theoretical fundamentals and generalised cases of mathematical morphology in \cite{heijmans1996morphological}, with Chapter 11 describing morphology for grey-scale images (most similar to the convolutional operations relevant to this project). Furthermore, morphological operations with specifically a quadratic structuring element are well-studied, e.g.\ Boomgaard showing in \cite{Boomgaard1999NumericalSS} that many parts of the calculation can be done in closed form without first approximating the quadratic as a fixed-size kernel.
 
-The ideas underlying the usage of tropical fields are, however, older than \cite{bellaardaxiomatic}: the field of mathematical morphology researches the shapes and forms of objects and functions, and two of the core operators within mathematical morphology are dilation (equivalent to a tropical-max correlation) and erosion (equivalent to a tropical-min correlation) \cite{maragos}. Heijmans \cite{heijmans1996morphological} is an excellent treatment of many of the theoretical fundaments and generalised cases of morphology, with Chapter 11 describing morphology for grey-scale images (most similar to the convolutional operations relevant to this project). Furthermore, morphological operations with specifically a quadratic structuring element were researched by Boomgaard in \cite{Boomgaard1999NumericalSS} and other papers, showing that many aspects of the resulting calculation can be performed in closed form without first approximating the quadratic into a fixed-size kernel.
+Another paper of note regarding the efficient calculation of the convolutional stencil in tropical semifields may be \cite{fastanifilter}, in which Geusebroek and van de Weijer discuss how to perform an efficient calculation for the linear field with a Gaussian kernel. However, due to time constraints, this method was not implemented for the anisotropic semifield convolutions in this report.
 
-Another paper of note regarding the efficient calculation of the convolutional stencil in tropical semifields may be \cite{fastanifilter}, in which Geusebroak and van de Weijer discuss how to perform an efficient calculation for the linear field with a Gaussian kernel. Whether such methods will be needed within this project is yet unclear, but the notes regarding approximate separability by reorienting the axes of a quadratic show a possible direction for further performance improvements.
+Besides relevant theory, there is also some more recent experimental research bordering on this topic. Notably, \cite{qlin1, qlin2} show that a CNN that learns quadratic scale parameters for the kernels of its linear convolution can sometimes learn to perform tasks similar to those of a CNN that directly learns all kernel parameters. This adjustment significantly reduces the number of  parameters required for the linear convolutions replaced in such a way. Furthermore, it is equivalent to the original Bachelor project proposal, where the task would have been to parameterise a linear convolution with the PDF of a Gaussian.
+Also close to the topic, \cite{fan2021alternative} investigate (with unfortunately unclear results) replacing linear convolutional layers with max-plus convolutions, arguing that replacing multiplication with addition may result in models using less power.
 
-Besides relevant theory, there are also some more recent pieces of literature somewhat close to this topic. Notably, \cite{qlin1, qlin2} show that a CNN that learns quadratic scale parameters for the kernels of its linear convolution can, in some cases, learn to perform tasks similar to those of a CNN that directly learns all kernel parameters. This adjustment significantly reduces the parameters required for the linear convolutions replaced in such a way. Furthermore, it is equivalent to the original Bachelor project proposal, where the task would have been to parameterise a linear convolution with the PDF of a Gaussian. 
-
-Finally, previous projects under Dr. Boomgaard have partly investigated discrete subfield convolutions. The isotropic case (where scales are uncorrelated and bound between dimensions) for tropical-max fields has been relatively well-researched by \cite{thierrybsc, koenbsc}, showing minor performance increases in basic vision models. However, a more general treatment of anisotropic kernels in tropical max semifields (and other fields) is not yet present within either the public domain or the UvA collection of theses. 
+Finally, \cite{groenendijk2022morphpool} and previous projects under Dr Boomgaard have partly investigated discrete semifield convolutions. The isotropic case (where scales are equal in all directions) for tropical-max fields has been relatively well-researched by \cite{thierrybsc, koenbsc}, showing minor performance increases in basic image classification tasks. However, a more general treatment of anisotropic kernels in tropical max semifields (and other semifields) is not yet present within the public domain or the UvA collection of theses.
 
 \chapter{Background}
 First, mathematical formalisms must be covered to understand the concepts discussed in later sections. These include the convolutional operator, its generalisation using semifields, and relevant semifields from mathematical morphology. Subsequently, we will discuss variations on the convolutional operator, as well as quadratic distance functions and a method for learning the positive definite matrices parameterising them.
@@ -180,7 +179,7 @@ where $\mathcal{D}$ is the (continuous) domain of $f$ and $g$. However, save for
 \begin{align}
 (F*G)[x] &= \sum_{y\in\mathcal{Y}} F[x-y]\; G[y],
 \end{align}
-where $\mathcal{Y}$ is the set of all indices in the domain of $F$ and $G$ (e.g. $\mathcal{Y}=\mathbb{Z}^2$ for infinitely large 2D images and kernels), and $G$ is typically referred to as the (convolutional) kernel.
+where $\mathcal{Y}$ is the set of all indices in the domain of $F$ and $G$ (e.g.\ $\mathcal{Y}=\mathbb{Z}^2$ for infinitely large 2D images and kernels), and $G$ is typically referred to as the (convolutional) kernel.
 
 
 \section{Fields and semifield convolutions}
@@ -267,7 +266,7 @@ Using similar logic as above, we can show that, in the corresponding tropical mi
 \end{align}
 
 \section{Further relevant mathematical morphology}
-Besides the common adjoint $(\boxplus,\; \boxminus)$ using $+$ and $-$ as the operators weighing each point, one can also define an adjoint that uses multiplication and division. This alternate adjoint on $\mathbb{R}_+$ then has the dilation $\dot \boxplus$, defined as \cite{heijmans1996morphological}:
+Besides the common adjoint $(\boxplus,\; \boxminus)$ using $+$ and $-$ as the operators weighting each point, one can also define an adjoint that uses multiplication and division. This alternate adjoint on $\mathbb{R}_+$ then has the dilation $\dot \boxplus$, defined as \cite{heijmans1996morphological}:
 \begin{align}
 	(F~ \dot\boxplus~ G)[x] &= \bigvee_{y\in \mathcal{Y}}F[x-y]G[y]
 \end{align}
@@ -304,7 +303,7 @@ However, a CNN convolution has additional parameters that may change its behavio
 
 Stride controls the spacing of the sampling grid for $F$ with respect to the output position $x$: where a regular convolution uses $F[x-y]$, a strided convolution would have $F[\textsc{stride}\times x - y]$. Striding can also be seen as 'moving' the receptive field (accessed values of $F$) of the convolution with a step size equal to the stride: see Fig. \ref{fig:stride-dilation-padding}. For finite images, this reduces the size of the convolution result by shrinking the set of valid indices $\mathcal{X}$. Therefore, a $\textsc{stride}>1$ can allow later convolutions to be influenced by more inputs without increasing kernel sizes. A standard convolutional layer typically has a stride of 1, but a pooling layer might have a stride of 2 or higher.
 
-Dilation is similar, but instead adjusts the step size for $y$: the term $F[x-y]$ becomes $F[x-\textsc{dilation}\times y]$, creating 'gaps' between the sampling points for $F$ (e.g. for $x=1$, sampling $F[-1]$, $F[1]$, $F[3]$) without changing the sampling for the kernel $G$. However, a $\textsc{dilation}>1$ results in a locally non-smooth operator, (which seems undesirable for smooth pooling). As such, none of the later experiments investigated using a $\textsc{dilation}>1$.
+Dilation is similar, but instead adjusts the step size for $y$: the term $F[x-y]$ becomes $F[x-\textsc{dilation}\times y]$, creating 'gaps' between the sampling points for $F$ (e.g.\ for $x=1$, sampling $F[-1]$, $F[1]$, $F[3]$) without changing the sampling for the kernel $G$. However, a $\textsc{dilation}>1$ results in a locally non-smooth operator, (which seems undesirable for smooth pooling). As such, none of the later experiments investigated using a $\textsc{dilation}>1$.
 
 \begin{figure}[h!]
 	\center
@@ -340,41 +339,69 @@ $L=(\mathbb{R}, +, \times)$: filling in the equation for $\textcircled{$*$}_L$ (
 This raises the question of whether there are alternative semifields that act similarly to the linear semifield, such that they could be used in place of the standard convolutional layer in a CNN. In an investigation of some semifields, \cite{bellaardaxiomatic} identified sets of relevant semifields that were isomorphic (equivalent under a bijective mapping) to the linear semifield $L$. These can be written as:
 
 \begin{itemize}
-	\item[$L_{\mu+}$]  The positive log semifields:  $(\mathbb{R}\cup \{-\infty\}, \oplus_\mu, +)$ for all $\mu>0$ where \\$a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b})$, $\mathbb{0}=-\infty$ and $\mathbb{1}=0$ (using $e^{-\infty}=0$)
+	\item[$L_{\mu+}$]  The positive log semifields:  $(\mathbb{R}\cup \{-\infty\}, \oplus_\mu, +)$ for all $\mu>0$ where \\$a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b})$, $\mathbb{0}=-\infty$ and $\mathbb{1}=0$ 
+	\\(with $\forall x\;e^{x+(-\infty)}=e^{-\infty}=0$)
 	\item[$L_{\mu-}$]  The negative log semifields:  $(\mathbb{R}\cup \{+\infty\}, \oplus_\mu, +)$ for all $\mu<0$ where \\$a\oplus_\mu b= \frac{1}{\mu}\ln(e^{\mu a}+e^{\mu b})$, $\mathbb{0}=+\infty$ and $\mathbb{1}=0$ 
 	\item[$R_p$]  The root semifields:  $(\mathbb{R}_+, \oplus_p, \times)$ for all $p\ne0$ where \\$a\oplus_p b= \sqrt[p]{a^p+b^p}$, $\mathbb{0}=0$ and $\mathbb{1}=1$
 \end{itemize}
 
 \noindent
 In \cite{bellaardaxiomatic} it was also noted that the positive log semifield $L_{\mu+}$ becomes equivalent to $T_+$ when $\mu$ approaches $+\infty$, while $L_{\mu-}$ becomes equivalent to $T_-$ as $\mu$ approaches $-\infty$. 
-Additionally, one can see that the root semifields $R_p$ also become equivalent to $T_+$ when $p$ approaches $+\infty$, as $\oplus_p$ then becomes the infinity-norm (which is equivalent to the maximum function). Informally, one can also see that as $p$ approaches $-\infty$, the semifield addition $\oplus_p$ approximates the minimum function, making $R_{-\infty}$ equivalent to $T_-$.
+Additionally, one can see that the root semifields $R_p$ also become equivalent to $T_+$ when $p$ approaches $+\infty$, as $\oplus_p$ then becomes the infinity-norm (which is equivalent to $\max$). Informally, the reader may also convince themselves that as $p$ approaches $-\infty$, the semifield addition $\oplus_p$ approximates $\min$, making a theoretical $R_{-\infty}$ equivalent to $T_-$ (out of scope for this report).
 
 These additional equivalences with $T_+$ suggest the possibility of using log or root semifields with high values for $\mu$ or $p$ as another alternative for traditional max-pooling layers in CNNs. It should be noted, however, that neither log nor root semifields seem to be part of an adjoint, meaning the resulting pooling would likely not be easily modelled using principles of mathematical morphology, and many of the theoretical guarantees would be lost.
 
 % $\sqrt[\infty]{\frac{1}{\frac{1}{a^\infty}+\frac{1}{b^\infty}}}$
 
 \chapter{Method}
-With a greater understanding of what semifields are, how convolutions work and some examples of relevant semifield convolutions, we can now examine how to apply semifield convolutions within the context of CNNs. 
-
-First, we will go through some implementation notes on semifield convolutions, and describe how to use quadratic forms to parameterise convolutional kernels. Afterwards, we will describe the experimental setup used to examine which kinds of quadratic forms work best in the context of CNNs, and which parameters of a semifield convolution have a positive impact on the performance of a CNN on various image classification tasks.
-
+With a greater understanding of semifields, convolutions, and some relevant examples of semifield convolutions, we can now examine how to apply semifield convolutions within the context of CNNs. 
+First, we will go through some implementation notes on semifield convolutions and describe how to use quadratic forms to parameterise convolutional kernels. Afterwards, we will describe the experimental setup used to examine which quadratic forms work best in the context of CNNs and which parameters of a semifield convolution positively impact a CNN's performance on various image classification tasks.
 
 
-\section{Semifield convolutions in a CNN \comment{TODO}}
-\comment{I used a library that I wrote, please see other report for more details.\\ Important note: reduction over channels with + or with $\oplus$}
+
+\section{Semifield convolutions in a CNN}
+
+Previous sections described the theory underlying a semifield convolution and the additional parameters available in a CNN, but applying this in practice requires an efficient implementation. For this purpose, the author wrote two packages: \verb pytorch-semifield-conv , which uses Just-In-Time (JIT) compilation to create convolution operators, and \verb pytorch-numba-extension-jit , which automatically generates C++ bindings for the operators and aids in the JIT compilation process. More details on these packages can be found in the Extension report and the accompanying package documentation.
+
+While implementation details will be left to the Extension report, two notable differences exist between the semifield convolutions used in this report compared with the descriptions in previous works \cite{thierrybsc, koenbsc}. 
+
+Firstly, the dilations used for this report do not spread the gradient between multiple maxima (i.e. if there are two equal maxima, assign both a gradient of 0.5 instead of picking one to have a 1.0 gradient). This spreading is the behaviour of the \verb torch.amax  function, but \verb torch.max  is more efficient and does not spread the gradient. Similarly, the CUDA kernels created for this report also do not spread the gradient. Some small-scale experiments were done to investigate whether spreading the gradient has a meaningful impact, but these showed no difference (as equal maxima are exceedingly rare).
+
+Secondly, summation across channels is always done using semifield addition. For dilations, some have proposed using scalar addition instead of the maximum across channels \cite{koenbsc, fan2021alternative}. However, various small-scale experiments consistently showed slightly worse performance for quadratic kernels when replacing $\max$ with $+$ across channels. Since this report focuses solely on quadratic kernels, this modification was not considered during the experiments.
 
 
 
 \newpage
-\section{Quadratic forms for convolutional kernels \comment{TODO}}
-\comment{We may have reason to believe that kernels should be smooth. A quadratic form is a simple yet useful smooth function to parameterise the kernel.}
+\section{Generating dilation kernels}
+For a standard linear convolution, we typically use a fully learned kernel. Since the reduction operation in the linear semifield is $+$, the partial derivative of the summation result is equal to a constant $1$ for all terms, and all parts of the kernel can typically receive a portion of the gradient during back-propagation.
 
-\cite{Boomgaard1999NumericalSS} 
+However, this is not the case for dilations; a convolution in $T_+$ uses $\max$ as the reduction operator, meaning that only one term receives a non-zero gradient. If the kernel were fully parameterised (every value learned separately), fitting the kernel would be very challenging due to the overly sparse gradient. As such, we can instead choose to generate a kernel based on a parameterised function, reducing the number of parameters to be learned by gradient descent.
+
+There are many options for generating a kernel-like array, but the context of a replacing a max-pool with dilation can help suggest reasonable constraints. Firstly, the result of a max-pool can never be below the original value; in a dilation, we can ensure this by setting the centre of the kernel to $0$. Secondly, the result of a max-pool is at most the maximum value in an area, and never higher; we can ensure this by using a nonpositive kernel: $\forall y,~G[y] \leq 0$. Finally, we may consider it reasonable for the kernel to be concave, as this ensures spatial locality (we cannot 'skip over' a pixel when looking for the maximum).
+
+
+Combining these requirements, we can see that an alternate formulation for such a kernel function would be as a function that evaluates the distance to the centre of the kernel for all points, and uses the negative of that distance for the value of the kernel $G$. Formally, such a kernel function can be viewed as a metric (see \cite{metrics}) $d$ on the space of kernel indices $\mathcal{I}$, with the values at any point $\mathbf{y}\in\mathcal{I}$ in the kernel being the negated distance to the kernel centre $c_k$:
+\begin{align}
+	\forall \mathbf y,~~G[y]=-d(\mathbf y, c_k)
+\end{align}
+Using this formalism, we can see that appropriate kernel functions are all derived from metrics calculating a 2D distance. If we further set $c_k$ to be the origin of $\mathcal{I}$, we can write any distance function as $d(\mathbf y)$ (with the centre implicit, effectively equivalent to a vector norm). A straightforward distance we could then choose might be the squared distance $d(\mathbf y)=\mathbf y^T\mathbf y$, but this is nonparametric. Adding a parameter could then lead to the isotropic quadratic:
+\begin{align}
+	\textrm{Isotropic quadratic kernel: }&G[\mathbf y] = -\mathbf y^T(sI)^{-1}\mathbf y
+\intertext{
+Here, the scalar $s$ can be adjusted to control how quickly the distance rises and the kernel values fall. However, the isotropic quadratic only generates kernels where the contour lines are circles. To allow for non-circular kernels, we must allow for dimensions to be weighted differently. A candidate function could then be the anisotropic quadratic (the Mahalanobis distance to the origin):
+}
+	\textrm{Anisotropic quadratic kernel: }&G[\mathbf y] = -\mathbf y^T\Sigma^{-1}\mathbf y
+\end{align}
+By learning a $2\times2$ positive definite matrix for $\Sigma$, we can then parameterise a kernel function for a 2D dilation kernel $G$ with elliptical contour lines. Testing whether moving from circular contours to elliptical contours improves CNN performance is then the primary subject of this report and later experiments.
+
+It should finally be noted that the choice for these quadratic kernels is not entirely arbitrary: these 'quadratic forms' have theoretical advantages in terms of the smoothness and well-behaviour when used for dilations, similar to how kernels based on their exponent (the Gaussian) act in linear convolutions.
 
 \newpage
 \section{Learning positive definite matrices}
 \label{sec:learning-pdm}
-While there are many methods for parameterising a $2\times2$ positive definite matrix, since the calculation of the distance as used in the quadratic distance function is equivalent to the Mahanalobis distance, we may wish to view the matrix as a covariance matrix $\Sigma \in \mathbb{R}^{2\times2}$. Since $\Sigma$ must be symmetric, we know by the spectral theorem that $\Sigma$ is diagonalisable \cite{poole2015linear}:
+In order to apply the aforementioned quadratic kernels in a neural network, we must first devise a parameterisation scheme that can be used for gradient-based optimisation. For both types of quadratic kernels, the equivalent of the Mahanalobis distance covariance matrix ($sI$ for isotropic, $\Sigma$ for anisotropic) is required to be positive definite. For an isotropic kernel, using a parameter $\theta$ where $\theta = \log s$ ensures that $s$ is positive, and thus that $sI$ is positive definite. However, the matrix $\Sigma$ for the anisotropic case requires more care: if the entire matrix were freely learned via gradient descent, it is entirely possible that an update may result in $\Sigma$ no longer being positive definite.
+
+One possibility would be to view $\Sigma$ as a $2\times2$ covariance matrix, and parameterise it accordingly. Since $\Sigma$ must in this case be symmetric, we know by the spectral theorem that $\Sigma$ is diagonalisable \cite{poole2015linear}:
 \begin{align}
 \textrm{For some orthogonal matrix }Q &\in \mathbb{R}^{2\times 2} \textrm{, and} \nonumber \\
 \textrm{for some diagonal matrix }D &\in \mathbb{R}^{2\times 2} \textrm{,}\nonumber \\
@@ -421,8 +448,14 @@ In order for $\Sigma$ to be positive-definite, $\sigma_1^2$ and $\sigma_2^2$ are
 \end{align}
 Since we placed no assumptions on $\boldsymbol{\theta}$, it is safe for a black-box or gradient-based optimiser to adjust in any direction, as the resulting $\Sigma$ will always be a positive definite matrix.
 
-This parameterisation has the advantage of being easily interpretable: $e^{\theta_1}$ and $e^{\theta_2}$ are the standard deviations of a hypothetical normal distribution in the first and second principal axis of the quadratic, while $\theta_3$ is the counter-clockwise angle the first principal axis forms with the x-axis. An alternative parameterisation, based on the Pearson correlation coefficient, can be found in Appendix \ref{sec:pearson}.
+This parameterisation has the advantage of being easily interpretable: $e^{\theta_1}$ and $e^{\theta_2}$ are the standard deviations of a hypothetical normal distribution in the first and second principal axis of the quadratic, while $\theta_3$ is the counter-clockwise angle the first principal axis forms with the x-axis. An alternative parameterisation for a covariance matrix $\Sigma$, based on the Pearson correlation coefficient, can be found in Appendix \ref{sec:pearson}.
 
+
+
+
+\newpage
+\section{Parameter initialisation \comment{TODO}}
+\comment{uniform, ss, ss-iso, spin}
 
 \newpage
 \section{Experimental setup \comment{TODO}}
@@ -440,23 +473,31 @@ This parameterisation has the advantage of being easily interpretable: $e^{\thet
 	\center
   \includegraphics[width=\textwidth]{figures/morphological_3d.png}
   \caption{Illustration of the effects of dilation, erosion and their combination in two dimensions, with height representing the function value.}
-  \label{fig:dil-illust}
+  \label{fig:res1}
 \end{figure}
 \begin{figure}[h!]
 	\center
   \includegraphics[width=\textwidth]{figures/thierry_replication.png}
   \caption{Replication of Blankenstein's LeNet results \cite{thierrybsc} }
-  \label{fig:dil-illust}
+  \label{fig:res2}
 \end{figure}
 \begin{figure}[h!]
 	\center
   \includegraphics[width=\textwidth]{figures/100ep_extension.png}
   \caption{Extension of LeNet results using more (100) epochs, with the aniso results other than the base aniso-3/5/7 being obtained with higher LR}
-  \label{fig:dil-illust}
+  \label{fig:res3}
 \end{figure}
 
 
-\chapter{Conclusion \comment{TODO}}
+\chapter{Conclusions \comment{TODO}}
+
+\section{Findings \comment{TODO}}
+\section{Discussion \comment{TODO}}
+\section{Contributions \comment{TODO}}
+\section{Further research \comment{TODO}}
+
+\section{Reproducibility \comment{TODO}}
+\section{Ethics \comment{TODO}}
 \comment{\ldots\ldots}
 
 \bibliographystyle{ieeetr}
