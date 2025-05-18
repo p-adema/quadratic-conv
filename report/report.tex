@@ -59,12 +59,14 @@ Science Park 900 \\
 \usepackage{caption}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage{array}
+\usepackage{booktabs}
 \def\comment#1{\color{red}#1\color{black}}
 \usepackage{bbold}
 \DeclareMathOperator{\boxclose}{\vcenter{\hbox{$\blacksquare$}}}
 \DeclareMathOperator{\boxopen}{\Box}
-
-
+\definecolor{opening_red}{RGB}{169,15,70}
+\definecolor{opening_blue}{RGB}{94, 79, 162}
 \begin{document}
 \pagestyle{empty}
 \begin{center}
@@ -136,15 +138,16 @@ Science Park 900\\
 \setcounter{page}{1}
 \pagestyle{plain} 
 
+
 \section*{Abstract \comment{TODO}}
 
 
 \section*{Acknowledgements \comment{TODO}}
 
-
+\newgeometry{a4paper, textwidth=400.0pt, textheight=740.0pt}
 \tableofcontents
 
-\newgeometry{a4paper, textwidth=400.0pt, textheight=740.0pt}
+
 \chapter{Introduction}
 In the field of computer vision, machine learning has been successfully applied for societal benefit in various ways, ranging from analysing medical imaging data \cite{esteva2021deep, jain2015computer} to classifying agricultural produce \cite{wan2020faster, sivaranjani2022overview} and recognising license plate numbers \cite{xie2018new}. One of the primary tools used in these applications is the Convolutional Neural Network (CNN) \cite{le1990handwritten}, a type of neural network that leverages existing theoretical knowledge of image processing to learn representations of images more efficiently.
 
@@ -185,7 +188,7 @@ where $\mathcal{Y}$ is the set of all indices in the domain of $F$ and $G$ (e.g.
 \section{Fields and semifield convolutions}
 In the convolutional operator, a part of the image is repeatedly multiplied element-wise with a kernel, and the resulting values are summed to obtain an activation for each point. However, while we typically use scalar addition and multiplication in this calculation, it is also possible to use different operators in the reduction by defining a different field in which the reduction is done. In this section, we will briefly look at the concept of fields insofar as they are relevant to implementing an alternative version of the convolutional operator.
 
-In mathematics, a field is a set of values with a pair of operators: one operator corresponds to the concept of addition, and one operator corresponds to the concept of multiplication. Fields are, in effect, a generalisation of standard addition and multiplication on integers or reals that allow for describing a set of values other than typical scalars or an alternate method for combining typical numbers. Formally, a field can be described as a tuple $(\mathcal{F}, \oplus, \otimes)$, where the operators $\oplus$ and $\otimes$ are of the type $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Furthermore, the operators $\oplus$ and $\otimes$ are both beholden to the field axioms: informally, a set of rules to ensure they act 'similarly' to standard scalar addition and multiplication. 
+In mathematics, a field is a set of values with a pair of operators: one operator corresponds to the concept of addition, and one operator corresponds to the concept of multiplication. Fields are, in effect, a generalisation of standard addition and multiplication on integers or reals that allow for describing a set of values other than typical scalars or an alternate method for combining typical numbers. Formally, a field can be described as a tuple $(\mathcal{F}, \oplus, \otimes)$, where the operators $\oplus$ and $\otimes$ (which we select to take the role of 'normal' + and $\times$) are of the type $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Furthermore, the semifield operators $\oplus$ and $\otimes$ are both beholden to the field axioms: informally, a set of rules to ensure they act 'similarly' to scalar ('normal') addition and multiplication. 
 
 These field axioms can be written as (adapted from \cite{beachy2006abstract} and \cite{bellaardaxiomatic}):
 \begin{align}
@@ -213,12 +216,9 @@ we could instead use a field $S=(\mathcal{F}, \oplus, \otimes)$ and write a simi
 	(F ~\textcircled{$*$}_S\; G)[x] &=\bigoplus_{y\in \mathcal{Y}} F[x-y] \otimes G[y] \label{eq:semifield-conv}
 \end{align}
 \noindent
-Performing this operation does not, strictly speaking, require any of the above field axioms to hold for $\oplus$ or $\otimes$: the only relevant restriction would be that of the types being $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Implementing this operation for a CNN would further require both operators to be differentiable, and for $\mathbb{0}$ to exist (to deal with border effects in a convolution). However, it is generally also useful for the reduction operator $\oplus$ to be both associative and commutative, as this makes the order of elements in the input irrelevant, promoting the stability of the result and allowing efficient parallel implementation of the reduction \cite{ppad}. Furthermore, most of the field axioms hold regardless for most operators we wish to use for $\oplus$ and $\otimes$. As such, we will use a semifield \cite{bellaardaxiomatic}:\\
-\textbf{
-A semifield is a field, except an additive ($\oplus$) inverse (Eq. \ref{eq:additive-inverse}) does not necessarily exist.
-}
-
-We can then define the operator $\textcircled{$*$}_S$ for the following sections (identically to Eq. \ref{eq:semifield-conv}) as the semifield convolutional operator for any semifield $L$.
+Performing this operation does not, strictly speaking, require any of the above field axioms to hold for $\oplus$ or $\otimes$: the only relevant restriction would be that of the types being $\mathcal{F}\times\mathcal{F}\rightarrow\mathcal{F}$. Implementing this operation for a CNN would further require both operators to be differentiable, and for $\mathbb{0}$ to exist (to deal with border effects in a convolution). However, it is generally also useful for the reduction operator $\oplus$ to be both associative and commutative, as this makes the order of elements in the input irrelevant, promoting the stability of the result and allowing efficient parallel implementation of the reduction \cite{ppad}. Furthermore, most of the field axioms hold regardless for most operators we will use for $\oplus$ and $\otimes$. As such, we will use a semifield \cite{bellaardaxiomatic}:
+\textbf{A semifield is a field, except an additive ($\oplus$) inverse (Eq. \ref{eq:additive-inverse}) does not necessarily exist.}
+We can then define the operator $\textcircled{$*$}_S$ for the following sections (identically to Eq. \ref{eq:semifield-conv}) as the semifield convolutional operator for any semifield $S$.
 
 \section{Semifields from mathematical morphology}
 Knowing that an operator similar to convolution can be used in any semifield, we can examine if there are relevant semifields in which we can perform a convolution other than the standard linear field. For this, we can take inspiration from mathematical morphology, the study of object and function shapes.
@@ -232,7 +232,7 @@ Here, $F$ is the image (or object or sampled function) to be dilated, $G$ is a s
 \begin{align}
 \textrm{For finite-size }F\textrm{ and }G: (F \boxplus G)[x] = \max_ {y\in\mathcal{Y}} \left(F[x-y] + G[y]\right)	
 \end{align}
- An intuitive explanation would be to see the structuring element $G$ as a (negated) distance function and the dilation $\boxplus$ as the operation that takes the highest value weighted by how 'close' it is to $x$. If $G$ is a step function with value zero near its centre and $-\infty$ outside (Fig. \ref{fig:dil-illust}, first row), we can see that this is precisely taking the maximum value in the area where $G$ is zero. However, we may also wish to use a quadratic (Fig. \ref{fig:dil-illust}, second row) or other function as $G$. Depending on $G$, we may still be able to perform the dilation exactly (using algebraic solutions and/or leveraging separability), but to compute the dilation in the general case, we may wish to clip $G$ to be above $-\infty$ in only a constrained domain (Fig. \ref{fig:dil-illust}, third row). The dilation with the clipped version of $F\boxplus G_{clipped}$ could then be seen as an approximation of the dilation $F\boxplus G$ with the full (unclipped) $G$ while having the advantage that the set of relevant indices $\mathcal{Y}$ is bounded in size. It should be noted, however, that if $F$ is $K$-Lipschitz and $G$ is strictly decreasing with the second derivative $|\delta^2 G|>K$ outside a central area, then clipping $G$ to this central area will not change the result of the dilation ($F\boxplus G_{clipped}$ is then exact, see Appendix \ref{sec:lipschitz}).
+ An intuitive explanation would be to see the structuring element $G$ as a (negated) distance function and the dilation $\boxplus$ as the operation that takes the highest value weighted by how 'close' it is to $x$. If $G$ is a step function with value zero near its centre and $-\infty$ outside (Fig. \ref{fig:dil-illust}, first row), we can see that this is precisely taking the maximum value in the area where $G$ is zero. However, we may also wish to use a quadratic (Fig. \ref{fig:dil-illust}, second row) or other function as $G$. Depending on $G$, we may still be able to perform the dilation exactly (using algebraic solutions and/or leveraging separability), but to compute the dilation in the general case, we may wish to clip $G$ to be above $-\infty$ in only a constrained domain (Fig. \ref{fig:dil-illust}, third row). The dilation with the clipped version of $F\boxplus G_{clipped}$ could then be seen as an approximation of the dilation $F\boxplus G$ with the full (unclipped) $G$ while having the advantage that the set of relevant indices $\mathcal{Y}$ is bounded in size. It should be noted, however, that if $F$ is $K$-Lipschitz and certain conditions hold on $G$, then clipping $G$ to this central area will not change the result of the dilation (unfortunately not easily applicable for the learned kernels we will use in later sections).
 
 Looking at the operation performed by dilation more closely, we can see that it is, in effect, a maximum operation weighted by a distance function. Similarities with the weighted reduction in the semifield convolution $\textcircled{$*$}_S$ may lead us to believe that this can also be viewed as a convolution in the appropriate semifield $S$, and this is indeed the case. By defining $\oplus=\max$ and $\otimes=+$, we obtain the tropical max semifield $T_+=(\mathbb{R}\cup\{-\infty\},\max,+)$ with neutral elements $(\mathbb{0}=-\infty, \mathbb{1}=0)$ \cite{maragos, bellaardaxiomatic}. A convolution $F \;\textcircled{$*$}_{T_+} G$ in this tropical semifield $T_+$ (also known as a max-plus convolution \cite{maragos}) would then be $\boxplus$:
 \begin{align*}
@@ -266,6 +266,7 @@ Using similar logic as above, we can show that, in the corresponding tropical mi
 \end{align}
 
 \section{Further relevant mathematical morphology}
+\label{sec:closing}
 Besides the common adjoint $(\boxplus,\; \boxminus)$ using $+$ and $-$ as the operators weighting each point, one can also define an adjoint that uses multiplication and division. This alternate adjoint on $\mathbb{R}_+$ then has the dilation $\dot \boxplus$, defined as \cite{heijmans1996morphological}:
 \begin{align}
 	(F~ \dot\boxplus~ G)[x] &= \bigvee_{y\in \mathcal{Y}}F[x-y]G[y]
@@ -290,7 +291,7 @@ This property, when combined with the extensivity of $\boxclose$, suggests it ca
 \begin{figure}[hb!]
 	\center
   \includegraphics[width=\textwidth]{figures/closing.png}
-  \caption{Illustration of the effects of opening and closing, where warmer (red) colors  indicate higher values, and colder (blue) colors  indicate lower values.}
+  \caption{Illustration of the effects of opening and closing, where warmer (\textcolor{opening_red}{red}) colors  indicate higher values, and colder (\textcolor{opening_blue}{blue}) colors  indicate lower values.}
   \label{fig:closing-illust}
 \end{figure}
 
@@ -333,6 +334,7 @@ Groups are then the parameter which allows us to precisely characterise this set
 \end{figure}
 
 \section{Non-morphological semifields}
+\label{sec:non-morph}
 In previous sections, we discussed two semifields related to mathematical morphology, namely $T_+$ and $T_-$, and showed their correspondence with the pooling layers within a CNN. Using these results, we could see that a max-pooling was equivalent to a semifield convolution (in $T_+$, with a flat kernel). However, the standard convolutional layers within a CNN can also be interpreted as a semifield convolution in the linear semifield
 $L=(\mathbb{R}, +, \times)$: filling in the equation for $\textcircled{$*$}_L$ (Eq. \ref{eq:semifield-conv}), we would again obtain a standard convolution $*$.
 
@@ -372,7 +374,7 @@ Secondly, summation across channels is always done using semifield addition. For
 
 
 \newpage
-\section{Generating dilation kernels}
+\section{Generating dilation kernels with quadratics}
 For a standard linear convolution, we typically use a fully learned kernel. Since the reduction operation in the linear semifield is $+$, the partial derivative of the summation result is equal to a constant $1$ for all terms, and all parts of the kernel can typically receive a portion of the gradient during back-propagation.
 
 However, this is not the case for dilations; a convolution in $T_+$ uses $\max$ as the reduction operator, meaning that only one term receives a non-zero gradient. If the kernel were fully parameterised (every value learned separately), fitting the kernel would be very challenging due to the overly sparse gradient. As such, we can instead choose to generate a kernel based on a parameterised function, reducing the number of parameters to be learned by gradient descent.
@@ -386,7 +388,7 @@ Combining these requirements, we can see that an alternate formulation for such 
 \end{align}
 Using this formalism, we can see that appropriate kernel functions are all derived from metrics calculating a 2D distance. If we further set $c_k$ to be the origin of $\mathcal{I}$, we can write any distance function as $d(\mathbf y)$ (with the centre implicit, effectively equivalent to a vector norm). A straightforward distance we could then choose might be the squared distance $d(\mathbf y)=\mathbf y^T\mathbf y$, but this is nonparametric. Adding a parameter could then lead to the isotropic quadratic:
 \begin{align}
-	\textrm{Isotropic quadratic kernel: }&G[\mathbf y] = -\mathbf y^T(sI)^{-1}\mathbf y
+	\textrm{Isotropic quadratic kernel: }&G[\mathbf y] = -\mathbf y^T(4sI)^{-1}\mathbf y
 \intertext{
 Here, the scalar $s$ can be adjusted to control how quickly the distance rises and the kernel values fall. However, the isotropic quadratic only generates kernels where the contour lines are circles. To allow for non-circular kernels, we must allow for dimensions to be weighted differently. A candidate function could then be the anisotropic quadratic (the Mahalanobis distance to the origin):
 }
@@ -397,9 +399,9 @@ By learning a $2\times2$ positive definite matrix for $\Sigma$, we can then para
 It should finally be noted that the choice for these quadratic kernels is not entirely arbitrary: these 'quadratic forms' have theoretical advantages in terms of the smoothness and well-behaviour when used for dilations, similar to how kernels based on their exponent (the Gaussian) act in linear convolutions.
 
 \newpage
-\section{Learning positive definite matrices}
+\section{Learning quadratic kernel parameters}
 \label{sec:learning-pdm}
-In order to apply the aforementioned quadratic kernels in a neural network, we must first devise a parameterisation scheme that can be used for gradient-based optimisation. For both types of quadratic kernels, the equivalent of the Mahanalobis distance covariance matrix ($sI$ for isotropic, $\Sigma$ for anisotropic) is required to be positive definite. For an isotropic kernel, using a parameter $\theta$ where $\theta = \log s$ ensures that $s$ is positive, and thus that $sI$ is positive definite. However, the matrix $\Sigma$ for the anisotropic case requires more care: if the entire matrix were freely learned via gradient descent, it is entirely possible that an update may result in $\Sigma$ no longer being positive definite.
+In order to apply the aforementioned quadratic kernels in a neural network, we must first devise a parameterisation scheme that can be used for gradient-based optimisation. For both types of quadratic kernels, the equivalent of the Mahanalobis distance covariance matrix ($sI$ for isotropic, $\Sigma$ for anisotropic) is required to be positive definite. With an isotropic kernel, using a parameter $\theta$ where $\theta = \log s$ ensures that $s$ is positive, and thus that $sI$ is positive definite. However, the matrix $\Sigma$ for the anisotropic case requires more care: if the entire matrix were freely learned via gradient descent, it is entirely possible that an update may result in $\Sigma$ no longer being positive definite.
 
 One possibility would be to view $\Sigma$ as a $2\times2$ covariance matrix, and parameterise it accordingly. Since $\Sigma$ must in this case be symmetric, we know by the spectral theorem that $\Sigma$ is diagonalisable \cite{poole2015linear}:
 \begin{align}
@@ -446,62 +448,204 @@ In order for $\Sigma$ to be positive-definite, $\sigma_1^2$ and $\sigma_2^2$ are
 	\cos \theta_3 & \sin \theta_3 \\ -\sin\theta_3 & \cos\theta_3
 \end{bmatrix}
 \end{align}
-Since we placed no assumptions on $\boldsymbol{\theta}$, it is safe for a black-box or gradient-based optimiser to adjust in any direction, as the resulting $\Sigma$ will always be a positive definite matrix.
+Since we placed no assumptions on $\boldsymbol{\theta}$, it is safe for a black-box or gradient-based optimiser to adjust in any direction, as the resulting $\Sigma$ will always be a positive definite matrix. As such, this is an appropriate parameterisation for the matrix $\Sigma$ in an anisotropic quadratic kernel.
 
-This parameterisation has the advantage of being easily interpretable: $e^{\theta_1}$ and $e^{\theta_2}$ are the standard deviations of a hypothetical normal distribution in the first and second principal axis of the quadratic, while $\theta_3$ is the counter-clockwise angle the first principal axis forms with the x-axis. An alternative parameterisation for a covariance matrix $\Sigma$, based on the Pearson correlation coefficient, can be found in Appendix \ref{sec:pearson}.
-
-
+This parameterisation further has the advantage of being easily interpretable: $e^{\theta_1}$ and $e^{\theta_2}$ are the standard deviations of a hypothetical 2D multivariate normal distribution with contours of the same shape as the quadratic kernel, while $\theta_3$ is the counter-clockwise angle the first principal axis forms with the x-axis. An alternative parameterisation for a covariance matrix $\Sigma$, based on the Pearson correlation coefficient, can be found in Appendix \ref{sec:pearson}.
 
 
-\newpage
-\section{Parameter initialisation \comment{TODO}}
-\comment{uniform, ss, ss-iso, spin}
-
-\newpage
-\section{Experimental setup \comment{TODO}}
-\comment{Hardware, software, hyperparameter tuning}
 
 
 \newpage
-\section{Image classification datasets \comment{TODO}}
-\comment{Which ones did I use?}
+\section{Initialising quadratic kernel parameters}
+
+
+While we now have definitions for appropriate parameters $\theta$ that can be used for quadratic kernels, the initialisation of these parameters is also important.
+
+One straightforward approach would be to use uniform-random or Gaussian initialisation. However, previous work  has shown that initialising kernels such that different possibilities are explored can aid in the learning process \cite{thierrybsc}.
+
+For the initialisation of the isotropic scale\footnote{Blankenstein, like \cite{groenendijk2022morphpool}, used $s$ scaled up by 4, having $-\frac{1}{4s}\mathbf{y}^T\mathbf{y}$ as the isotropic quadratic (despite claiming otherwise in their report and comments, their implementation is as such). } $s$, \cite{thierrybsc} suggested using evenly spaced\footnote{Linearly spaced, i.e. interpolated between the endpoints at $\frac{i}{\textsc{n-kernels-1}}$ for kernel $i$.\\While examining Fig. \ref{fig:init} might suggest that a log-scale may be more appropriate, small-scale experiments show a consistent decrease in performance when using logarithmic spacing.  } scales between $s=1$ (where only the centre of the kernel is $>-1$) and $s=2~\lfloor\textsc{kernel-size}/2\rfloor^2$ (where only the corners are $\leq-1$). Supposing the images are normalised to $[0, 1]$, this would ensure that all relevant kernel sizes are represented after initialisation (see Fig. \ref{fig:init}, top row).
+
+For initialising anisotropic kernels, we consider two methods. The first method initialises the variances of the kernel isotropically in the same manner as before: this has the advantage of strengthening the idea of anisotropic kernels being 'no worse than isotropic', as they would begin isotropically. The alternative approach involves initialising the variances heavily skewed: one axis with low variance and one with high variance. In the experiments, this is done by sampling variances uniform randomly from $[1, 8]$ and $[20, 24]$ respectively. When combining this with evenly spaced\footnote{Linearly spaced \textit{without the final value}, i.e. interpolated at $\frac{i}{\textsc{n-kernels}}$ for kernel $i$.
+\\
+This skips the last orientation, as $\theta=\pi$ would be equivalent to $\theta=0$ for these kernels. \vspace{-0.25cm}
+} angles $\theta\in[0, \pi)$, we can create kernels that lift the input to an orientation score (like \cite{smetspde}). While a scale space would aid in learning features at various scales, this 'orientation space' would aid in learning to recognise lines and edges. For a visualisation, see Fig. \ref{fig:init}:
+
+\begin{figure}[b!]
+	\center
+  \includegraphics[width=\textwidth]{figures/initialisation.png}
+  \caption{Initialisation of five $11\times11$ kernels: here, isotropic kernels (top) are initialised with a linear scale-space \cite{thierrybsc}, while anisotropic kernels (bottom) are initialised with skewed variances and evenly spaced angles  $\theta \in [0, \pi)$. In the images, black is a value  $\leq-1$, while white is 0. In practice, kernels are shuffled to prevent bias (occurs when followed by a layer with $\textsc{groups}\neq1$)}
+  \label{fig:init}
+\end{figure}
+
+\newpage
+\section{Classification datasets and models}
+To determine the effects of isotropic and anisotropic dilations as a replacement for max-pooling, we must decide on a measure of performance. Keeping in line with previous experiments on this topic \cite{groenendijk2022morphpool, thierrybsc, koenbsc}, we will be evaluating the performance of image classification models on (relatively small) image datasets, with test-set accuracy as the primary metric.
+The datasets used are:
+\begin{itemize}
+\setlength{\itemsep}{0pt}
+	\item K-MNIST: grayscale, 10 classes, each a cursive Japanese character \cite{k-mnist}.. 
+	\item Fashion-MNIST: grayscale, 10 classes, each a fashion item \cite{fashion-mnist}.
+	\item CIFAR10: RGB, 10 classes, containing various real-world objects \cite{cifar10}.
+	\item SVHN:  RGB, 10 classes, each a digit as seen in a house number \cite{svhn}.
+\end{itemize}
+For the first two datasets, the model architure is LeNet-5 \cite{lenet5}, just as in previous research \cite{thierrybsc}.
+The other two datasets use a typical CNN, taken from \cite{model-cifar}.
+For a visualisation of the datasets and the models, see Fig. \ref{fig:datasets}:
+\begin{figure}[h!]
+	\center
+  \includegraphics[width=1\textwidth]{figures/datasets.png}
+  \caption{Illustration of datasets and models used for experimentation.
+  The pooling layers are left generic: specific kinds of pooling will be discussed next. }
+  \label{fig:datasets}
+\end{figure}
+
+\newpage
+\section{Experimental setup}
+\label{sec:setup}
+Both models shown in Fig. \ref{fig:datasets} have a placeholder for the specific kind of pooling, as this will be the hyperparameter we vary during the experiments.
+For the main set of experiments: the following kinds of poolings will be used:
+\begin{itemize}
+\vspace{-0.1cm}
+\setlength{\itemsep}{0pt}
+	\item \textbf{Standard}: a typical max-pooling, with kernel sizes\footnote{A pooling of kernel size 1 is equivalent to subsampling the image, and serves as a baseline} between 1 and 5
+	\item \textbf{Isotropic}: a dilation with an isotropic kernel, with kernel sizes 2, 3, 5, 7 and 11 and initialised using scale-space initialisation.
+	\item \textbf{Anisotropic}: a dilation with an anisotropic kernel, with kernel sizes 2, 3, 5, 7 and 11. Initialisation will be one of scale-space or orientation-space.
+\end{itemize}
+\vspace{-0.1cm}
+Afterwards, a secondary set of experiments will be run to examine the effects of the \textsc{groups} parameter for poolings, as well as the usage of closings $\boxclose$. For these experiments, the best kernel size from the main set will be used.
+
+The secondary set of experiments will use the following kinds of poolings:
+\begin{itemize}
+\vspace{-0.1cm}
+\setlength{\itemsep}{0pt}
+	\item \textbf{Iso-grouped} / \textbf{Aniso-grouped}: Same as \textbf{Isotropic} / \textbf{Anisotropic}, but now with $\textsc{groups}=\frac{\textsc{channels}}{2}$, such that each layer sees two channels.
+	\item \textbf{Iso-closing} / \textbf{Aniso-closing}: Same as \textbf{Isotropic} / \textbf{Anisotropic}, but now with a morphological closing $\boxclose$ instead of a dilation $\boxplus$ (see Sec. \ref{sec:closing})
+\end{itemize}
+\vspace{-0.1cm}
+Finally, some exploratory experiments were run to investigate the effects of using non-linear semifields for standard convolutions (see Sec. \ref{sec:non-morph}). These extra experiments and their results are described in Appendix \ref{sec:nonlinconv}.
+
+Since the pooling layer is the only hyperparameter we wish to vary during experiments, we must fix all others. While extensive hyperparameter tuning was not considered necessary for the purposes of this report, various learning rates were examined across epochs to determine a representative set of hyperparameters (see Appendix \ref{sec:hyperparameters}). These hyperparameters are:
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{l|*4c}
+\toprule
+Hyperparameter & K-MNIST & Fashion-MNIST & CIFAR-10 & SVHN\\
+\midrule
+Batch size & \multicolumn{4}{c}{1024 (saturates GPU compute)}\\
+Optimiser   &  \multicolumn{4}{c}{Adam, default parameters except \textsc{lr}} \\
+Learning rate & 0.004 & 0.003 & 0.004 & 0.003 \\
+Epochs & 30 & 80 & 150 & 250 \\
+\bottomrule
+\end{tabular}
+\caption{Hyperparameters used when training models on datasets.}
+\end{table}
+\noindent
+All experiments were run on one machine, with the final results being generated using the following hardware and versions of software:
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{l|c}
+\toprule
+Component & Name \\
+\midrule
+CPU & Intel i9-13900K \\
+GPU & NVIDIA RTX 5090 \\
+CUDA & 12.8\\
+OS & Ubuntu 24.04.2\\
+\bottomrule
+\end{tabular}
+\quad
+\begin{tabular}{l|c}
+\toprule
+Software & Version \\
+\midrule
+Python & 3.12.9 \\
+PyTorch & 2.7.0+cu128 \\
+TorchVision & 0.22.0+cu128 \\
+\small pytorch-semifield-conv & \comment{0.2.0?} \\
+\bottomrule
+\end{tabular}
+
+\caption{Hardware and software used for the experiments. The package \textsc{pytorch-semifield-conv} is described in the Extension report.}
+\vspace{-0.3cm}
+\end{table}
 
 
 \chapter{Experiments \comment{TODO}}
-\comment{I only really want to write the accompanying text when I have a clear idea of what the experiments are going to be: for now, I'm just putting some graphs in from the test experiments I conducted.}
-\begin{figure}[h!]
+As described in Sec. \ref{sec:setup}, the experiments performed involve testing variations of pooling layers on the models and datasets shown in Fig. \ref{fig:datasets} (experiments with $R_p$ and $L_\mu+$ can be found in Appendix \ref{sec:nonlinconv}).
+To obtain reliable results, every model configuration was trained repeatedly (100 times for K-MNIST and Fashion-MNIST, 40 times for CIFAR-10 and SVHN) and the results were aggregated. The primary metric model configurations will be compared on is the mean test-set accuracy, while confidence intervals denoting the 5th and 95th percentiles\footnote{Using percentile-based confidence intervals deviates from previous work \cite{thierrybsc, koenbsc}, which used one standard deviation. This is intentional, as some unstable configurations might occasionally produce low-accuracy (e.g. 50\% or 70\%) results. Under the Gaussian assumption of standard deviations, this uncertainty would be modelled symmetrically, and the top of the error bar would be drawn overly high (above the maximum observed value, at times).} of accuracy scores are displayed for context.
+
+\textbf{The format of graphs in this chapter} is such that all results are grouped per kernel-type (standard/non-dilation, isotropic, anisotropic with scale-space initialisation or anisotropic with orientation-space initialisation), with a secondary hyperparameter being varied within the group. Within each group (kernel-kind), the best performing configuration is highlighted, and the values for these best-performing configurations are repeated for comparison at the right of each subplot (above 'Best').
+\section{K-MNIST and Fashion-MNIST  \comment{TODO}}
+
+
+\newpage
+\begin{figure}[ht!]
 	\center
-  \includegraphics[width=\textwidth]{figures/morphological_3d.png}
-  \caption{Illustration of the effects of dilation, erosion and their combination in two dimensions, with height representing the function value.}
-  \label{fig:res1}
+  \includegraphics[width=1\textwidth]{figures/results-small.png}
+  \caption{Illustration of datasets and models used for experimentation.
+  The pooling layers are left generic: specific kinds of pooling will be discussed next. }
+  \label{fig:res-small}
 \end{figure}
-\begin{figure}[h!]
+
+\vspace{-0.7cm}
+\section{CIFAR-10 and SVHN  \comment{TODO}}
+\comment{Line 1}
+
+\comment{Line 2}
+
+\comment{Line 3}
+
+\comment{Line 4}
+
+\comment{Line 5}
+
+\comment{Line 6}
+
+\comment{Line 7}
+
+\comment{Line 8}
+
+\comment{Line 9}
+
+\comment{Line 10}
+
+\begin{figure}[hb!]
 	\center
-  \includegraphics[width=\textwidth]{figures/thierry_replication.png}
-  \caption{Replication of Blankenstein's LeNet results \cite{thierrybsc} }
-  \label{fig:res2}
+  \includegraphics[width=1\textwidth]{figures/results-large.png}
+  \caption{Illustration of datasets and models used for experimentation.
+  The pooling layers are left generic: specific kinds of pooling will be discussed next. }
+  \label{fig:res-large}
 \end{figure}
-\begin{figure}[h!]
+\newpage
+\begin{figure}[ht!]
 	\center
-  \includegraphics[width=\textwidth]{figures/100ep_extension.png}
-  \caption{Extension of LeNet results using more (100) epochs, with the aniso results other than the base aniso-3/5/7 being obtained with higher LR}
-  \label{fig:res3}
+  \includegraphics[width=1\textwidth]{figures/results-alt}
+  \caption{Illustration of datasets and models used for experimentation.
+  The pooling layers are left generic: specific kinds of pooling will be discussed next. }
+  \label{fig:res-alt}
 \end{figure}
+\section{Closings and grouped dilations  \comment{TODO}}
 
 
 \chapter{Conclusions \comment{TODO}}
 
 \section{Findings \comment{TODO}}
 \section{Discussion \comment{TODO}}
+
+\newpage
 \section{Contributions \comment{TODO}}
 \section{Further research \comment{TODO}}
 
 \section{Reproducibility \comment{TODO}}
-\section{Ethics \comment{TODO}}
+\section{Ethics \comment{Maybe?}}
 \comment{\ldots\ldots}
 
-\bibliographystyle{ieeetr}
-\bibliography{references}
+%\newgeometry{a4paper, textwidth=400.0pt, textheight=770.0pt}
+\bibliographystyle{IEEEtran}
+{\footnotesize \bibliography{references}}
+%\newgeometry{a4paper, textwidth=400.0pt, textheight=740.0pt}
 
 \newpage
 \chapter{Appendix}
@@ -558,10 +702,10 @@ Then, we can write out the orthogonal diagonalisation using \ref{eq:refl-rot}:
 	\end{bmatrix} R_\phi^T \\
 	&= R_\phi D R_\phi^T \\&&\qed\nonumber
 \end{align}
-\newpage
-\section{Clipping kernels with Lipschitz conditions \comment{TODO}}
-\label{sec:lipschitz}
-\comment{Todo: proof, and better name for this section}
+%\newpage
+%\section{Clipping kernels with Lipschitz conditions \comment{TODO}}
+%\label{sec:lipschitz}
+%\comment{Todo: proof, and better name for this section}
 
 \newpage
 \section{Alternative parameterisation for $\Sigma \in \mathbb{R}^{2\times 2}$}
@@ -614,7 +758,30 @@ which is then a valid parameterisation for the Cholesky decomposed form for a $2
 	\mathbf{b}&= \textsc{solve-triangular}(L, \mathbf{x})\\
 	\mathbf{x}^T\Sigma^{-1}\mathbf{x} &= \mathbf{b}\cdot\mathbf{b}
 \end{align}
-where $\textsc{solve-triangular}$ performs efficient backsubstitution to avoid computing the inverse. This method is significantly (>5x) faster on the CPU it was tested on while still showing modest performance improvements on the GPU it was tested on ($\sim 10\%$). However, interpretation of the Pearson correlation coefficient may be more challenging compared to interpreting the angular offset of the first primary axis, and the calculation of the quadratic forms is a negligible part of the model runtime on the GPU, so it was chosen to instead parameterise $\Sigma$ with the angle $\phi$.
+where $\textsc{solve-triangular}$ performs efficient backsubstitution to avoid computing the inverse. This method is significantly (>5x) faster on the CPU it was tested on while still showing modest performance improvements on the GPU\footnote{In eager mode, i.e. without \lstinline{torch.compile} enabled. With compilation enabled, the performance difference is negligible.} it was tested on ($\sim 10\%$). However, interpretation of the Pearson correlation coefficient may be more challenging compared to interpreting the angular offset of the first primary axis, and the calculation of the quadratic forms is a negligible part of the model runtime on the GPU, so it was chosen to instead parameterise $\Sigma$ with the angle $\phi$.
+
+\newpage
+\section{Hyperparameter tuning \comment{TODO} }
+\label{sec:hyperparameters}
+To determine an appropriate learning rate and epoch count for training the models, a validation split was made based on the training data. 70\% of the training data was marked for training models for the tuning process, while the remaining 30\% would be used to select the best learning rate and epoch count.
+In Fig. \ref{fig:tuning}, we can see \comment{the results...}
+
+\begin{figure}[h!]
+	\center
+  \includegraphics[width=\textwidth]{figures/tuning.png}
+  \caption{Hyperparameter tuning results, with selected learning rates as bold lines and the epoch cutoff marked with a dashed grey line. \comment{not done yet.}}
+  \label{fig:tuning}
+\end{figure}
+
+
+\newpage
+\section{Experiments with $R_p$ and $L_{\mu+}$ convolutions \comment{TODO} }
+\label{sec:nonlinconv}
+\comment{Method}
+
+\comment{Results}
+
+\comment{Very brief conclusion}
 
 
 \end{document}
