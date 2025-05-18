@@ -24,25 +24,26 @@ base_kwargs = {
     "progress_bar": True,
 }
 
-# assert not Path("./.data/long_k_mnist.pq").exists(), "Move or delete old data"
 
-# result = {}
-# for desc, config_kwargs in standard_configs(name="Basics (k_mnist)"):
-#     result[desc] = LeNet.fit_many(
-#         data=k_mnist,
-#         description=desc,
-#         **base_kwargs,
-#         **config_kwargs,
-#     ).scores
-# pl.DataFrame(result).write_parquet("./.data/long_k_mnist.pq")
+assert not Path("./.data/long_k_mnist.pq").exists(), "Move or delete old data"
 
 result = {}
-for desc, config_kwargs in group_configs(name="Groups (k_mnist)"):
+for desc, config_kwargs in standard_configs(name="Basics (k_mnist)"):
     result[desc] = LeNet.fit_many(
         data=k_mnist,
         description=desc,
-        conv_channels=(24, 60),
         **base_kwargs,
         **config_kwargs,
     ).scores
-pl.DataFrame(result).write_parquet("./.data/groups_k_mnist.pq")
+pl.DataFrame(result).write_parquet("./.data/long_k_mnist.pq")
+
+# result = {}
+# for desc, config_kwargs in group_configs(name="Groups (k_mnist)"):
+#     result[desc] = LeNet.fit_many(
+#         data=k_mnist,
+#         description=desc,
+#         conv_channels=(24, 60),
+#         **base_kwargs,
+#         **config_kwargs,
+#     ).scores
+# pl.DataFrame(result).write_parquet("./.data/groups_k_mnist.pq")

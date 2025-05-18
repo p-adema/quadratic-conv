@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch import nn
 
@@ -6,7 +8,13 @@ class CovSpectral2D(nn.Module):
     """A utility class that parameterises diagonally decomposed 2D covariance matrices
     using parameters for standard deviations and the rotation of the principal axes."""
 
-    def __init__(self, in_channels: int, out_channels: int, init: dict = None):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        init: dict = None,
+        kernel_size: int = None,
+    ):
         super().__init__()
         init: dict[str, str | float] = init or {"var": "skewed", "theta": "spin"}
         variances = torch.empty((out_channels, in_channels, 2))
@@ -15,30 +23,44 @@ class CovSpectral2D(nn.Module):
         if isinstance(init["var"], float):
             nn.init.constant_(variances, init["var"])
         elif init["var"] == "uniform":
-            nn.init.uniform_(variances, 0.1, 4.0)
+            nn.init.uniform_(variances, 1, 16)
         elif init["var"] == "ss-iso":
-            spaced_vars = torch.linspace(0.1, 4.0, steps=out_channels * in_channels)
+            spaced_vars = torch.linspace(
+                1.0,
+                2.0 * (kernel_size // 2) ** 2,
+                steps=out_channels * in_channels,
+            )
+            permutation = torch.randperm(spaced_vars.shape[0])
+            variances[:] = spaced_vars[permutation].reshape(
+                out_channels, in_channels, 1
+            )
+        elif init["var"] == "log-ss-iso":
+            spaced_vars = torch.logspace(
+                math.log10(1.0),
+                math.log10(2.0 * (kernel_size // 2) ** 2),
+                steps=out_channels * in_channels,
+            )
             permutation = torch.randperm(spaced_vars.shape[0])
             variances[:] = spaced_vars[permutation].reshape(
                 out_channels, in_channels, 1
             )
         elif init["var"] == "uniform-iso":
-            nn.init.uniform_(variances[..., 0], 0.1, 4.0)
+            nn.init.uniform_(variances[..., 0], 1, 16)
             variances[..., 1] = variances[..., 0]
         elif init["var"] == "normal":
-            nn.init.trunc_normal_(variances, mean=2.0, a=0.1, b=4.0)
+            nn.init.trunc_normal_(variances, mean=8.0, a=1.0, b=16.0, std=4.0)
         elif init["var"] == "skewed":
-            nn.init.uniform_(variances[..., 0], 0.1, 2.0)
-            nn.init.uniform_(variances[..., 1], 4.0, 7.0)
+            nn.init.uniform_(variances[..., 0], 1, 8.0)
+            nn.init.uniform_(variances[..., 1], 20.0, 24.0)
         else:
             raise ValueError(f"Invalid {init['var']=}")
 
         if init["theta"] == "uniform":
-            nn.init.uniform_(thetas, 0, 2 * torch.pi)
+            nn.init.uniform_(thetas, 0, torch.pi)
         elif init["theta"] == "spin":
             spaced_thetas = torch.linspace(
-                0, 2 * torch.pi, steps=out_channels * in_channels
-            )
+                0, torch.pi, steps=out_channels * in_channels + 1
+            )[:-1]
             permutation = torch.randperm(spaced_thetas.shape[0])
             thetas[:] = spaced_thetas[permutation].reshape(out_channels, in_channels)
         else:
@@ -62,18 +84,24 @@ class CovSpectral2D(nn.Module):
     def cov(self):
         return torch.linalg.inv(self.inverse_cov())
 
-    forward = inverse_cov
-
     def extra_repr(self):
         out_channels, in_channels = self.theta.shape
         return f"{in_channels}, {out_channels}"
+
+    forward = inverse_cov
 
 
 class CovCholesky2D(nn.Module):
     """A utility class that parameterises Cholesky-decomposed 2D covariance matrices
     using parameters for standard deviations and for Pearson's R (`corr`)."""
 
-    def __init__(self, in_channels: int, out_channels: int, init: dict = 0.0):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        init: dict = 0.0,
+        kernel_size: int = None,
+    ):
         super().__init__()
         init: dict[str, str | float] = init or {"var": "uniform"}
 
@@ -82,21 +110,35 @@ class CovCholesky2D(nn.Module):
         if isinstance(init["var"], float):
             nn.init.constant_(variances, init["var"])
         elif init["var"] == "uniform":
-            nn.init.uniform_(variances, 0.1, 4.0)
+            nn.init.uniform_(variances, 1, 16)
         elif init["var"] == "ss-iso":
-            spaced_vars = torch.linspace(0.1, 4.0, steps=out_channels * in_channels)
+            spaced_vars = torch.linspace(
+                1.0,
+                2.0 * (kernel_size // 2) ** 2,
+                steps=out_channels * in_channels,
+            )
             permutation = torch.randperm(spaced_vars.shape[0])
             variances[:] = spaced_vars[permutation].reshape(
-                out_channels, in_channels, 1
+                1, out_channels, in_channels
+            )
+        elif init["var"] == "log-ss-iso":
+            spaced_vars = torch.logspace(
+                math.log10(1.0),
+                math.log10(2.0 * (kernel_size // 2) ** 2),
+                steps=out_channels * in_channels,
+            )
+            permutation = torch.randperm(spaced_vars.shape[0])
+            variances[:] = spaced_vars[permutation].reshape(
+                1, out_channels, in_channels
             )
         elif init["var"] == "uniform-iso":
-            nn.init.uniform_(variances[..., 0], 0.1, 4.0)
-            variances[..., 1] = variances[..., 0]
+            nn.init.uniform_(variances[0], 1, 16)
+            variances[1] = variances[0]
         elif init["var"] == "normal":
-            nn.init.trunc_normal_(variances, mean=2.0, a=0.1, b=4.0)
+            nn.init.trunc_normal_(variances, mean=8.0, a=1.0, b=16.0, std=4.0)
         elif init["var"] == "skewed":
-            nn.init.uniform_(variances[..., 0], 0.1, 2.0)
-            nn.init.uniform_(variances[..., 1], 4.0, 7.0)
+            nn.init.uniform_(variances[0], 1, 8.0)
+            nn.init.uniform_(variances[1], 20.0, 24.0)
         else:
             raise ValueError(f"Invalid {init['var']=}")
 

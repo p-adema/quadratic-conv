@@ -1,3 +1,5 @@
+import math
+
 import torch
 from torch import nn
 
@@ -57,7 +59,7 @@ class QuadraticKernelSpectral2D(nn.Module):
         init: dict[str, str | float] | None = None,
     ):
         super().__init__()
-        self.covs = CovSpectral2D(in_channels, out_channels, init)
+        self.covs = CovSpectral2D(in_channels, out_channels, init, kernel_size)
         self.kernel_size = kernel_size
         self.out_channels = out_channels
         self.in_channels = in_channels
@@ -77,7 +79,7 @@ class QuadraticKernelSpectral2D(nn.Module):
                 self.kernel_size,
             )
         )
-        return dists.mul(-0.25)
+        return -dists
 
     def extra_repr(self):
         kernel_size = self.kernel_size
@@ -150,7 +152,7 @@ class QuadraticKernelCholesky2D(nn.Module):
         init: dict[str, str | float] | None = None,
     ):
         super().__init__()
-        self.covs = CovCholesky2D(in_channels, out_channels, init)
+        self.covs = CovCholesky2D(in_channels, out_channels, init, kernel_size)
         self.kernel_size = kernel_size
         self.out_channels = out_channels
         self.in_channels = in_channels
@@ -173,7 +175,7 @@ class QuadraticKernelCholesky2D(nn.Module):
                 )
             )
         )
-        return dists.mul(-0.25)
+        return -dists
 
     def extra_repr(self):
         kernel_size = self.kernel_size
@@ -235,8 +237,8 @@ class QuadraticKernelIso2D(nn.Module):
     (6, 5, 3, 3)
     """
 
-    _pos_grid: torch.Tensor
     log_std: torch.Tensor
+    _pos_grid: torch.Tensor
 
     def __init__(
         self,
@@ -252,13 +254,25 @@ class QuadraticKernelIso2D(nn.Module):
         if isinstance(init["var"], float):
             nn.init.constant_(variances, init["var"])
         elif init["var"] == "uniform":
-            nn.init.uniform_(variances, 0.1, 4.0)
+            nn.init.uniform_(variances, 1, 16)
         elif init["var"] == "ss":
-            spaced_vars = torch.linspace(0.1, 4.0, steps=out_channels * in_channels)
+            spaced_vars = torch.linspace(
+                1,
+                2 * (kernel_size // 2) ** 2,
+                steps=out_channels * in_channels,
+            )
+            permutation = torch.randperm(spaced_vars.shape[0])
+            variances[:] = spaced_vars[permutation].reshape(out_channels, in_channels)
+        elif init["var"] == "log-ss":
+            spaced_vars = torch.logspace(
+                math.log10(1),
+                math.log10(2 * (kernel_size // 2) ** 2),
+                steps=out_channels * in_channels,
+            )
             permutation = torch.randperm(spaced_vars.shape[0])
             variances[:] = spaced_vars[permutation].reshape(out_channels, in_channels)
         elif init["var"] == "normal":
-            nn.init.trunc_normal_(variances, mean=2.0, a=0.1, b=4.0)
+            nn.init.trunc_normal_(variances, mean=8.0, a=1.0, b=16.0)
         else:
             raise ValueError(f"Invalid {init['var']=}")
 
@@ -271,12 +285,11 @@ class QuadraticKernelIso2D(nn.Module):
 
     def forward(self):
         dists = (
-            self._pos_grid.pow(2).sum(-2)
-            / (-4 * self.log_std.mul(2).exp().unsqueeze(2))
+            self._pos_grid.pow(2).sum(-2) / self.log_std.mul(2).exp().unsqueeze(2)
         ).reshape(
             self.out_channels, self.in_channels, self.kernel_size, self.kernel_size
         )
-        return dists
+        return -dists
 
     def extra_repr(self):
         kernel_size = self.kernel_size

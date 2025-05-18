@@ -36,13 +36,14 @@ for desc, config_kwargs in standard_configs(name="Basics (fashion)"):
     ).scores
 pl.DataFrame(result).write_parquet("./.data/long_fashion.pq")
 
-result = {}
-for desc, config_kwargs in group_configs(name="Groups (fashion)"):
-    result[desc] = LeNet.fit_many(
-        data=fashion,
-        description=desc,
-        conv_channels=(24, 60),
-        **base_kwargs,
-        **config_kwargs,
-    ).scores
-pl.DataFrame(result).write_parquet("./.data/groups_fashion.pq")
+
+# result = {}
+# for desc, config_kwargs in group_configs(name="Groups (fashion)"):
+#     result[desc] = LeNet.fit_many(
+#         data=fashion,
+#         description=desc,
+#         conv_channels=(24, 60),
+#         **base_kwargs,
+#         **config_kwargs,
+#     ).scores
+# pl.DataFrame(result).write_parquet("./.data/groups_fashion.pq")

@@ -109,10 +109,10 @@ def _mnist_like_normalisation(
         x_test = (torch.as_tensor(test.data, dtype=torch.float32) - low) / (high - low)
     y_train = torch.asarray(train.targets, dtype=torch.int64)
 
-    if has_channels:
+    if has_channels and x_train.shape[3] == img_channels:
         x_train = x_train.movedim(3, 1)
         x_test = x_test.movedim(3, 1)
-    else:
+    elif not has_channels:
         x_train.unsqueeze_(1)
         x_test.unsqueeze_(1)
     assert x_train.shape[1] == img_channels, f"Wrong channels in {x_train.shape=}"
@@ -164,3 +164,14 @@ cifar100 = _mnist_like(
 mnist = _mnist_like(torchvision.datasets.MNIST)
 fashion_mnist = _mnist_like(torchvision.datasets.FashionMNIST)
 k_mnist = _mnist_like(torchvision.datasets.KMNIST)
+
+
+def svhn():
+    train = torchvision.datasets.SVHN(root="./.data/", split="train", download=True)
+    train.targets = train.labels
+    test = torchvision.datasets.SVHN(root="./.data/", split="test", download=True)
+    test.targets = test.labels
+    train.classes = test.classes = [str(i) for i in range(10)]
+    return _mnist_like_normalisation(
+        train, test, has_channels=True, img_channels=3, num_classes=10
+    )
