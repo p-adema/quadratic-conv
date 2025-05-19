@@ -1,0 +1,186 @@
+\documentclass[a4paper, 12pt]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{xcolor}
+\usepackage{afterpage}
+
+\usepackage{relsize}
+\usepackage{moresize}
+
+\usepackage{graphicx}
+\usepackage{geometry}
+
+% [CHANGE] The title of your thesis. If your thesis has a subtitle, then this
+% should appear right below the main title, in a smaller font.
+\newcommand{\theTitle}{Efficient Semifield Convolutions}
+\newcommand{\theSubTitle}{}
+
+
+% [CHANGE] Your full name. In case of multiple names, you can include their
+% initials as well, e.g. "Robin G.J. van Achteren".
+\newcommand{\theAuthor}{Peter Adema}
+
+% [CHANGE] Your student ID, as this has been assigned to you by the UvA
+% administration.
+\newcommand{\theStudentID}{14460165}
+
+% [CHANGE] The name of your supervisor(s). Include the titles of your supervisor(s),
+% as well as the initials for *all* of his/her first names.
+\newcommand{\theSupervisor}{Dr.\ ir.\ R.\ van den Boomgaard} % Dr. Ing. L. Dorst
+
+% [CHANGE] The address of the institute at which your supervisor is working.
+% Be sure to include (1) institute (is appropriate), (2) faculty (if
+% appropriate), (3) organisation name, (4) organisation address (2 lines).
+\newcommand{\theInstitute}{
+Informatics Institute \\ %Institute for Logic, Language and Computation
+Faculty of Science\\
+University of Amsterdam\\
+Science Park 900 \\ 
+1098 XH Amsterdam 
+}
+
+% [CHANGE] The semester in which you started your thesis.
+\newcommand{\theDate}{Semester 2, 2024-2025}
+
+
+
+\usepackage[shortlabels]{enumitem}
+\usepackage{graphicx}
+
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{mathabx}
+%\usepackage{apacite}
+\usepackage{caption}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{array}
+\usepackage{booktabs}
+\def\comment#1{\color{red}#1\color{black}}
+\usepackage{bbold}
+\DeclareMathOperator{\boxclose}{\vcenter{\hbox{$\blacksquare$}}}
+\DeclareMathOperator{\boxopen}{\Box}
+\definecolor{opening_red}{RGB}{169,15,70}
+\definecolor{opening_blue}{RGB}{94, 79, 162}
+\begin{document}
+\pagestyle{empty}
+\begin{center}
+
+\vspace{2.5cm}
+
+
+\begin{Huge}
+% see definition at beginning of document
+\theTitle
+\end{Huge} \\
+
+\vspace{0.5 cm}
+
+\begin{Large}
+\theSubTitle
+\end{Large}
+
+\vspace{1.5cm}
+
+% see definition at beginning of document
+\theAuthor\\
+% see definition at beginning of document
+\theStudentID
+
+\vspace{1.5cm}
+
+% [DO NOT CHANGE]
+Honours Thesis extension\\
+Credits: 6 EC
+
+\vspace{0.5cm}
+
+% [DO NOT CHANGE] The name of the educational programme.
+Bachelor \textit{Kunstmatige Intelligentie} \\
+\vspace{0.25cm}
+\includegraphics[width=0.075\paperwidth]{figures/uva_logo} \\
+\vspace{0.1cm}
+
+% [DO NOT CHANGE] The address of the educational programme.
+University of Amsterdam\\
+Faculty of Science\\
+Science Park 900\\
+1098 XH Amsterdam
+
+\vspace{2cm}
+
+\emph{Supervisor}\\
+
+% see definition at beginning of document
+\theSupervisor
+
+\vspace{0.25cm}
+
+% see definition at beginning of document
+\theInstitute
+
+\vspace{1.0cm}
+
+% see definition at beginning of document
+\theDate
+
+\end{center}
+\newpage
+
+
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\pagestyle{plain} 
+
+
+\section*{Abstract \comment{TODO}}
+
+
+\section*{Acknowledgements \comment{TODO}}
+
+\newgeometry{a4paper, textwidth=400.0pt, textheight=740.0pt}
+\tableofcontents
+
+
+\chapter{Introduction \comment{TODO}}
+
+
+\newpage
+\section{Related work \comment{TODO}}
+
+
+\chapter{Convolutional derivatives \comment{TODO}}
+To perform semifield convolutions within the context of a deep-learning application, we must ensure that we can take the gradient with respect to our inputs in an efficient manner for all operations we seek to perform.
+
+\chapter{CUDA semifield convolutions \comment{TODO}}
+Armed with an understanding of the types of semifield convolutions where a gradient can be calculated in a reasonably efficient manner, we now turn to the task of efficiently implementing these operations as programs that can run on a (NVIDIA) GPU: CUDA kernels.
+
+\chapter{PyTorch C++ Extensions \comment{TODO}}
+Now that we have working implementations of semifield convolutions in the form of CUDA kernels, it is important to examine how these kernels can best be used within the context of a deep-learning model created with the PyTorch machine learning framework.
+
+\chapter{Conclusions \comment{TODO}}
+
+\section{Findings \comment{TODO}}
+\section{Discussion \comment{TODO}}
+
+\newpage
+\section{Contributions \comment{TODO}}
+\section{Further research \comment{TODO}}
+
+\section{Reproducibility \comment{TODO}}
+\section{Ethics \comment{Maybe?}}
+\comment{\ldots\ldots}
+
+%\newgeometry{a4paper, textwidth=400.0pt, textheight=770.0pt}
+\bibliographystyle{IEEEtran}
+{\footnotesize \bibliography{references}}
+%\newgeometry{a4paper, textwidth=400.0pt, textheight=740.0pt}
+
+\newpage
+\chapter{Appendix}
+
+\end{document}

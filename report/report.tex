@@ -357,7 +357,7 @@ These additional equivalences with $T_+$ suggest the possibility of using log or
 
 \chapter{Method}
 With a greater understanding of semifields, convolutions, and some relevant examples of semifield convolutions, we can now examine how to apply semifield convolutions within the context of CNNs. 
-First, we will go through some implementation notes on semifield convolutions and describe how to use quadratic forms to parameterise convolutional kernels. Afterwards, we will describe the experimental setup used to examine which quadratic forms work best in the context of CNNs and which parameters of a semifield convolution positively impact a CNN's performance on various image classification tasks.
+First, we will review some implementation notes on semifield convolutions and describe how to use quadratic forms to parameterise convolutional kernels. Afterwards, we will describe the experimental setup used to examine which quadratic forms work best in the context of CNNs and which parameters of a semifield convolution positively impact a CNN's performance on various image classification tasks.
 
 
 
@@ -379,31 +379,31 @@ For a standard linear convolution, we typically use a fully learned kernel. Sinc
 
 However, this is not the case for dilations; a convolution in $T_+$ uses $\max$ as the reduction operator, meaning that only one term receives a non-zero gradient. If the kernel were fully parameterised (every value learned separately), fitting the kernel would be very challenging due to the overly sparse gradient. As such, we can instead choose to generate a kernel based on a parameterised function, reducing the number of parameters to be learned by gradient descent.
 
-There are many options for generating a kernel-like array, but the context of a replacing a max-pool with dilation can help suggest reasonable constraints. Firstly, the result of a max-pool can never be below the original value; in a dilation, we can ensure this by setting the centre of the kernel to $0$. Secondly, the result of a max-pool is at most the maximum value in an area, and never higher; we can ensure this by using a nonpositive kernel: $\forall y,~G[y] \leq 0$. Finally, we may consider it reasonable for the kernel to be concave, as this ensures spatial locality (we cannot 'skip over' a pixel when looking for the maximum).
+There are many options for generating a kernel-like array, but the context of replacing a max-pool with dilation can help suggest reasonable constraints. Firstly, the result of a max-pool can never be below the original value; in a dilation, we can ensure this by setting the centre of the kernel to $0$. Secondly, the result of a max-pool is, at most, the maximum value in an area and never higher; we can ensure this by using a nonpositive kernel: $\forall y,~G[y] \leq 0$. Finally, we may consider it reasonable for the kernel to be concave, as this ensures spatial locality (we cannot 'skip over' a pixel when looking for the maximum).
 
 
-Combining these requirements, we can see that an alternate formulation for such a kernel function would be as a function that evaluates the distance to the centre of the kernel for all points, and uses the negative of that distance for the value of the kernel $G$. Formally, such a kernel function can be viewed as a metric (see \cite{metrics}) $d$ on the space of kernel indices $\mathcal{I}$, with the values at any point $\mathbf{y}\in\mathcal{I}$ in the kernel being the negated distance to the kernel centre $c_k$:
+Combining these requirements, we can see that an alternate formulation for such a kernel function would be a function that evaluates the distance to the centre of the kernel for all points and uses the negative of that distance for the value of the kernel $G$. Formally, such a kernel function can be viewed as a metric (see \cite{metrics}) $d$ on the space of kernel indices $\mathcal{I}$, with the values at any point $\mathbf{y}\in\mathcal{I}$ in the kernel being the negated distance to the kernel centre $c_k$:
 \begin{align}
 	\forall \mathbf y,~~G[y]=-d(\mathbf y, c_k)
 \end{align}
-Using this formalism, we can see that appropriate kernel functions are all derived from metrics calculating a 2D distance. If we further set $c_k$ to be the origin of $\mathcal{I}$, we can write any distance function as $d(\mathbf y)$ (with the centre implicit, effectively equivalent to a vector norm). A straightforward distance we could then choose might be the squared distance $d(\mathbf y)=\mathbf y^T\mathbf y$, but this is nonparametric. Adding a parameter could then lead to the isotropic quadratic:
+Using this formalism, we see that all appropriate kernel functions derive from metrics calculating a 2D distance. If we further set $c_k$ to be the origin of $\mathcal{I}$, we can write any distance function as $d(\mathbf y)$ (with the centre implicit, effectively equivalent to a vector norm). A straightforward distance we could choose might be the squared distance $d(\mathbf y)=\mathbf y^T\mathbf y$, but this is nonparametric. Adding a parameter could then lead to the isotropic quadratic:
 \begin{align}
 	\textrm{Isotropic quadratic kernel: }&G[\mathbf y] = -\mathbf y^T(4sI)^{-1}\mathbf y
 \intertext{
-Here, the scalar $s$ can be adjusted to control how quickly the distance rises and the kernel values fall. However, the isotropic quadratic only generates kernels where the contour lines are circles. To allow for non-circular kernels, we must allow for dimensions to be weighted differently. A candidate function could then be the anisotropic quadratic (the Mahalanobis distance to the origin):
+Here, the scalar $s$ can be adjusted to control how quickly the distance rises and the kernel values fall. However, the isotropic quadratic only generates kernels where the contour lines are circles. To allow for non-circular kernels, we must allow dimensions to be weighted differently. A candidate function could then be the anisotropic quadratic (the Mahalanobis distance to the origin):
 }
 	\textrm{Anisotropic quadratic kernel: }&G[\mathbf y] = -\mathbf y^T\Sigma^{-1}\mathbf y
 \end{align}
-By learning a $2\times2$ positive definite matrix for $\Sigma$, we can then parameterise a kernel function for a 2D dilation kernel $G$ with elliptical contour lines. Testing whether moving from circular contours to elliptical contours improves CNN performance is then the primary subject of this report and later experiments.
+By learning a $2\times2$ positive definite matrix for $\Sigma$, we can then parameterise a kernel function for a 2D dilation kernel $G$ with elliptical contour lines. Testing whether moving from circular contours to elliptical contours improves CNN performance is the primary subject of this report and later experiments.
 
-It should finally be noted that the choice for these quadratic kernels is not entirely arbitrary: these 'quadratic forms' have theoretical advantages in terms of the smoothness and well-behaviour when used for dilations, similar to how kernels based on their exponent (the Gaussian) act in linear convolutions.
+Finally, it should be noted that the choice of these quadratic kernels is not entirely arbitrary. When used for dilations, these 'quadratic forms' have theoretical advantages regarding smoothness and rotational symmetry, similar to how kernels based on their exponent (the Gaussian) act in linear convolutions.
 
 \newpage
 \section{Learning quadratic kernel parameters}
 \label{sec:learning-pdm}
-In order to apply the aforementioned quadratic kernels in a neural network, we must first devise a parameterisation scheme that can be used for gradient-based optimisation. For both types of quadratic kernels, the equivalent of the Mahanalobis distance covariance matrix ($sI$ for isotropic, $\Sigma$ for anisotropic) is required to be positive definite. With an isotropic kernel, using a parameter $\theta$ where $\theta = \log s$ ensures that $s$ is positive, and thus that $sI$ is positive definite. However, the matrix $\Sigma$ for the anisotropic case requires more care: if the entire matrix were freely learned via gradient descent, it is entirely possible that an update may result in $\Sigma$ no longer being positive definite.
+In order to apply the aforementioned quadratic kernels in a neural network, we must first devise a parameterisation scheme that can be used for gradient-based optimisation. For both types of quadratic kernels, the equivalent of the Mahanalobis distance covariance matrix ($sI$ for isotropic, $\Sigma$ for anisotropic) must be positive definite. With an isotropic kernel, using a parameter $\theta$ where $\theta = \log s$ ensures that $s$ is positive, and thus that $sI$ is positive definite. However, the matrix $\Sigma$ for the anisotropic case requires more care. If the entire matrix were freely learned via gradient descent, an optimisation step may result in $\Sigma$ no longer being positive definite, violating the kernel requirements.
 
-One possibility would be to view $\Sigma$ as a $2\times2$ covariance matrix, and parameterise it accordingly. Since $\Sigma$ must in this case be symmetric, we know by the spectral theorem that $\Sigma$ is diagonalisable \cite{poole2015linear}:
+One method for resolving this involves viewing $\Sigma$ as a $2\times2$ covariance matrix and parameterising it accordingly. Since $\Sigma$ must, in this case, be symmetric, we know by the spectral theorem that $\Sigma$ is diagonalisable \cite{poole2015linear}:
 \begin{align}
 \textrm{For some orthogonal matrix }Q &\in \mathbb{R}^{2\times 2} \textrm{, and} \nonumber \\
 \textrm{for some diagonal matrix }D &\in \mathbb{R}^{2\times 2} \textrm{,}\nonumber \\
@@ -412,7 +412,7 @@ One possibility would be to view $\Sigma$ as a $2\times2$ covariance matrix, and
 	 \sigma_1^2 & 0\\ 0 &  \sigma_2^2
 \end{bmatrix} Q^T
 \end{align}
-Here, Q (as an orthogonal matrix) can either be a rotation  or a reflection. However, since $Q$ occurs twice, its determinant cancels, and fixing $Q$ to be a rotation does not reduce expressivity (see Appendix \ref{sec:red-mirr}). As such, we can use:
+Here, Q (as an orthogonal matrix) can either be a rotation or a reflection. However, since $Q$ occurs twice, its determinant cancels, and fixing $Q$ to be a rotation does not reduce expressivity (see Appendix \ref{sec:red-mirr}). As such, we can use:
 \begin{align}
 \Sigma = \begin{bmatrix}
 	\cos \phi & -\sin \phi \\ \sin\phi & \cos\phi
@@ -458,14 +458,13 @@ This parameterisation further has the advantage of being easily interpretable: $
 \newpage
 \section{Initialising quadratic kernel parameters}
 
-
 While we now have definitions for appropriate parameters $\theta$ that can be used for quadratic kernels, the initialisation of these parameters is also important.
 
-One straightforward approach would be to use uniform-random or Gaussian initialisation. However, previous work  has shown that initialising kernels such that different possibilities are explored can aid in the learning process \cite{thierrybsc}.
+One straightforward approach would be to use uniform-random or Gaussian initialisation. However, previous work has shown that initialising kernels such that different possibilities are explored can aid in the learning process \cite{thierrybsc}.
 
 For the initialisation of the isotropic scale\footnote{Blankenstein, like \cite{groenendijk2022morphpool}, used $s$ scaled up by 4, having $-\frac{1}{4s}\mathbf{y}^T\mathbf{y}$ as the isotropic quadratic (despite claiming otherwise in their report and comments, their implementation is as such). } $s$, \cite{thierrybsc} suggested using evenly spaced\footnote{Linearly spaced, i.e. interpolated between the endpoints at $\frac{i}{\textsc{n-kernels-1}}$ for kernel $i$.\\While examining Fig. \ref{fig:init} might suggest that a log-scale may be more appropriate, small-scale experiments show a consistent decrease in performance when using logarithmic spacing.  } scales between $s=1$ (where only the centre of the kernel is $>-1$) and $s=2~\lfloor\textsc{kernel-size}/2\rfloor^2$ (where only the corners are $\leq-1$). Supposing the images are normalised to $[0, 1]$, this would ensure that all relevant kernel sizes are represented after initialisation (see Fig. \ref{fig:init}, top row).
 
-For initialising anisotropic kernels, we consider two methods. The first method initialises the variances of the kernel isotropically in the same manner as before: this has the advantage of strengthening the idea of anisotropic kernels being 'no worse than isotropic', as they would begin isotropically. The alternative approach involves initialising the variances heavily skewed: one axis with low variance and one with high variance. In the experiments, this is done by sampling variances uniform randomly from $[1, 8]$ and $[20, 24]$ respectively. When combining this with evenly spaced\footnote{Linearly spaced \textit{without the final value}, i.e. interpolated at $\frac{i}{\textsc{n-kernels}}$ for kernel $i$.
+For initialising anisotropic kernels, we consider two methods. The first method initialises the variances of the kernel isotropically in the same manner as before: this has the advantage of strengthening the idea of anisotropic kernels being 'no worse than isotropic', as they would begin isotropically. The alternative approach involves initialising the variances heavily skewed: one axis with low variance and one with high variance. In the experiments, this is done by sampling variances uniform randomly from $[1, 8]$ and $[20, 24]$, respectively. When combining this with evenly spaced\footnote{Linearly spaced \textit{without the final value}, i.e. interpolated at $\frac{i}{\textsc{n-kernels}}$ for kernel $i$.
 \\
 This skips the last orientation, as $\theta=\pi$ would be equivalent to $\theta=0$ for these kernels. \vspace{-0.25cm}
 } angles $\theta\in[0, \pi)$, we can create kernels that lift the input to an orientation score (like \cite{smetspde}). While a scale space would aid in learning features at various scales, this 'orientation space' would aid in learning to recognise lines and edges. For a visualisation, see Fig. \ref{fig:init}:
@@ -483,12 +482,12 @@ To determine the effects of isotropic and anisotropic dilations as a replacement
 The datasets used are:
 \begin{itemize}
 \setlength{\itemsep}{0pt}
-	\item K-MNIST: grayscale, 10 classes, each a cursive Japanese character \cite{k-mnist}.. 
+	\item K-MNIST: grayscale, 10 classes, each a cursive Japanese character \cite{k-mnist}. 
 	\item Fashion-MNIST: grayscale, 10 classes, each a fashion item \cite{fashion-mnist}.
 	\item CIFAR10: RGB, 10 classes, containing various real-world objects \cite{cifar10}.
 	\item SVHN:  RGB, 10 classes, each a digit as seen in a house number \cite{svhn}.
 \end{itemize}
-For the first two datasets, the model architure is LeNet-5 \cite{lenet5}, just as in previous research \cite{thierrybsc}.
+The model architecture for the first two datasets is LeNet-5 \cite{lenet5}, just as in previous research \cite{thierrybsc}.
 The other two datasets use a typical CNN, taken from \cite{model-cifar}.
 For a visualisation of the datasets and the models, see Fig. \ref{fig:datasets}:
 \begin{figure}[h!]
@@ -512,7 +511,7 @@ For the main set of experiments: the following kinds of poolings will be used:
 	\item \textbf{Anisotropic}: a dilation with an anisotropic kernel, with kernel sizes 2, 3, 5, 7 and 11. Initialisation will be one of scale-space or orientation-space.
 \end{itemize}
 \vspace{-0.1cm}
-Afterwards, a secondary set of experiments will be run to examine the effects of the \textsc{groups} parameter for poolings, as well as the usage of closings $\boxclose$. For these experiments, the best kernel size from the main set will be used.
+Afterwards, a secondary set of experiments will be run to examine the effects of the \textsc{groups} parameter for poolings and the usage of closings $\boxclose$. The best kernel size from the main set will be used for these experiments.
 
 The secondary set of experiments will use the following kinds of poolings:
 \begin{itemize}
@@ -522,9 +521,9 @@ The secondary set of experiments will use the following kinds of poolings:
 	\item \textbf{Iso-closing} / \textbf{Aniso-closing}: Same as \textbf{Isotropic} / \textbf{Anisotropic}, but now with a morphological closing $\boxclose$ instead of a dilation $\boxplus$ (see Sec. \ref{sec:closing})
 \end{itemize}
 \vspace{-0.1cm}
-Finally, some exploratory experiments were run to investigate the effects of using non-linear semifields for standard convolutions (see Sec. \ref{sec:non-morph}). These extra experiments and their results are described in Appendix \ref{sec:nonlinconv}.
+Finally, some exploratory experiments were run to investigate the effects of using non-linear semifields for standard convolutions (see Sec. \ref{sec:non-morph}). Appendix \ref{sec:nonlinconv} describes these extra experiments and their results.
 
-Since the pooling layer is the only hyperparameter we wish to vary during experiments, we must fix all others. While extensive hyperparameter tuning was not considered necessary for the purposes of this report, various learning rates were examined across epochs to determine a representative set of hyperparameters (see Appendix \ref{sec:hyperparameters}). These hyperparameters are:
+Since the pooling layer is the only hyperparameter we wish to vary during experiments, we must fix all others. While extensive hyperparameter tuning was not considered necessary for this report, various learning rates were examined across epochs to determine a representative set of hyperparameters (see Appendix \ref{sec:hyperparameters}). These hyperparameters are:
 
 \begin{table}[!htbp]
 \centering
@@ -573,62 +572,52 @@ TorchVision & 0.22.0+cu128 \\
 
 
 \chapter{Experiments \comment{TODO}}
+
 As described in Sec. \ref{sec:setup}, the experiments performed involve testing variations of pooling layers on the models and datasets shown in Fig. \ref{fig:datasets} (experiments with $R_p$ and $L_\mu+$ can be found in Appendix \ref{sec:nonlinconv}).
-To obtain reliable results, every model configuration was trained repeatedly (100 times for K-MNIST and Fashion-MNIST, 40 times for CIFAR-10 and SVHN) and the results were aggregated. The primary metric model configurations will be compared on is the mean test-set accuracy, while confidence intervals denoting the 5th and 95th percentiles\footnote{Using percentile-based confidence intervals deviates from previous work \cite{thierrybsc, koenbsc}, which used one standard deviation. This is intentional, as some unstable configurations might occasionally produce low-accuracy (e.g. 50\% or 70\%) results. Under the Gaussian assumption of standard deviations, this uncertainty would be modelled symmetrically, and the top of the error bar would be drawn overly high (above the maximum observed value, at times).} of accuracy scores are displayed for context.
+To obtain reliable results, every model configuration was trained repeatedly (100 times for K-MNIST and Fashion-MNIST, 40 times for CIFAR-10 and SVHN), and the results were aggregated. The primary metric model configurations will be compared on is the mean test-set accuracy, while confidence intervals denoting the 5th and 95th percentiles\footnote{Using percentile-based confidence intervals deviates from previous work \cite{thierrybsc, koenbsc}, which used one standard deviation. This is intentional, as some unstable configurations might occasionally produce low-accuracy (e.g. 50\% or 70\%) results. Under the Gaussian assumption of standard deviations, this uncertainty would be modelled symmetrically, and the top of the error bar would be drawn overly high (above the highest observed value, at times).} of accuracy scores are displayed for context.
 
-\textbf{The format of graphs in this chapter} is such that all results are grouped per kernel-type (standard/non-dilation, isotropic, anisotropic with scale-space initialisation or anisotropic with orientation-space initialisation), with a secondary hyperparameter being varied within the group. Within each group (kernel-kind), the best performing configuration is highlighted, and the values for these best-performing configurations are repeated for comparison at the right of each subplot (above 'Best').
+The format of graphs in this chapter is such that all results are grouped per kernel type (standard/non-dilation, isotropic, anisotropic with scale-space initialisation or anisotropic with orientation-space initialisation), with a secondary hyperparameter being varied within the group. Within each group (kernel-kind), the best-performing configuration is highlighted, and the values for these best-performing configurations are repeated for comparison at the right of each subplot (above 'Best'). Note that plots are zoomed in such that the total height of the plot is \textbf{two percentage points}: differences are minor.
+
 \section{K-MNIST and Fashion-MNIST  \comment{TODO}}
-
+\comment{Explanation of what we see in Fig. \ref{fig:res-small}}
 
 \newpage
 \begin{figure}[ht!]
 	\center
   \includegraphics[width=1\textwidth]{figures/results-small.png}
-  \caption{Illustration of datasets and models used for experimentation.
-  The pooling layers are left generic: specific kinds of pooling will be discussed next. }
+  \caption{Model configuration accuracy (mean of 100) for small datasets}
   \label{fig:res-small}
 \end{figure}
 
 \vspace{-0.7cm}
 \section{CIFAR-10 and SVHN  \comment{TODO}}
-\comment{Line 1}
+\comment{Explanation of what we see in Fig. \ref{fig:res-large}}
 
-\comment{Line 2}
-
-\comment{Line 3}
-
-\comment{Line 4}
-
-\comment{Line 5}
-
-\comment{Line 6}
-
-\comment{Line 7}
-
-\comment{Line 8}
-
-\comment{Line 9}
-
-\comment{Line 10}
 
 \begin{figure}[hb!]
 	\center
   \includegraphics[width=1\textwidth]{figures/results-large.png}
-  \caption{Illustration of datasets and models used for experimentation.
-  The pooling layers are left generic: specific kinds of pooling will be discussed next. }
+  \caption{Model configuration accuracy (mean of 40) for large datasets  }
   \label{fig:res-large}
 \end{figure}
 \newpage
 \begin{figure}[ht!]
 	\center
   \includegraphics[width=1\textwidth]{figures/results-alt}
-  \caption{Illustration of datasets and models used for experimentation.
-  The pooling layers are left generic: specific kinds of pooling will be discussed next. }
+  \caption{Additional 'closing' and 'grouped' configurations (see Sec. \ref{sec:setup}), mean accuracy of 100 for K-MNIST and of 40 for CIFAR-10.}
   \label{fig:res-alt}
 \end{figure}
 \section{Closings and grouped dilations  \comment{TODO}}
+\comment{Explanation of what we see in Fig. \ref{fig:res-alt}}
 
-
+\section{Runtimes  \comment{TODO}}
+\comment{Explanation of what we see in Fig. \ref{fig:res-timings}}
+\begin{figure}[ht!]
+	\center
+  \includegraphics[width=1\textwidth]{figures/timings.png}
+  \caption{Training timings for Fashion-MNIST and SVHN dataset}
+  \label{fig:res-timings}
+\end{figure}
 \chapter{Conclusions \comment{TODO}}
 
 \section{Findings \comment{TODO}}
