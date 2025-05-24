@@ -10,7 +10,6 @@ from src import load_data
 from src.models import LeNet
 from src.models.utils import make_pooling_function
 
-torch.set_float32_matmul_precision("high")
 k_mnist = load_data.k_mnist()
 
 base_kwargs = {

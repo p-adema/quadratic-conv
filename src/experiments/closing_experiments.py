@@ -10,10 +10,6 @@ from src import load_data
 from src.models import CIFAR10CNN, LeNet
 from src.models.configurations.simple_lenet import extra_configs
 
-torch.set_float32_matmul_precision("high")
-torch.backends.cudnn.enabled = True
-torch.backends.cudnn.benchmark = True
-
 k_mnist = load_data.k_mnist()
 cifar10 = load_data.cifar10()
 

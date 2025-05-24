@@ -150,6 +150,9 @@ class Trainer(nn.Module):
         if torch_compile_mode is not None:
             # noinspection PyProtectedMember
             torch._dynamo.reset()
+        torch.set_float32_matmul_precision("high")
+        torch.backends.cudnn.enabled = True
+        torch.backends.cudnn.benchmark = True
 
         run_scores = []
         run_timings = []

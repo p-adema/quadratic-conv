@@ -9,7 +9,6 @@ from src import load_data
 from src.models import CIFAR10CNN
 from src.models.configurations.simple_lenet import lenet_configs, standard_configs
 
-torch.set_float32_matmul_precision("high")
 svhn = load_data.svhn()
 
 base_kwargs = {

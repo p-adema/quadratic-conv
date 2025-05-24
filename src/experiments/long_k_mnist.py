@@ -13,7 +13,6 @@ from src.models.configurations.simple_lenet import (
     standard_configs,
 )
 
-torch.set_float32_matmul_precision("high")
 k_mnist = load_data.k_mnist()
 
 base_kwargs = {

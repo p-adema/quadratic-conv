@@ -9,7 +9,6 @@ sys.path.extend(".")
 from src import load_data
 from src.models import EXAMPLE_POOLING_FUNCTIONS, LeNet
 
-torch.set_float32_matmul_precision("high")
 k_mnist = load_data.k_mnist()
 
 res = {

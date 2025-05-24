@@ -97,7 +97,7 @@ def make_pooling_function(
     groups: int | None = None,
     group_size: int | None = None,  # S_i
     group_broadcasting: bool = False,
-    jit: bool = ...,
+    jit: bool = None,
     channel_add: bool = False,
     spread_gradient: bool = False,
     is_closing: bool = False,
@@ -188,10 +188,10 @@ def _calculate_groups(channels: int, groups: int, group_size: int) -> tuple[int,
     return grp_size, grps
 
 
-def _get_jit_status(jit: bool | Ellipsis, channel_add: bool, spread_gradient: bool):
-    if (channel_add or spread_gradient) and jit is ...:
+def _get_jit_status(jit: bool | None, channel_add: bool, spread_gradient: bool):
+    if (channel_add or spread_gradient) and jit is None:
         return False
-    if jit is ...:
+    if jit is None:
         return POOLING_JIT_DEFAULT
 
     if channel_add or spread_gradient:
@@ -199,25 +199,19 @@ def _get_jit_status(jit: bool | Ellipsis, channel_add: bool, spread_gradient: bo
     return jit
 
 
-EXAMPLE_POOLING_STANDARD = {
+EXAMPLE_POOLING_FUNCTIONS: dict[str, Callable[[int, dict], nn.Module]] = {
+    "standard-1": make_pooling_function("standard", 1),
     "standard-2": make_pooling_function("standard", 2),
     "standard-3": make_pooling_function("standard", 3),
     "standard-5": make_pooling_function("standard", 5),
-    "standard-7": make_pooling_function("standard", 7),
-}
-EXAMPLE_POOLING_ISOTROPIC = {
+    "iso-2": make_pooling_function("iso", 2),
     "iso-3": make_pooling_function("iso", 3),
     "iso-5": make_pooling_function("iso", 5),
     "iso-7": make_pooling_function("iso", 7),
-}
-EXAMPLE_POOLING_ANISO = {
+    "iso-11": make_pooling_function("iso", 11),
+    "aniso-2": make_pooling_function("aniso", 2),
     "aniso-3": make_pooling_function("aniso", 3),
     "aniso-5": make_pooling_function("aniso", 5),
     "aniso-7": make_pooling_function("aniso", 7),
+    "aniso-11": make_pooling_function("aniso", 11),
 }
-
-EXAMPLE_POOLING_FUNCTIONS: collections.ChainMap[
-    str, Callable[[int, dict], nn.Module]
-] = collections.ChainMap(
-    EXAMPLE_POOLING_STANDARD, EXAMPLE_POOLING_ISOTROPIC, EXAMPLE_POOLING_ANISO
-)
