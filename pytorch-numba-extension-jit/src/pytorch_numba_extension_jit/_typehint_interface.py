@@ -233,7 +233,7 @@ def _standardise_thread_args(
     n_threads: str | tuple[str, str] | tuple[str, str, str],
     threads_per_block: int | tuple[int, int] | tuple[int, int, int] | None,
 ) -> tuple[tuple[str, str, str], tuple[int, int, int]]:
-    if isinstance(n_threads, str):
+    if isinstance(n_threads, str | int):
         n_threads = (str(n_threads), "1", "1")
         threads_dim = 1
     elif len(n_threads) == 2:

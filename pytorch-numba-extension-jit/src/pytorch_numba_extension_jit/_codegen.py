@@ -303,12 +303,13 @@ def _cpp_return_type(outputs: list[str]):
     return f"std::tuple<{', '.join(['at::Tensor'] * len(outputs))}>"
 
 
-def _return_values(outputs: list[str]):
+def _return_values(outputs: list[str], lang: Literal["cpp", "py"]):
     if len(outputs) == 0:
         return ""
     if len(outputs) == 1:
         return outputs[0]
-    return ", ".join(outputs)
+    outs = ", ".join(outputs)
+    return "{" + outs + "}" if lang == "cpp" else outs
 
 
 def _cpp_kernel_invocation(name: str, use_runtime_api: bool):
@@ -322,7 +323,7 @@ def _cpp_kernel_invocation(name: str, use_runtime_api: bool):
     }}
     CHK(cudaLaunchKernel((void*)pnex_internal_kernel, 
                         {{bpg_x, bpg_y, bpg_z}}, {{tpb_x, tpb_y, tpb_z}},
-                         args, 0, NULL));
+                         args, 0, c10::cuda::getCurrentCUDAStream()));
 """
         if use_runtime_api
         else f"""
@@ -333,7 +334,8 @@ def _cpp_kernel_invocation(name: str, use_runtime_api: bool):
         CHK(cuModuleGetFunction(&pnex_internal_kernel, cuModule, "{name}"));
     }}
     CHK(cuLaunchKernel(pnex_internal_kernel, bpg_x, bpg_y, bpg_z, 
-                       tpb_x, tpb_y, tpb_z, 0, 0, args, NULL));
+                       tpb_x, tpb_y, tpb_z,
+                       0, c10::cuda::getCurrentCUDAStream(), args, NULL));
 """
     )
 
@@ -403,6 +405,8 @@ def kernel_wrapper(
     return (
         f"""
 #include <{"cuda_runtime.h" if use_runtime_api else "cuda.h"}>
+#include <c10/cuda/CUDAStream.h>
+
 namespace pnex_jit {{
     {_chk_macro_runtime if use_runtime_api else _chk_macro_driver}
     const char *ptx = "{kernel_inner}";
@@ -419,7 +423,7 @@ namespace pnex_jit {{
         {_thread_calculation(threads_per_block[2], n_threads[2], "z", "cpp")}
     
         {_cpp_kernel_invocation(name, use_runtime_api)}
-        return {{{_return_values(outputs)}}};
+        return {_return_values(outputs, "cpp")};
     }}
 }}
 """
@@ -433,6 +437,6 @@ def kernel_{name}({", ".join(parameters)}):
     {_thread_calculation(threads_per_block[1], n_threads[1], "y", "py")}
     {_thread_calculation(threads_per_block[2], n_threads[2], "z", "py")}
     kernel_inner[(bpg_x, bpg_y, bpg_z), {threads_per_block}]({", ".join(args)})
-    return {_return_values(outputs)}
+    return {_return_values(outputs, "py")}
 """
     )

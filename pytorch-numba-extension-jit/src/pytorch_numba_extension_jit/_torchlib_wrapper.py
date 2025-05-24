@@ -40,7 +40,7 @@ def _determine_torchlib_signature(
             raise TypeError(f"Unknown kernel parameter {type(param)=}: {param=}")
 
     if output_count == 0:
-        output = ""
+        output = "-> ()"
     elif output_count == 1:
         output = "-> Tensor"
     else:

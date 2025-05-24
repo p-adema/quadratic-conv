@@ -23,6 +23,7 @@ class LeNet(Trainer):
         init: dict[str, str | float] | None = None,
         init_seed: int | None = None,
         conv_dilation: int = 1,
+        convs: tuple[nn.Module, nn.Module] = None,
         debug: bool = False,
     ):
         super().__init__()
@@ -33,19 +34,27 @@ class LeNet(Trainer):
             pool_fn = EXAMPLE_POOLING_FUNCTIONS[pool_fn]
 
         modules = [
-            nn.Conv2d(
-                img_channels,
-                conv_channels[0],
-                conv_kernel_size,
-                dilation=conv_dilation,
+            (
+                nn.Conv2d(
+                    img_channels,
+                    conv_channels[0],
+                    conv_kernel_size,
+                    dilation=conv_dilation,
+                )
+                if convs is None
+                else convs[0]
             ),
             nn.ReLU(),
             pool_fn(conv_channels[0], init),
-            nn.Conv2d(
-                conv_channels[0],
-                conv_channels[1],
-                conv_kernel_size,
-                dilation=conv_dilation,
+            (
+                nn.Conv2d(
+                    conv_channels[0],
+                    conv_channels[1],
+                    conv_kernel_size,
+                    dilation=conv_dilation,
+                )
+                if convs is None
+                else convs[1]
             ),
             nn.ReLU(),
             pool_fn(conv_channels[1], init),

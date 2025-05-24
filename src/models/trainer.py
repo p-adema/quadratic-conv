@@ -144,7 +144,7 @@ class Trainer(nn.Module):
         epoch_callback: Callable[[Self, float], None] | None = None,
         description: str | None = None,
         progress_bar: bool = True,
-        torch_compile_mode: str | None = "default",
+        torch_compile_mode: str | None = "reduce-overhead",
         **init_kwargs,
     ) -> FitManyResult:
         if torch_compile_mode is not None:

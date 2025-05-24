@@ -13,6 +13,7 @@ def lenet_configs(
     g_broadcasting_options: tuple[bool, ...] = (False,),
     channel_add_options: tuple[bool, ...] = (False,),
     spread_gradient_options: tuple[bool, ...] = (False,),
+    closing_options: tuple[bool, ...] = (False,),
     do_standard: bool = True,
     do_iso: bool = True,
     do_aniso: bool = True,
@@ -39,7 +40,7 @@ def lenet_configs(
             "init": None,
         }
 
-    for size, init, group_size, g_broadcast, channel_add, spread_grad in (
+    for size, init, group_size, g_broadcast, channel_add, spread_grad, closing in (
         product(
             kernel_sizes,
             iso_inits,
@@ -47,6 +48,7 @@ def lenet_configs(
             g_broadcasting_options,
             channel_add_options,
             spread_gradient_options,
+            closing_options,
         )
         if do_iso
         else ()
@@ -58,6 +60,7 @@ def lenet_configs(
                 f"{'-broadcast1' if g_broadcast else ''}"
                 f"{'-channeladd' if channel_add else ''}"
                 f"{'-spreadgrad' if spread_grad else ''}"
+                f"{'-closing' if closing else ''}"
             )
         ] = {
             "pool_fn": make_pooling_function(
@@ -67,6 +70,7 @@ def lenet_configs(
                 group_broadcasting=g_broadcast,
                 channel_add=channel_add,
                 spread_gradient=spread_grad,
+                is_closing=closing,
             ),
             "init": {"var": init},
         }
@@ -74,7 +78,7 @@ def lenet_configs(
     for size, (
         v_init,
         t_init,
-    ), group_size, g_broadcast, channel_add, spread_grad in (
+    ), group_size, g_broadcast, channel_add, spread_grad, closing in (
         product(
             kernel_sizes,
             aniso_inits,
@@ -82,6 +86,7 @@ def lenet_configs(
             g_broadcasting_options,
             channel_add_options,
             spread_gradient_options,
+            closing_options,
         )
         if do_aniso
         else ()
@@ -92,6 +97,7 @@ def lenet_configs(
             f"{'-broadcast1' if g_broadcast else ''}"
             f"{'-channeladd' if channel_add else ''}"
             f"{'-spreadgrad' if spread_grad else ''}"
+            f"{'-closing' if closing else ''}"
         ] = {
             "pool_fn": make_pooling_function(
                 "aniso",
@@ -100,6 +106,7 @@ def lenet_configs(
                 group_broadcasting=g_broadcast,
                 channel_add=channel_add,
                 spread_gradient=spread_grad,
+                is_closing=closing,
             ),
             "init": {"var": v_init, "theta": t_init},
         }
@@ -111,12 +118,11 @@ def standard_configs(name: str | None = None):
     return lenet_configs(progress_bar=name)
 
 
-def group_configs(name: str | None = None):
+def extra_configs(kernel_size: int, name: str | None = None):
     return lenet_configs(
-        g_broadcasting_options=(False, True),
-        channel_add_options=(False, True),
+        closing_options=(False, True),
         group_sizes=(1, 2),
-        kernel_sizes=(7,),
+        kernel_sizes=(kernel_size,),
         do_standard=False,
         progress_bar=name,
     )
