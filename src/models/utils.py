@@ -82,6 +82,7 @@ class HistoryCallback:
 
 
 POOLING_JIT_DEFAULT = True
+TO_EXTENSION_DEFAULT = False
 
 
 def make_pooling_function(
@@ -126,7 +127,7 @@ def make_pooling_function(
             raise ValueError(f"Invalid {kind=}")
 
         conv_dilation = (
-            SelectSemifield.tropical_max().lazy_fixed()
+            SelectSemifield.tropical_max().lazy_fixed(to_extension=TO_EXTENSION_DEFAULT)
             if jit
             else BroadcastSemifield.tropical_max(
                 channels_add=channel_add, spread_gradient=spread_gradient
@@ -135,7 +136,9 @@ def make_pooling_function(
 
         if is_closing:
             conv_erosion = (
-                SelectSemifield.tropical_min_negated().lazy_fixed()
+                SelectSemifield.tropical_min_negated().lazy_fixed(
+                    to_extension=TO_EXTENSION_DEFAULT
+                )
                 if jit
                 else BroadcastSemifield.tropical_min_negated(
                     channels_add=channel_add, spread_gradient=spread_gradient

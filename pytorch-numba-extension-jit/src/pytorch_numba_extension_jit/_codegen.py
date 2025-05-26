@@ -402,7 +402,6 @@ def kernel_wrapper(
         _to_size(n_threads[1]),
         _to_size(n_threads[2]),
     )
-
     newline = "\n    "
     return (
         f"""
@@ -438,7 +437,10 @@ def kernel_{name}({", ".join(parameters)}):
     {_thread_calculation(threads_per_block[0], n_threads[0], "x", "py")}
     {_thread_calculation(threads_per_block[1], n_threads[1], "y", "py")}
     {_thread_calculation(threads_per_block[2], n_threads[2], "z", "py")}
-    kernel_inner[(bpg_x, bpg_y, bpg_z), {threads_per_block}]({", ".join(args)})
+    kernel_inner[
+        (bpg_x, bpg_y, bpg_z), {threads_per_block},
+        cuda.external_stream(torch.cuda.current_stream().cuda_stream)
+    ]({", ".join(args)})
     return {_return_values(outputs, "py")}
 """
     )

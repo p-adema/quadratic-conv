@@ -220,7 +220,7 @@ def compile_array_api(
 
     exec(
         kernel_py_code,
-        {"torch": torch, "kernel_inner": numba_kernel},
+        {"torch": torch, "kernel_inner": numba_kernel, "cuda": cuda},
         ev_locals,
     )
     kernel = ev_locals[f"kernel_{name}"]
