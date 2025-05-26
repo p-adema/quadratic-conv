@@ -376,8 +376,10 @@ def kernel_wrapper(
         ptx_match = _ptx_name_regex.search(kernel_inner)
         assert ptx_match is not None, "Strange PTX with no function"
         env_stripped = _ptx_env_regex.sub("", kernel_inner)
-        kernel_inner = env_stripped.replace(ptx_match.group(1), name).replace(
-            "\n", "    \\n\\t\\\n"
+        kernel_inner = (
+            env_stripped.replace(ptx_match.group(1), name)
+            .replace("\n", "    \\n\\t\\\n")
+            .replace('"', '\\"')
         )
 
     else:

@@ -163,6 +163,7 @@ def compile_extension(
         lineinfo=False,
         output="ptx",
     )[0]
+    cuda.jit()
     kernel = ptx_to_extension(
         ptx,
         name,
@@ -188,6 +189,7 @@ def compile_array_api(
     threads_per_block: tuple[int, int, int],
     verbose: bool = False,
     cache_id: str | None = None,
+    max_registers: int = None,
 ):
     cache_id = "_" + cache_id if cache_id else ""
 
@@ -197,7 +199,11 @@ def compile_array_api(
         print(f"SIGNATURE {cache_id if cache_id else ''} : {sig}")
 
     name = pyfunc.__name__ + cache_id
-    numba_kernel = cuda.jit(sig, cache=True)(pyfunc)
+    numba_kernel = cuda.jit(
+        sig,
+        cache=True,
+        max_registers=max_registers,
+    )(pyfunc)
     kernel_py_code = kernel_wrapper(
         numba_kernel,
         name,

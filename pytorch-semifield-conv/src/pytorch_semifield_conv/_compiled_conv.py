@@ -16,9 +16,10 @@ class _SemifieldCompiler(Protocol):
     def _compile(
         self,
         meta: ConvMeta,
-        thread_block_size: int = 256,
+        thread_block_size: int = None,
         debug: bool = False,
         to_extension: bool = True,
+        impl: str | None = None,
     ) -> Callable[[torch.Tensor, torch.Tensor], R]: ...
 
     def _get_result(self, val: R) -> torch.Tensor: ...
@@ -28,9 +29,10 @@ class CompiledConv(nn.Module):
     def __init__(
         self,
         semifield: _SemifieldCompiler,
-        thread_block_size: int = 256,
+        thread_block_size: int = None,
         debug: bool = False,
         to_extension: bool = True,
+        impl: str = None,
     ):
         super().__init__()
         self.semifield = semifield
@@ -39,6 +41,7 @@ class CompiledConv(nn.Module):
         self.thread_block_size = thread_block_size
         self.debug = debug
         self.to_extension = to_extension
+        self.impl = impl
 
     def forward(
         self,
@@ -76,11 +79,13 @@ class CompiledConv(nn.Module):
                 group_broadcasting,
                 kind,
             )
+            # noinspection PyProtectedMember
             self.op = self.semifield._compile(
                 self.meta,
                 thread_block_size=self.thread_block_size,
                 debug=self.debug,
                 to_extension=self.to_extension,
+                impl=self.impl,
             )
 
         res = self.op(img, kernel)
@@ -120,9 +125,10 @@ class CompiledConvFixedLazy(LazyModuleMixin, CompiledConvFixed):
     def __init__(
         self,
         semifield: _SemifieldCompiler,
-        thread_block_size: int = 256,
+        thread_block_size: int = None,
         debug: bool = False,
         to_extension: bool = True,
+        impl: str = None,
     ):
         super().__init__()
         self.semifield = semifield
@@ -132,6 +138,7 @@ class CompiledConvFixedLazy(LazyModuleMixin, CompiledConvFixed):
         self.thread_block_size = thread_block_size
         self.debug = debug
         self.to_extension = to_extension
+        self.impl = impl
 
     def initialize_parameters(
         self,
@@ -160,11 +167,13 @@ class CompiledConvFixedLazy(LazyModuleMixin, CompiledConvFixed):
             group_broadcasting,
             kind,
         )
+        # noinspection PyProtectedMember
         self.op = self.semifield._compile(
             self.meta,
             thread_block_size=self.thread_block_size,
             debug=self.debug,
             to_extension=self.to_extension,
+            impl=self.impl,
         )
         self.done = True
 

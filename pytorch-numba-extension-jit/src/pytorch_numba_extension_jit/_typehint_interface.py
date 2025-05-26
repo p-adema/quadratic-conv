@@ -277,6 +277,7 @@ def jit(
     cache_id: str = None,
     verbose: bool = False,
     threads_per_block: int | tuple[int, int] | tuple[int, int, int] = None,
+    max_registers: int = None,
 ) -> Callable[[Callable[..., None]], torch.library.CustomOpDef]:
     """
     Compile a Python function in the form of a Numba-CUDA kernel to a PyTorch operator
@@ -384,6 +385,13 @@ def jit(
     numba.cuda.jit : used instead to allow `to_extension=False`
     torch.utils.cpp_extension.load_inline : used to compile the PyTorch C++ extension
     """
+    if to_extension and max_registers is not None:
+        msg = (
+            "Numba-CUDA does not support passing max_registers "
+            "to normal compilation functions, only to cuda.jit"
+            "\n(can't pass both to_extension=True and max_registers!=None)"
+        )
+        raise ValueError(msg)
 
     n_threads, threads_per_block = _standardise_thread_args(
         n_threads, threads_per_block
@@ -432,6 +440,11 @@ def jit(
                 **compile_kwargs,
             )
 
-        return compile_array_api(pyfunc, kernel_params=kernel_params, **compile_kwargs)
+        return compile_array_api(
+            pyfunc,
+            kernel_params=kernel_params,
+            max_registers=max_registers,
+            **compile_kwargs,
+        )
 
     return decorator

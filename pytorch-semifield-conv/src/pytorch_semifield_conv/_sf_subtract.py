@@ -2,7 +2,7 @@ import math
 import warnings
 from collections.abc import Callable
 from functools import lru_cache
-from typing import NamedTuple, Self
+from typing import Literal, NamedTuple, Self
 
 import numba
 import pytorch_numba_extension_jit as pnex
@@ -93,7 +93,7 @@ class SubtractSemifield(NamedTuple):
 
     >>> root = SubtractSemifield.root(3.0).lazy_fixed()
 
-    For examples of how to construct a `SubtractSemifield` manually, see the source code.
+    For examples of how to construct a `SubtractSemifield`, see the source code.
     """
 
     add: Callable[[float, float], float]  # (acc, val) -> acc (+) val
@@ -171,7 +171,7 @@ class SubtractSemifield(NamedTuple):
         Parameters
         ----------
         mu : int
-            The base to use in \(\oplus_mu\).
+            The base to use in \(\oplus_\mu\).
             May not be zero.
         """
         assert mu != 0, f"Invalid value: {mu=}"
@@ -198,10 +198,18 @@ class SubtractSemifield(NamedTuple):
         thread_block_size: int = 256,
         debug: bool = False,
         to_extension: bool = True,
+        impl: Literal["glb"] = None,
     ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
-        cmp_semi = _CompiledSubtractSemifield.compile(self)
+        if impl is None:
+            impl = "glb"
+        else:
+            if impl not in ("glb",):
+                raise ValueError(f"Unknown {impl=}")
 
-        forwards = _compile_forwards(
+        cmp_semi = _CompiledSubtractSemifield.compile(self)
+        impls = {"glb": _compile_forwards}
+
+        forwards = impls[impl](
             semifield=cmp_semi,
             meta=meta,
             thread_block_size=thread_block_size,
