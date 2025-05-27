@@ -584,7 +584,7 @@ The format of graphs in this chapter is such that all results are grouped per ke
 \section{K-MNIST and Fashion-MNIST}
 Examining Fig. \ref{fig:res-small}, we can see that swapping the standard pooling layer for a dilation consistently improves performance for a LeNet-5 on K-MNIST. Anisotropic kernels outperform isotropic kernels, with both methods for initialisation attaining similar peak results for $11\times11$ kernels and somewhat differing results for the other kernel sizes.
 
-However, the situation changes considerably when we examine model performance on Fashion-MNIST. Here, the standard max-poolings consistently outperform dilations, with only a $3\times3$ orientation-space anisotropic kernel approaching the performance of a standard max-pooling. These results are consistent across runs, but the cause is unclear. Two possible explanations are that a larger model would be required to effectively use dilation-based poolings and/or that the images from Fashion-MNIST are poorly suited for dilations. 
+However, the situation changes considerably when we examine model performance on Fashion-MNIST. Here, the standard max-poolings consistently outperform dilations, with only small orientation-space anisotropic kernels approaching the performance of a standard max-pooling. These results are consistent across runs, but the cause is unclear. Two possible explanations are that a larger model would be required to effectively use dilation-based poolings and/or that the images from Fashion-MNIST are poorly suited for dilations. 
 
 Notably, all pooling types remain better than subsampling ($1\times1$ pooling).
 
@@ -627,12 +627,12 @@ Aside from the primary set of experiments, we can also examine the effects of us
 while grouped convolutions also slightly decrease performance. Neither option appears to be a promising avenue for improvement, though more rigorous exploration of parameter combinations may show a different result.
 
 \section{Training speed}
-Though the execution speed and efficiency of the pooling layers is primarily discussed in the Extension report \cite{extension}, we can see in Fig. \ref{fig:res-timings} that the difference in training times (not including one-off compilation and model tracing times) between a standard max-pooling and a dilation is relatively minor. Depending on the use case, the additional increase in performance may, therefore, be worthwhile.
-\comment{(These timings are outdated, and the final results will be faster)}
+Though the execution speed and efficiency of the pooling layers is primarily discussed in the Extension report \cite{extension}, we can see in Fig. \ref{fig:res-timings} that the difference in training times (excluding one-off compilation and model tracing times) between a standard max-pooling and a dilation is relatively minor for small kernels, and that the Extension implementation can even be faster for e.g. $5\times5$ kernels. This performance is greatly improved over previous reports \cite{groenendijk2022morphpool, thierrybsc}.
+
 \begin{figure}[ht!]
 	\center
   \includegraphics[width=1\textwidth]{figures/timings.png}
-  \caption{Seconds per model trained for Fashion-MNIST and SVHN datasets}
+  \caption{Seconds per model trained for Fashion-MNIST and \comment{SVHN}\ datasets}
   \label{fig:res-timings}
 \end{figure}
 \chapter{Conclusions}
@@ -801,8 +801,7 @@ We can then keep the covariance matrix in its Cholesky decomposed form, using a 
 %	l_{21}^2 + l_{22}^2 &= \sigma_2^2 \textrm{, so}\\
 	l_{22} &= \sqrt{\sigma_2^2 - \sigma_2\rho} = \sqrt{\exp(2\theta_2)-\exp(\theta_2)\tanh(\theta_3)}
 \end{align}
-which is then a valid parameterisation for the Cholesky decomposed form for a $2\times 2$ positive definite matrix\footnote{To extend this parameterisation for higher dimensions, see the  Cholesky-Banachiewicz algorithm for the Cholesky decomposition}. If we keep the covariance matrix in this triangular form, we can see that the quadratic form can be calculated in an efficient manner:
-
+which is then a valid parameterisation for the Cholesky decomposed form for a $2\times 2$ positive definite matrix. If we keep the covariance matrix in this triangular form, we can see that the quadratic form can be calculated in an efficient manner:
 (based on the PyTorch code for the multivariate normal PDF)
 \begin{align}
 	\mathbf{x}^T\Sigma^{-1}\mathbf{x}
@@ -816,12 +815,14 @@ which is then a valid parameterisation for the Cholesky decomposed form for a $2
 	\mathbf{b}&= \textsc{solve-triangular}(L, \mathbf{x})\\
 	\mathbf{x}^T\Sigma^{-1}\mathbf{x} &= \mathbf{b}\cdot\mathbf{b}
 \end{align}
-where $\textsc{solve-triangular}$ performs efficient backsubstitution to avoid computing the inverse. This method is significantly (>5x) faster on the CPU it was tested on while still showing modest performance improvements on the GPU\footnote{In eager mode, i.e.\ without \lstinline{torch.compile} or CUDA-graphs enabled. When using CUDA-graphs, the performance difference is negligible (as allocation overhead disappears).} it was tested on ($\sim 10\%$). However, interpretation of the Pearson correlation coefficient may be more challenging compared to interpreting the angular offset of the first primary axis, and when properly compiled/captured using CUDA-graphs the performance difference vanishes, so it was chosen to instead parameterise $\Sigma$ with the angle $\phi$.
+where $\textsc{solve-triangular}$ performs efficient backsubstitution to avoid computing the inverse. This method is significantly (>5x) faster on the CPU it was tested on while still showing modest performance improvements on the GPU it was tested on ($\sim 10\%$). However, interpretation of the Pearson correlation coefficient may be more challenging compared to interpreting the angular offset of the first primary axis. Furthermore, the measured performance difference vanishes when code is properly compiled/captured using CUDA-Graphs, so it was chosen to instead parameterise $\Sigma$ with an angle $\phi$, as described in Sec. \ref{sec:learning-pdm}.
+
+A potential reason to prefer the parameterisation described in this section for future research would be that, using the Cholesky-Banachiewicz algorithm for the Cholesky decomposition, it can be easily generalised to three or more dimensions. This would enable parameterising quadratic kernels for 3D convolutions, required for e.g. medical imaging data. A generalised 3D version of Sec. \ref{sec:learning-pdm} could also be used, but might not necessarily be more interpretable.
 
 \newpage
 \section{Hyperparameter tuning }
 \label{sec:hyperparameters}
-To determine an appropriate learning rate and epoch count for training the models, a validation split was made for each dataset from the training data. 70\% of the training data was marked for training models for the tuning process, while the remaining 30\% would be used to select the best learning rate and epoch count.
+To determine an appropriate learning rate and epoch count for training the models, a validation split was made for each dataset from the training data. 70\% of the training data was marked for training models in the tuning process, while the remaining 30\% would be used to select the best learning rate and epoch count.
 In Fig. \ref{fig:tuning}, we can see the results, showing that a learning rate around 0.003 or 0.004 is typically best, with the number of epochs required for training varying greatly based on the complexity of the dataset and task. 
 
 For convenience, Table \ref{table:hyperparameters} is repeated here and shows the selected values:

@@ -8,10 +8,7 @@ sys.path.extend(".")
 
 from src import load_data
 from src.models import LeNet
-from src.models.configurations.simple_lenet import (
-    group_configs,
-    standard_configs,
-)
+from src.models.configurations.simple_lenet import standard_configs
 
 fashion = load_data.fashion_mnist()
 
