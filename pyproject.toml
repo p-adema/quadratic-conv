@@ -52,5 +52,6 @@ reinstall-package = ["pytorch-numba-extension-jit", "pytorch-semifield-conv"]
 dev = [
     "hatchling>=1.27.0",
     "ruff>=0.11.8",
-    "morphological_torch ; sys_platform == 'linux' and platform_machine == 'x86_64'"
+    "morphological_torch ; sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "pyrefly>=0.17.0",
 ]

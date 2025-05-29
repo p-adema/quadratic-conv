@@ -1,8 +1,8 @@
 import math
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import lru_cache
-from typing import Literal, NamedTuple, Self
+from typing import Any, NamedTuple, Self
 
 import numba
 import pytorch_numba_extension_jit as pnex
@@ -49,9 +49,9 @@ class SubtractSemifield(NamedTuple):
     zero : float
         The semifield zero.
     cache_name : str, optional
-        Identifier for this semifield, allows for compilations to be cached.
+        Identifier for this semifield, allows for extension compilations to be cached.
 
-        Instances of `SelectSemifield` that are meaningfully different should not have
+        Instances of `SubtractSemifield` that are meaningfully different should not have
         the same `cache_name`, as this may lead to the wrong compilation being used.
 
     Other Parameters
@@ -104,7 +104,7 @@ class SubtractSemifield(NamedTuple):
     subtract: Callable[[float, float], float]
     # d(acc (+) val) / dval
     d_add_d_right: Callable[[float, float], float]
-    neutral: float
+    zero: float
     cache_name: str = None  # Cache identifier: distinct for different operators
 
     post_sum: Callable[[float], float] = None  # (final_acc) -> res
@@ -121,7 +121,7 @@ class SubtractSemifield(NamedTuple):
             d_times_d_kernel=lambda img_val, _k: img_val,
             subtract=lambda res, val: res - val,
             d_add_d_right=lambda _a, _v: 1,
-            neutral=0,
+            zero=0,
             cache_name="_linear",
         )
 
@@ -146,7 +146,7 @@ class SubtractSemifield(NamedTuple):
             times=lambda img_val, kernel_val: (img_val * kernel_val) ** p,
             add=lambda acc, val: (acc + val),
             post_sum=lambda acc: acc ** (1 / p),
-            neutral=0,
+            zero=0,
             cache_name=f"_root_{cls._number_to_cache(p)}",
             undo_post_sum=lambda res: res**p,
             subtract=lambda acc, val: acc - val,
@@ -179,7 +179,7 @@ class SubtractSemifield(NamedTuple):
             times=lambda img_val, kernel_val: math.exp((img_val + kernel_val) * mu),
             add=lambda acc, val: (acc + val),
             post_sum=lambda acc: math.log(acc) / mu,
-            neutral=0,
+            zero=0,
             cache_name=f"_log_{cls._number_to_cache(mu)}",
             d_times_d_img=lambda a, b: mu * math.exp((a + b) * mu),
             d_times_d_kernel=lambda a, b: mu * math.exp((a + b) * mu),
@@ -195,16 +195,11 @@ class SubtractSemifield(NamedTuple):
     def _compile(
         self,
         meta: ConvMeta,
-        thread_block_size: int = 256,
-        debug: bool = False,
-        to_extension: bool = True,
-        impl: Literal["glb"] = None,
+        compile_options: Mapping[str, Any],
     ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
-        if impl is None:
-            impl = "glb"
-        else:
-            if impl not in ("glb",):
-                raise ValueError(f"Unknown {impl=}")
+        impl = compile_options.get("impl", "glb")
+        if impl not in ("glb",):
+            raise ValueError(f"Unknown {impl=}")
 
         cmp_semi = _CompiledSubtractSemifield.compile(self)
         impls = {"glb": _compile_forwards}
@@ -212,18 +207,18 @@ class SubtractSemifield(NamedTuple):
         forwards = impls[impl](
             semifield=cmp_semi,
             meta=meta,
-            thread_block_size=thread_block_size,
-            debug=debug,
+            thread_block_size=compile_options.get("thread_block_size"),
+            debug=compile_options.get("debug", False),
             cache_name="_temporary" if self.cache_name is None else self.cache_name,
-            to_extension=to_extension,
+            to_extension=compile_options.get("to_extension", False),
         )
         backwards, backwards_setup = _compile_backwards(
             semifield=cmp_semi,
             meta=meta,
-            thread_block_size=thread_block_size,
-            debug=debug,
+            thread_block_size=compile_options.get("thread_block_size"),
+            debug=compile_options.get("debug", False),
             cache_name="_temporary" if self.cache_name is None else self.cache_name,
-            to_extension=to_extension,
+            to_extension=compile_options.get("to_extension", False),
         )
         forwards.register_autograd(backwards, setup_context=backwards_setup)
 
@@ -238,14 +233,14 @@ class SubtractSemifield(NamedTuple):
         """
         Create a *recompiling* convolution Module based on this `SubtractSemifield`.
 
-
         Parameters
         ----------
         thread_block_size : int = 256
             The number of threads per CUDA block
         to_extension : bool = True
             Whether the resulting module should compile to a PyTorch extension.
-            Doing so increases compilation times, but reduces per-call overhead.
+            Doing so increases compilation times, but reduces per-call overhead
+            when not using CUDA-Graphs.
         debug : bool = False
             Whether to print additional debugging and compilation information.
 
@@ -256,7 +251,14 @@ class SubtractSemifield(NamedTuple):
             Note that the compilation process is not traceable, and recompilations
             **may cause errors when using `torch.compile`**.
         """
-        return CompiledConv(self, thread_block_size, debug, to_extension)
+        return CompiledConv(
+            self,
+            {
+                "thread_block_size": thread_block_size,
+                "debug": debug,
+                "to_extension": to_extension,
+            },
+        )
 
     def lazy_fixed(
         self,
@@ -273,7 +275,8 @@ class SubtractSemifield(NamedTuple):
             The number of threads per CUDA block
         to_extension : bool = True
             Whether the resulting module should compile to a PyTorch extension.
-            Doing so increases compilation times, but reduces per-call overhead.
+            Doing so increases compilation times, but reduces per-call overhead
+            when not using CUDA-Graphs.
         debug : bool = False
             Whether to print additional debugging and compilation information.
 
@@ -285,7 +288,14 @@ class SubtractSemifield(NamedTuple):
             the operation will be fixed: **only batch size may be changed afterwards**.
             The module is, however, traceable by e.g. `torch.compile`.
         """
-        return CompiledConvFixedLazy(self, thread_block_size, debug, to_extension)
+        return CompiledConvFixedLazy(
+            self,
+            {
+                "thread_block_size": thread_block_size,
+                "debug": debug,
+                "to_extension": to_extension,
+            },
+        )
 
     def __hash__(self):
         if self.cache_name is not None:
@@ -299,7 +309,7 @@ class SubtractSemifield(NamedTuple):
                 self.d_times_d_kernel,
                 self.subtract,
                 self.d_add_d_right,
-                self.neutral,
+                self.zero,
             )
         )
 
@@ -327,7 +337,7 @@ class _CompiledSubtractSemifield(NamedTuple):
     d_times_d_kernel: CUDADispatcher
     subtract: CUDADispatcher
     d_add_d_right: CUDADispatcher
-    neutral: float
+    zero: float
 
     # Optional:
     post_sum: CUDADispatcher
@@ -356,7 +366,7 @@ class _CompiledSubtractSemifield(NamedTuple):
             ),
             cuda.jit(semifield.subtract, device=True, inline="always", cache=True),
             cuda.jit(semifield.d_add_d_right, device=True, inline="always", cache=True),
-            semifield.neutral,
+            semifield.zero,
             cuda.jit(post_sum, device=True, inline="always", cache=True),
             cuda.jit(undo_post, device=True, inline="always", cache=True),
             cuda.jit(post_bwd, device=True, inline="always", cache=True),
@@ -393,7 +403,7 @@ def _compile_forwards(
         i_top_y = o_y * meta.str_y - meta.pad_y_beg
         i_left_x = o_x * meta.str_x - meta.pad_x_beg
 
-        acc = semifield.neutral
+        acc = semifield.zero
 
         group_number = o_c // meta.grp_o
         # If we're not broadcasting, then we have a separate kernel

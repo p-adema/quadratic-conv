@@ -1,8 +1,8 @@
 import math
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import lru_cache
-from typing import Literal, NamedTuple, Self
+from typing import Any, Literal, NamedTuple, Self
 
 import numba
 import numpy as np
@@ -44,7 +44,7 @@ class SelectSemifield(NamedTuple):
     zero : float
         The semifield zero.
     cache_name : str, optional
-        Identifier for this semifield, allows for compilations to be cached.
+        Identifier for this semifield, allows for extension compilations to be cached.
 
         Instances of `SelectSemifield` that are meaningfully different should not have
         the same `cache_name`, as this may lead to the wrong compilation being used.
@@ -106,16 +106,11 @@ class SelectSemifield(NamedTuple):
     def _compile(
         self,
         meta: ConvMeta,
-        thread_block_size: int = None,
-        debug: bool = False,
-        to_extension: bool = True,
-        impl: Literal["glb"] = None,
+        compile_options: Mapping[str, Any],
     ) -> Callable[[torch.Tensor, torch.Tensor], tuple[torch.Tensor, torch.Tensor]]:
-        if impl is None:
-            impl = "glb"
-        else:
-            if impl not in ("glb",):
-                raise ValueError(f"Unknown {impl=}")
+        impl = compile_options.get("impl", "glb")
+        if impl not in ("glb",):
+            raise ValueError(f"Unknown {impl=}")
 
         prov_t = _ProvType.smallest_required(meta)
         cmp_semi = _CompiledSelectSemifield.compile(self)
@@ -127,19 +122,20 @@ class SelectSemifield(NamedTuple):
             semifield=cmp_semi,
             meta=meta,
             prov_t=prov_t,
-            thread_block_size=thread_block_size,
-            debug=debug,
+            thread_block_size=compile_options.get("thread_block_size"),
+            debug=compile_options.get("debug", False),
             cache_name="_temporary" if self.cache_name is None else self.cache_name,
-            to_extension=to_extension,
+            to_extension=compile_options.get("to_extension", False),
         )
         backwards, backwards_setup = _compile_backwards(
             semifield=cmp_semi,
             meta=meta,
             prov_t=prov_t,
-            thread_block_size=thread_block_size,
-            debug=debug,
+            thread_block_size=compile_options.get("thread_block_size"),
+            debug=compile_options.get("debug", False),
             cache_name="_temporary" if self.cache_name is None else self.cache_name,
-            to_extension=to_extension,
+            to_extension=compile_options.get("to_extension", False),
+            kernel_inflation=compile_options.get("kernel_inflation", 16),
         )
         forwards.register_autograd(backwards, setup_context=backwards_setup)
 
@@ -151,6 +147,7 @@ class SelectSemifield(NamedTuple):
         to_extension: bool = True,
         debug: bool = False,
         impl: Literal["glb"] = "glb",
+        kernel_inflation: int = 16,
     ) -> torch.nn.Module:
         """
         Create a *recompiling* convolution Module based on this `SelectSemifield`.
@@ -162,7 +159,8 @@ class SelectSemifield(NamedTuple):
             Defaults to 128 for the standard (``"glb"``) implementation.
         to_extension : bool = True
             Whether the resulting module should compile to a PyTorch extension.
-            Doing so increases compilation times, but reduces per-call overhead.
+            Doing so increases compilation times, but reduces per-call overhead
+            when not using CUDA-Graphs.
         debug : bool = False
             Whether to print additional debugging and compilation information.
         impl : "glb", optional
@@ -176,7 +174,16 @@ class SelectSemifield(NamedTuple):
             Note that the compilation process is not traceable, and recompilations
             **may cause errors when using `torch.compile`**.
         """
-        return CompiledConv(self, thread_block_size, debug, to_extension, impl)
+        return CompiledConv(
+            self,
+            {
+                "thread_block_size": thread_block_size,
+                "debug": debug,
+                "to_extension": to_extension,
+                "impl": impl,
+                "kernel_inflation": kernel_inflation,
+            },
+        )
 
     def lazy_fixed(
         self,
@@ -184,6 +191,7 @@ class SelectSemifield(NamedTuple):
         debug: bool = False,
         to_extension: bool = True,
         impl: Literal["glb"] = "glb",
+        kernel_inflation: int = 16,
     ) -> torch.nn.Module:
         """
         Create a *once-compiling* convolution Module based on this `SelectSemifield`.
@@ -195,7 +203,8 @@ class SelectSemifield(NamedTuple):
             Defaults to 128 for the standard (``"glb"``) implementation
         to_extension : bool = True
             Whether the resulting module should compile to a PyTorch extension.
-            Doing so increases compilation times, but reduces per-call overhead.
+            Doing so increases compilation times, but reduces per-call overhead
+            when not using CUDA-Graphs.
         debug : bool = False
             Whether to print additional debugging and compilation information.
         impl : "glb", optional
@@ -210,7 +219,16 @@ class SelectSemifield(NamedTuple):
             the operation will be fixed: **only batch size may be changed afterwards**.
             The module is, however, traceable by e.g. `torch.compile`.
         """
-        return CompiledConvFixedLazy(self, thread_block_size, debug, to_extension, impl)
+        return CompiledConvFixedLazy(
+            self,
+            {
+                "thread_block_size": thread_block_size,
+                "debug": debug,
+                "to_extension": to_extension,
+                "impl": impl,
+                "kernel_inflation": kernel_inflation,
+            },
+        )
 
     def __hash__(self):
         if self.cache_name is not None:
@@ -388,6 +406,7 @@ def _compile_backwards(
     debug: bool = False,
     cache_name: str = "",
     to_extension: bool = True,
+    kernel_inflation: int = 16,
 ):
     if thread_block_size is None:
         thread_block_size = 128
@@ -429,7 +448,7 @@ def _compile_backwards(
                 meta.krn_cs,
                 meta.krn_ys,
                 meta.krn_xs,
-                16,
+                kernel_inflation,
             ),
             # "kernel",
             init=0,

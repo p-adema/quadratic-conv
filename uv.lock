@@ -1968,6 +1968,22 @@ wheels = [
 ]
 
 [[package]]
+name = "pyrefly"
+version = "0.17.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/24/15/2e2d770810d6a24d0952d1bbf83958130917524e03e6da1f0bc62d373660/pyrefly-0.17.0.tar.gz", hash = "sha256:dc3271269731a173174f317e73011d95735143a626dcd8c22e82f527c8480e12", size = 975597 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f7/af/866f85b47287d4e89c6f0d3e258a1853cc0ddfc3fcb0ca7457ce8856788b/pyrefly-0.17.0-py3-none-macosx_10_12_x86_64.whl", hash = "sha256:8e58c85564020ff7d286414bb6834110688cd345ef2ca52455e2b2b9dcc945ac", size = 5493820 },
+    { url = "https://files.pythonhosted.org/packages/f3/ec/6b47f9991a62116fa850e6cace65a7cb4c0af3f97ede046e218dc4e41f33/pyrefly-0.17.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:570efd8c77aaf5206962ea925ebec4770b6b81c4707280159edc424cac410977", size = 5093136 },
+    { url = "https://files.pythonhosted.org/packages/41/3f/d7888bbdabf97cec81c16eddcaeb4e1c715978168fc84109d7406c3fb4de/pyrefly-0.17.0-py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:03a532b35687bd83c5f6bca220d96756dee4d18668da6bec426eb6d056e86a64", size = 5273327 },
+    { url = "https://files.pythonhosted.org/packages/85/46/319265995520de36b52472d8be90cb2ed639bbaecbbc91b2c25717853b26/pyrefly-0.17.0-py3-none-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:85af9067dff57b5cd5b2dad55e4cd4815382ce7e2f2b89a6aea8b668e22d768e", size = 5923999 },
+    { url = "https://files.pythonhosted.org/packages/3a/52/1d705ad3fba36f7b91cee13b1702076de0db9553ca6cd488a34131220939/pyrefly-0.17.0-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:459338ea37996ada78814a79d40403789b9154949ea462e812f42b726f1f08ff", size = 5689322 },
+    { url = "https://files.pythonhosted.org/packages/72/bf/89b1bbe2f907dff32a11ba48295e0fc7b51188166c768a042037dc3c0c24/pyrefly-0.17.0-py3-none-win32.whl", hash = "sha256:c01a5785d517b727dd36832ff6a418a91e3a902c9227f3f13e7b9172b3ec0529", size = 5136964 },
+    { url = "https://files.pythonhosted.org/packages/0d/cb/88709445aae67fb4ee9b62b471db79e2effe116e1e856d801e3a82ed0b78/pyrefly-0.17.0-py3-none-win_amd64.whl", hash = "sha256:4a96cb962453a89ee71c5cb0f8e513b02fa3111ce6e933ded6234a7b88a04318", size = 5524833 },
+    { url = "https://files.pythonhosted.org/packages/9b/a9/9bd3c2b9d2e3c72e239378cad2fe0ac05c01e348cd3091143469738ff077/pyrefly-0.17.0-py3-none-win_arm64.whl", hash = "sha256:b13d540da0a3c38c2dde6a92e37d3af6fde695795d5c9b02d34f319f05cdd7f2", size = 5184857 },
+]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -2233,6 +2249,7 @@ dependencies = [
 dev = [
     { name = "hatchling" },
     { name = "morphological-torch", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "pyrefly" },
     { name = "ruff" },
 ]
 
@@ -2262,6 +2279,7 @@ requires-dist = [
 dev = [
     { name = "hatchling", specifier = ">=1.27.0" },
     { name = "morphological-torch", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'", path = "replicate/parabolic_pooling_investigation/morphology_package/dist/morphological_torch-0.1.0-cp312-cp312-linux_x86_64.whl" },
+    { name = "pyrefly", specifier = ">=0.17.0" },
     { name = "ruff", specifier = ">=0.11.8" },
 ]
 

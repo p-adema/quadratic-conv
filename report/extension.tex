@@ -179,9 +179,9 @@ The main idea of using such a view is to adjust the strides (step sizes within t
 
 \noindent
 By applying a broadcasting version of $\otimes$ to the strided view and the convolutional kernels, we can obtain the intermediaries to be reduced.
-By applying the reduction operator along the window axis (axis 1 in Fig. \ref{fig:strides}), we can then efficiently calculate $\bigoplus$ for all cases where $\bigoplus$ and $\otimes$ can be expressed as one or more PyTorch operators.
+Subsequently, we can apply the reduction operator along the window axes (axis 1 in Fig. \ref{fig:strides}) to efficiently calculate $\bigoplus$ for all cases where $\bigoplus$ and $\otimes$ can be expressed as one or more PyTorch operators.
 
-However, this approach still has a major downside in terms of memory usage and cache locality: there is currently no method for fusing the $\otimes$ and $\bigoplus$ operations in PyTorch, and the intermediary results of $\otimes$ must therefore be manifested in their entirety. As a result, this method still suffers from greatly increased memory use but  (more importantly for the small-scale experiments in the main report) also accesses memory inefficiently. Since all results of $\otimes$ are stored an calculated before $\bigoplus$ begins, the initial results of $\otimes$ are flushed from the cache by the beginning of $\bigoplus$, causing further slowdowns from cache-misses.
+However, this approach still has a major downside in terms of memory usage and cache locality: there is currently no method for fusing the $\otimes$ and $\bigoplus$ operations in PyTorch, and the intermediary results of $\otimes$ must therefore be manifested in their entirety. As a result, this method still suffers from greatly increased memory use and also accesses memory inefficiently. Since all results of $\otimes$ are stored an calculated before $\bigoplus$ begins, the initial results of $\otimes$ are flushed from the cache by the beginning of $\bigoplus$, causing further slowdowns from cache-misses.
 
 In order to mitigate this, we must devise custom, fused kernels that combine $\otimes$ and $\bigoplus$ into a single operation. This, however, also requires calculating the derivative rules manually; the next two sections will discuss two such rulesets.
 

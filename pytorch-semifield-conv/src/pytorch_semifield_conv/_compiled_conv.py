@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any, Literal, Protocol, TypeVar
 
 import torch
@@ -16,32 +16,34 @@ class _SemifieldCompiler(Protocol):
     def _compile(
         self,
         meta: ConvMeta,
-        thread_block_size: int = None,
-        debug: bool = False,
-        to_extension: bool = True,
-        impl: str | None = None,
+        compile_options: Mapping[str, Any],
     ) -> Callable[[torch.Tensor, torch.Tensor], R]: ...
 
     def _get_result(self, val: R) -> torch.Tensor: ...
+
+
+class FrozenDict(dict):
+    def __setitem__(self, key, value):
+        raise TypeError("Dict is frozen!")
+
+    def __delitem__(self, key):
+        raise TypeError("Dict is frozen!")
+
+    def __hash__(self):
+        return hash(tuple(self.items()))
 
 
 class CompiledConv(nn.Module):
     def __init__(
         self,
         semifield: _SemifieldCompiler,
-        thread_block_size: int = None,
-        debug: bool = False,
-        to_extension: bool = True,
-        impl: str = None,
+        compile_options: dict[str, Any],
     ):
         super().__init__()
         self.semifield = semifield
         self.op: Callable[[torch.Tensor, torch.Tensor], Any] | None = None
         self.meta: ConvMeta | None = None
-        self.thread_block_size = thread_block_size
-        self.debug = debug
-        self.to_extension = to_extension
-        self.impl = impl
+        self.compile_options = FrozenDict(compile_options)
 
     def forward(
         self,
@@ -80,43 +82,43 @@ class CompiledConv(nn.Module):
                 kind,
             )
             # noinspection PyProtectedMember
-            self.op = self.semifield._compile(
-                self.meta,
-                thread_block_size=self.thread_block_size,
-                debug=self.debug,
-                to_extension=self.to_extension,
-                impl=self.impl,
-            )
+            self.op = self.semifield._compile(self.meta, self.compile_options)
 
         res = self.op(img, kernel)
         # noinspection PyProtectedMember
         return self.semifield._get_result(res)
+
+    def extra_repr(self) -> str:
+        return "uninitialised" if self.op is None else "initialised"
 
 
 class CompiledConvFixed(nn.Module):
     op: Callable[[torch.Tensor, torch.Tensor], Any] | None
     meta: ConvMeta | None
     semifield: _SemifieldCompiler
+    debug: bool = False
 
     def forward(
         self,
         imgs: torch.Tensor,
         kernel: torch.Tensor,
         *args,
-        debug: bool = False,
         **kwargs,
     ) -> torch.Tensor:
-        if debug:
+        if self.debug:
+            if self.op is None:
+                raise ValueError("Operator not initialised!")
             if not self.meta.check_matches(
                 tuple(imgs.shape), tuple(kernel.shape), *args, **kwargs
             ):
                 raise ValueError("Failed to match arguments!")
-            if self.op is None:
-                raise ValueError("Operator not initialised!")
 
         res = self.op(imgs, kernel)
         # noinspection PyProtectedMember
         return self.semifield._get_result(res)
+
+    def extra_repr(self) -> str:
+        return "INVALID" if self.op is None else "fixed"
 
 
 class CompiledConvFixedLazy(LazyModuleMixin, CompiledConvFixed):
@@ -125,20 +127,15 @@ class CompiledConvFixedLazy(LazyModuleMixin, CompiledConvFixed):
     def __init__(
         self,
         semifield: _SemifieldCompiler,
-        thread_block_size: int = None,
-        debug: bool = False,
-        to_extension: bool = True,
-        impl: str = None,
+        compile_options: dict[str, Any],
     ):
         super().__init__()
         self.semifield = semifield
         self.op = None
         self.meta = None
         self.done = False
-        self.thread_block_size = thread_block_size
-        self.debug = debug
-        self.to_extension = to_extension
-        self.impl = impl
+        self.compile_options = FrozenDict(compile_options)
+        self.debug = compile_options.get("debug", False)
 
     def initialize_parameters(
         self,
@@ -168,14 +165,11 @@ class CompiledConvFixedLazy(LazyModuleMixin, CompiledConvFixed):
             kind,
         )
         # noinspection PyProtectedMember
-        self.op = self.semifield._compile(
-            self.meta,
-            thread_block_size=self.thread_block_size,
-            debug=self.debug,
-            to_extension=self.to_extension,
-            impl=self.impl,
-        )
+        self.op = self.semifield._compile(self.meta, self.compile_options)
         self.done = True
 
     def has_uninitialized_params(self):
         return self.op is None
+
+    def extra_repr(self) -> str:
+        return "uninitialised" if self.op is None else "INVALID"

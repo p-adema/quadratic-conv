@@ -5,99 +5,82 @@ from typing import Literal
 import numpy as np
 import polars as pl
 import torch
-from pytorch_semifield_conv import BroadcastSemifield, GenericConv2D, LearnedKernel
+from pytorch_semifield_conv import (
+    BroadcastSemifield,
+    GenericConv2D,
+    LearnedKernel,
+    QuadraticKernelSpectral2D,
+)
 from tqdm import tqdm
 
 sys.path.extend(".")
 
 from src import load_data
 from src.models import LeNet
-from src.models.utils import make_pooling_function
-
-k_mnist = load_data.k_mnist()
 
 base_kwargs = {
+    "data": load_data.k_mnist(),
     "batch_size": 1024,
     "epochs": 30,
     "lr": 0.004,
     "count": 20,
     "progress_bar": True,
+    "pool_fn": "aniso-7",
+    "init": {"var": "ss-iso", "theta": "spin"},
 }
 
-# assert not Path("./.data/nonlinear_k_mnist.pq").exists(), "Move or delete old data"
-assert not Path("./.data/nonlinear_k_mnist_zoom.pq").exists(), "Move or delete old data"
+assert not Path("./.data/nonlinear_k_mnist.pq").exists(), "Move or delete old data"
 
 
-def make_convs(kind: str, p_or_mu: float):
-    semifield = (
-        BroadcastSemifield.log(p_or_mu)
-        if kind == "log"
-        else BroadcastSemifield.root(p_or_mu)
-    )
-    return (
-        GenericConv2D(
-            kernel=LearnedKernel(1, 20, 5),
-            conv=semifield.dynamic(),
-        ),
-        GenericConv2D(
-            kernel=LearnedKernel(20, 50, 5),
-            conv=semifield.dynamic(),
-        ),
-    )
+class ClipRootConv(torch.nn.Module):
+    def __init__(self, p: float):
+        super().__init__()
+        self.p = p
+        self.conv = BroadcastSemifield.root(p).dynamic()
+        self.bn = torch.nn.LazyBatchNorm2d()
+
+    def forward(self, img: torch.Tensor, kernel, *args, **kwargs):
+        img = img.clip(0.001)
+        kernel = kernel.clip(0.001)
+        out = self.conv(img, kernel, *args, **kwargs)
+        return self.bn(out)
 
 
-# result = {}
-
-# for param in tqdm(
-#     (0.8, 0.85, 0.9, 0.95, 1.0, 1.05, 1.1, 1.15, 1.2), desc="Param values"
-# ):
-#     for field_kind in ("log", "root"):
-#         result[f"aniso-7-{field_kind}-{param}"] = LeNet.fit_many(
-#             data=k_mnist,
-#             description=f"aniso-7-{field_kind}-{param}",
-#             pool_fn="aniso-7",
-#             init={"var": "ss-iso", "theta": "spin"},
-#             convs=make_convs(field_kind, param),
-#             **base_kwargs,
-#         ).scores
-#         result[f"standard-3-{field_kind}-{param}"] = LeNet.fit_many(
-#             data=k_mnist,
-#             description=f"standard-3-{field_kind}-{param}",
-#             pool_fn="standard-3",
-#             convs=make_convs(field_kind, param),
-#             **base_kwargs,
-#         ).scores
-#
-# pl.DataFrame(result).write_parquet("./.data/nonlinear_k_mnist.pq")
-
-base_kwargs = {
-    "batch_size": 1024,
-    "epochs": 30,
-    "lr": 0.004,
-    "count": 5,
-    "progress_bar": True,
-}
 result = {}
-tiny_delta = 0.0000000000000001
-for param in tqdm(
-    np.linspace(1 - tiny_delta, 1 + tiny_delta, num=5).tolist(),
-    desc="Param values",
-):
-    for field_kind in ("root", "log"):
-        result[f"aniso-7-{field_kind}-{param}"] = LeNet.fit_many(
-            data=k_mnist,
-            description=f"aniso-7-{field_kind}-{param}",
-            pool_fn="aniso-7",
-            init={"var": "ss-iso", "theta": "spin"},
-            convs=make_convs(field_kind, param),
-            **base_kwargs,
-        ).scores
-        result[f"standard-3-{field_kind}-{param}"] = LeNet.fit_many(
-            data=k_mnist,
-            description=f"standard-3-{field_kind}-{param}",
-            pool_fn="standard-3",
-            convs=make_convs(field_kind, param),
-            **base_kwargs,
-        ).scores
+param_space = np.logspace(-2, 2, 9).tolist()
+print("Parameters:", param_space)
 
-pl.DataFrame(result).write_parquet("./.data/nonlinear_k_mnist_zoom.pq")
+for param in tqdm(param_space, desc="Param values"):
+    # For log semifields, we use a quadratic kernel (like with dilations)
+    result[f"aniso-7-log-{param}"] = LeNet.fit_many(
+        description=f"aniso-7-log-{param}",
+        convs=(
+            GenericConv2D(
+                kernel=QuadraticKernelSpectral2D(1, 20, 5),
+                conv=BroadcastSemifield.log(param).dynamic(),
+            ),
+            GenericConv2D(
+                kernel=QuadraticKernelSpectral2D(20, 50, 5),
+                conv=BroadcastSemifield.log(param).dynamic(),
+            ),
+        ),
+        **base_kwargs,
+    ).scores
+    # For root semifields, we use a modified convolution that clips and batch-norms,
+    # but keep the kernel entirely learned.
+    result[f"aniso-7-root-{param}"] = LeNet.fit_many(
+        description=f"aniso-7-root-{param}",
+        convs=(
+            GenericConv2D(
+                kernel=LearnedKernel(1, 20, 5),
+                conv=ClipRootConv(param),
+            ),
+            GenericConv2D(
+                kernel=LearnedKernel(20, 50, 5),
+                conv=ClipRootConv(param),
+            ),
+        ),
+        **base_kwargs,
+    ).scores
+
+pl.DataFrame(result).write_parquet("./.data/nonlinear_k_mnist.pq")
