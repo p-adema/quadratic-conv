@@ -493,7 +493,7 @@ def _compile_backwards(
         img_val = img[b, i_prov_c, i_prov_y, i_prov_x]
 
         d_kernel = semifield.d_times_d_kernel(img_val, kernel_val) * grad_val
-        inflate_pos = idx % 16
+        inflate_pos = idx % kernel_inflation
         cuda.atomic.add(
             out_kernel_grad,
             (k_o, prov_group_idx, k_prov_y, k_prov_x, inflate_pos),
