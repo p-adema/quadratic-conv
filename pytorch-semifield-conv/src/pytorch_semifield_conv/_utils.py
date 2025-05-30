@@ -36,9 +36,9 @@ class TorchLinearConv2D(nn.Module):
         if kind == "conv":
             kernel = kernel.flip((2, 3))
 
-        dil_y, dil_x = as_tup2(dilation)
+        dilation = as_tup_n(dilation, 2)
         (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
-            padding, dil_x, dil_y, kernel.shape[2], kernel.shape[3]
+            padding, 2, dilation, kernel.shape[2:]
         )
 
         if pad_y_beg != pad_y_end or pad_x_beg != pad_x_end:
@@ -88,10 +88,10 @@ class TorchMaxPool2D(nn.Module):
         self,
         img: torch.Tensor,
     ):
-        dil_y, dil_x = as_tup2(self.dilation)
-        krn_y, krn_x = as_tup2(self.kernel_size)
+        dilation = as_tup_n(self.dilation, 2)
+        krn_spatial = as_tup_n(self.kernel_size, 2)
         (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
-            self.padding, dil_x, dil_y, krn_y, krn_x
+            self.padding, 2, dilation, krn_spatial
         )
 
         if pad_y_beg == pad_y_end and pad_x_beg == pad_x_end:
@@ -106,34 +106,28 @@ class TorchMaxPool2D(nn.Module):
 
         return torch.nn.functional.max_pool2d(
             input=img,
-            kernel_size=(krn_y, krn_x),
+            kernel_size=krn_spatial,
             stride=self.stride,
             padding=use_padding,
-            dilation=(dil_y, dil_x),
+            dilation=dilation,
             ceil_mode=False,
             return_indices=False,
         )
 
 
 class ConvMeta(NamedTuple):
+    ndim: int  # Number of spatial dimensions
     img_cs: int  # Image channels
-    img_ys: int  # Image y-size
-    img_xs: int  # Image x-size
+    img_spatial: tuple[int, ...]  # Image ...Z/Y/X
     krn_os: int  # Kernel output channels
     krn_cs: int  # Kernel input channels (== grp_i)
-    krn_ys: int  # Kernel y-size
-    krn_xs: int  # Kernel x-size
+    krn_spatial: tuple[int, ...]  # Kernel ...Z/Y/X
     out_cs: int  # Output image channels. Equal to krn_os, except when group broacasting
-    out_ys: int  # Output image y-size
-    out_xs: int  # Output image x-size
-    str_y: int  # Stride in y-direction
-    str_x: int  # Stride in x-direction
-    pad_y_beg: int  # Padding at the start of y-axis
-    pad_y_end: int  # Padding at the end of y-axis
-    pad_x_beg: int  # Padding at the start of x-axis
-    pad_x_end: int  # Padding at the end of x-axis
-    dil_y: int  # Dilation in y-direction
-    dil_x: int  # Dilation in x-direction
+    out_spatial: tuple[int, ...]  # Output ...Z/Y/X
+    stride: tuple[int, ...]  # Stride ...Z/Y/X
+    pad_begs: tuple[int, ...]  # Pad beginning ...Z/Y/X
+    pad_ends: tuple[int, ...]  # Pad beginning ...Z/Y/X
+    dilation: tuple[int, ...]  # Dilation ...Z/Y/X
     groups: int  # Number of convolutional groups
     grp_i: int  # Size of a convolutional group in input channels (== krn_cs)
     grp_o: int  # Size of a convolutional group in kernel output channels
@@ -145,40 +139,48 @@ class ConvMeta(NamedTuple):
         cls,
         img_shape: tuple[int, ...],
         kernel_shape: tuple[int, ...],
-        stride: int | tuple[int, int] = 1,
+        stride: int | tuple[int, ...] = 1,
         padding: (
             int
-            | tuple[int, int]
-            | tuple[tuple[int, int], tuple[int, int]]
+            | tuple[int, ...]
+            | tuple[tuple[int, int], ...]
             | Literal["valid", "same"]
         ) = 0,
-        dilation: int | tuple[int, int] = 1,
+        dilation: int | tuple[int, ...] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",
     ) -> Self:
-        str_y, str_x = as_tup2(stride)
-        dil_y, dil_x = as_tup2(dilation)
+        assert len(img_shape) == len(kernel_shape), (
+            f"{img_shape=} but {kernel_shape=}: For an ND convolution,"
+            f" the image and kernel must have the same number of axes.\n"
+            f"The first two axes of img_shape must be Batch and Channels, while"
+            f"the first two axes of kernel_shape must be Out and In.\n"
+            f"After these initial two axes come the spatial axes in order ...Z, Y, X."
+        )
+        assert len(img_shape) > 2, (
+            "An image in an ND-convolution must have Batch and Channel axes, as well as"
+            "at least one spatial axis (so at least three axes in total)."
+        )
+        ndim = len(img_shape) - 2
+        stride = as_tup_n(stride, ndim)
+        dilation = as_tup_n(dilation, ndim)
 
         # === Check params
-        assert str_y > 0, f"{str_y=} must be positive"
-        assert str_x > 0, f"{str_x=} must be positive"
-        assert dil_x > 0, f"{dil_x=} must be positive"
-        assert dil_y > 0, f"{dil_y=} must be positive"
+        assert all(s > 0 for s in stride), f"{stride=} must be positive"
+        assert all(d > 0 for d in dilation), f"{dilation=} must be positive"
         assert groups > 0, f"{groups=} must be positive"
         assert kind in ("conv", "corr"), f"Invalid {kind=}"
-        # Negative padding is strange, but not a logic error.
+        # Negative padding is strange, but not necessarily a logic error.
 
         # === Check imgs
-        assert len(img_shape) == 4, f"{img_shape=} needs to be BCHW"
-        assert all(s > 0 for s in img_shape), f"Invalid {img_shape=}"
-        img_bs, img_cs, img_ys, img_xs = img_shape
+        assert all(s > 0 for s in img_shape), f"Nonpositive? {img_shape=}"
+        img_bs, img_cs, *img_spatial = img_shape
         assert img_cs % groups == 0, f"{img_cs=} not a multiple of {groups=}"
         grp_i = img_cs // groups
         # === Check kernels
-        assert len(kernel_shape) == 4, f"{kernel_shape=} needs to be OIHW"
-        assert all(s > 0 for s in kernel_shape), f"Invalid {kernel_shape=}"
-        krn_os, krn_cs, krn_ys, krn_xs = kernel_shape
+        assert all(s > 0 for s in kernel_shape), f"Nonpositive? {kernel_shape=}"
+        krn_os, krn_cs, *krn_spatial = kernel_shape
         assert krn_cs == grp_i, f"Groups: {krn_cs=} != {grp_i=}"
         if not group_broadcasting:
             # If we *are* group-broadcasting, then we effectively multiply
@@ -188,42 +190,38 @@ class ConvMeta(NamedTuple):
         else:
             grp_o = krn_os
 
-        (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
-            padding, dil_x, dil_y, krn_ys, krn_xs
+        padding = get_padding(padding, ndim, dilation, krn_spatial)
+        out_spatial = tuple(
+            output_size(i, k, s, pb, pe, d)
+            for i, k, s, (pb, pe), d in zip(
+                img_spatial, krn_spatial, stride, padding, dilation, strict=True
+            )
         )
-
-        out_xs = output_size(img_xs, krn_xs, str_x, pad_x_beg, pad_x_end, dil_x)
-        out_ys = output_size(img_ys, krn_ys, str_y, pad_y_beg, pad_y_end, dil_y)
+        assert all(o > 0 for o in out_spatial), f"Output image collapsed: {out_spatial}"
 
         out_cs = krn_os if not group_broadcasting else krn_os * groups
-        assert out_xs > 0, f"Output image collapsed in x-direction: {out_xs=}"
-        assert out_ys > 0, f"Output image collapsed in y-direction: {out_ys=}"
-        shape = cls(
+
+        # We need to do explicit conversions, because otherwise the FakeTensor Symints
+        # will bleed through and crash the Numba compiler
+        return cls(
+            ndim=int(ndim),
             img_cs=int(img_cs),
-            img_ys=int(img_ys),
-            img_xs=int(img_xs),
+            img_spatial=tuple(map(int, img_spatial)),
             krn_os=int(krn_os),
             krn_cs=int(krn_cs),
-            krn_ys=int(krn_ys),
-            krn_xs=int(krn_xs),
+            krn_spatial=tuple(map(int, krn_spatial)),
             out_cs=int(out_cs),
-            out_ys=int(out_ys),
-            out_xs=int(out_xs),
-            str_x=int(str_x),
-            str_y=int(str_y),
-            pad_y_beg=int(pad_y_beg),
-            pad_y_end=int(pad_y_end),
-            pad_x_beg=int(pad_x_beg),
-            pad_x_end=int(pad_x_end),
-            dil_y=int(dil_y),
-            dil_x=int(dil_x),
+            out_spatial=tuple(map(int, out_spatial)),
+            stride=tuple(map(int, stride)),
+            pad_begs=tuple(int(b) for b, _ in padding),
+            pad_ends=tuple(int(e) for _, e in padding),
+            dilation=tuple(map(int, dilation)),
             groups=int(groups),
             grp_i=int(grp_i),
             grp_o=int(grp_o),
             group_broadcasting=bool(group_broadcasting),
             mirror_kernel=bool(kind == "conv"),
         )
-        return shape
 
     def check_matches(
         self,
@@ -241,64 +239,68 @@ class ConvMeta(NamedTuple):
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",
     ):
-        assert len(img_shape) == 4, "Image shape is not BCHW?"
-        assert len(kernel_shape) == 4, "Kernel shape is not OIHW?"
+        assert len(img_shape) == len(kernel_shape), (
+            f"{img_shape=} but {kernel_shape=}: For an ND convolution,"
+            f" the image and kernel must have the same number of axes.\n"
+            f"The first two axes of img_shape must be Batch and Channels, while"
+            f"the first two axes of kernel_shape must be Out and In.\n"
+            f"After these initial two axes come the spatial axes in order ...Z, Y, X."
+        )
+        assert len(img_shape) > 2, (
+            "An image in an ND-convolution must have Batch and Channel axes, as well as"
+            "at least one spatial axis (so at least three axes in total)."
+        )
+        ndim = len(img_shape) - 2
         assert kind in ("conv", "corr"), f"Invalid {kind=}"
 
-        str_y, str_x = as_tup2(stride)
-        dil_y, dil_x = as_tup2(dilation)
+        stride = as_tup_n(stride, ndim)
+        dilation = as_tup_n(dilation, ndim)
 
-        (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
-            padding,
-            dil_x,
-            dil_y,
-            kernel_shape[2],
-            kernel_shape[3],
-        )
+        padding = get_padding(padding, ndim, dilation, kernel_shape[2:])
+
         return (
-            img_shape[1] == self.img_cs
-            and img_shape[2] == self.img_ys
-            and img_shape[3] == self.img_xs
+            ndim == self.ndim
+            and img_shape[1] == self.img_cs
+            and img_shape[2:] == self.img_spatial
             and kernel_shape[0] == self.krn_os
             and kernel_shape[1] == self.krn_cs
-            and kernel_shape[2] == self.krn_ys
-            and kernel_shape[3] == self.krn_xs
-            and str_x == self.str_x
-            and str_y == self.str_y
-            and pad_y_beg == self.pad_y_beg
-            and pad_y_end == self.pad_y_end
-            and pad_x_beg == self.pad_x_beg
-            and pad_x_end == self.pad_x_end
-            and dil_y == self.dil_y
-            and dil_x == self.dil_x
+            and kernel_shape[2:] == self.krn_spatial
+            and stride == self.stride
+            and padding == tuple(zip(self.pad_begs, self.pad_ends, strict=True))
+            and dilation == self.dilation
             and groups == self.groups
             and group_broadcasting == self.group_broadcasting
             and (kind == "conv") == self.mirror_kernel
         )
 
     def cache_id(self) -> str:
+        def fmt(tup: tuple[int, ...]):
+            return "_".join(str(i) for i in tup)
+
         return (
             f"meta"
-            f"_{self.img_cs}_{self.img_ys}_{self.img_xs}"
-            f"_{self.krn_os}_{self.krn_cs}_{self.krn_ys}_{self.krn_xs}"
-            f"_{self.out_cs}_{self.out_ys}_{self.out_xs}"
-            f"_{self.str_x}_{self.str_y}"
-            f"_{self.pad_y_beg}_{self.pad_y_end}_{self.pad_x_beg}_{self.pad_x_end}"
-            f"_{self.dil_x}_{self.dil_y}"
+            f"_{self.img_cs}_{fmt(self.img_spatial)}"
+            f"_{self.krn_os}_{self.krn_cs}_{fmt(self.krn_spatial)}"
+            f"_{self.out_cs}_{fmt(self.out_spatial)}"
+            f"_{fmt(self.stride)}"
+            f"_{fmt(self.pad_begs)}_{fmt(self.pad_ends)}"
+            f"_{fmt(self.dilation)}"
             f"_{self.groups}_{self.grp_i}_{self.grp_o}"
             f"_{int(self.group_broadcasting)}_{int(self.mirror_kernel)}"
         )
 
 
-def as_tup2(v: int | tuple[Any] | tuple[Any, Any]):
+def as_tup_n(v: int | tuple[Any] | tuple[Any, ...], n: int):
     if isinstance(v, int):
-        return v, v
-    if len(v) == 1:
-        return v[0], v[0]
-    if len(v) == 2:
+        return tuple(v for _ in range(n))
+    if len(v) == n:
         return v
+    if len(v) == 1:
+        return tuple(v[0] for _ in range(n))
 
-    raise ValueError(f"Invalid 2-tuple-like object {v=}")
+    raise ValueError(
+        f"Invalid {n}-int-tuple-like object {v=}\n(expected dimensionality {n})"
+    )
 
 
 def output_size(
@@ -318,27 +320,27 @@ def output_size(
 
 def get_padding(
     padding: int
-    | tuple[int, int]
-    | tuple[tuple[int, int], tuple[int, int]]
+    | tuple[int, ...]
+    | tuple[tuple[int, int], ...]
     | Literal["valid", "same"],
-    dil_x: int,
-    dil_y: int,
-    krn_ys: int,
-    krn_xs: int,
-) -> tuple[tuple[int, int], tuple[int, int]]:
+    ndim: int,
+    dilation: tuple[int, ...],
+    krn_spatial: tuple[int, ...],
+) -> tuple[tuple[int, int], ...]:
     if isinstance(padding, str):
         if padding == "valid":
             return (0, 0), (0, 0)
         if padding == "same":
-            return (
-                calculate_same(krn_ys, dil_y),
-                calculate_same(krn_xs, dil_x),
+            assert len(krn_spatial) == ndim, "Strange kernel spatial dimensions"
+            return tuple(
+                calculate_same(k, d) for k, d in zip(krn_spatial, dilation, strict=True)
             )
 
         raise ValueError(f"Invalid {padding=}")
 
-    pad_y, pad_x = as_tup2(padding)
-    return as_tup2(pad_y), as_tup2(pad_x)
+    padding = as_tup_n(padding, ndim)
+    # noinspection PyTypeChecker
+    return tuple(as_tup_n(p, 2) for p in padding)
 
 
 def calculate_same(kernel_size: int, dilation: int) -> tuple[int, int]:
@@ -369,7 +371,7 @@ class LearnedKernel(nn.Module):
     out_channels : int
         The number of output channels: the `O` in `OIHW`.
     kernel_size : int
-        The height `H` and width `W` of the kernel (rectangular kernels are not supported).
+        The height `H` and width `W` of the kernel (rectangular kernels not supported).
     """
 
     def __init__(self, in_channels: int, out_channels: int, kernel_size: int):

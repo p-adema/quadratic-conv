@@ -227,22 +227,12 @@ class SubtractSemifield(NamedTuple):
     def dynamic(
         self,
         thread_block_size: int = 256,
+        to_extension: bool = False,
         debug: bool = False,
-        to_extension: bool = True,
+        kernel_inflation: int = 16,
     ) -> torch.nn.Module:
         """
         Create a *recompiling* convolution Module based on this `SubtractSemifield`.
-
-        Parameters
-        ----------
-        thread_block_size : int = 256
-            The number of threads per CUDA block
-        to_extension : bool = True
-            Whether the resulting module should compile to a PyTorch extension.
-            Doing so increases compilation times, but reduces per-call overhead
-            when not using CUDA-Graphs.
-        debug : bool = False
-            Whether to print additional debugging and compilation information.
 
         Returns
         -------
@@ -250,6 +240,23 @@ class SubtractSemifield(NamedTuple):
             A convolution module, suitable for use in `GenericConv2D`.
             Note that the compilation process is not traceable, and recompilations
             **may cause errors when using `torch.compile`**.
+
+        Other Parameters
+        ----------
+        thread_block_size : int = 256
+            The number of threads per CUDA block
+        to_extension : bool = False
+            Whether the resulting module should compile to a PyTorch extension.
+            Doing so increases compilation times, but reduces per-call overhead
+            when not using CUDA-Graphs.
+        debug : bool = False
+            Whether to print additional debugging and compilation information.
+        kernel_inflation : int = 16
+            The factor to inflate the kernel gradient with, to better distribute
+            atomic operations.
+            A larger factor can improve performance when the number of output pixels
+            per kernel value is high, but only up to a point and at the cost of memory
+            efficiency.
         """
         return CompiledConv(
             self,
@@ -257,28 +264,19 @@ class SubtractSemifield(NamedTuple):
                 "thread_block_size": thread_block_size,
                 "debug": debug,
                 "to_extension": to_extension,
+                "kernel_inflation": kernel_inflation,
             },
         )
 
     def lazy_fixed(
         self,
         thread_block_size: int = 256,
+        to_extension: bool = False,
         debug: bool = False,
-        to_extension: bool = True,
+        kernel_inflation: int = 16,
     ) -> torch.nn.Module:
         """
         Create a *once-compiling* convolution Module based on this `SubtractSemifield`.
-
-        Parameters
-        ----------
-        thread_block_size : int = 256
-            The number of threads per CUDA block
-        to_extension : bool = True
-            Whether the resulting module should compile to a PyTorch extension.
-            Doing so increases compilation times, but reduces per-call overhead
-            when not using CUDA-Graphs.
-        debug : bool = False
-            Whether to print additional debugging and compilation information.
 
         Returns
         -------
@@ -287,6 +285,23 @@ class SubtractSemifield(NamedTuple):
             Note that compilation will be based on the first inputs seen, after which
             the operation will be fixed: **only batch size may be changed afterwards**.
             The module is, however, traceable by e.g. `torch.compile`.
+
+        Other Parameters
+        ----------
+        thread_block_size : int = 256
+            The number of threads per CUDA block
+        to_extension : bool = False
+            Whether the resulting module should compile to a PyTorch extension.
+            Doing so increases compilation times, but reduces per-call overhead
+            when not using CUDA-Graphs.
+        debug : bool = False
+            Whether to print additional debugging and compilation information.
+        kernel_inflation : int = 16
+            The factor to inflate the kernel gradient with, to better distribute
+            atomic operations.
+            A larger factor can improve performance when the number of output pixels
+            per kernel value is high, but only up to a point and at the cost of memory
+            efficiency.
         """
         return CompiledConvFixedLazy(
             self,
@@ -294,6 +309,7 @@ class SubtractSemifield(NamedTuple):
                 "thread_block_size": thread_block_size,
                 "debug": debug,
                 "to_extension": to_extension,
+                "kernel_inflation": kernel_inflation,
             },
         )
 
@@ -390,18 +406,24 @@ def _compile_forwards(
         cache_id=f"subtract_{cache_name}_{meta.cache_id()}",
     )
     def forwards(
-        img: pnex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
-        kernel: pnex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
-        out_img: pnex.Out("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
+        img: pnex.In(
+            "f32", (None, meta.img_cs, meta.img_spatial[0], meta.img_spatial[1])
+        ),
+        kernel: pnex.In(
+            "f32", (meta.krn_os, meta.krn_cs, meta.krn_spatial[0], meta.krn_spatial[1])
+        ),
+        out_img: pnex.Out(
+            "f32", ("img", meta.out_cs, meta.out_spatial[0], meta.out_spatial[1])
+        ),
     ):
-        rem, o_x = divmod(cuda.grid(1), meta.out_xs)
-        rem, o_y = divmod(rem, meta.out_ys)
+        rem, o_x = divmod(cuda.grid(1), meta.out_spatial[1])
+        rem, o_y = divmod(rem, meta.out_spatial[0])
         b, o_c = divmod(rem, meta.out_cs)
         if b >= img.shape[0]:
             return
 
-        i_top_y = o_y * meta.str_y - meta.pad_y_beg
-        i_left_x = o_x * meta.str_x - meta.pad_x_beg
+        i_top_y = o_y * meta.stride[0] - meta.pad_begs[0]
+        i_left_x = o_x * meta.stride[1] - meta.pad_begs[1]
 
         acc = semifield.zero
 
@@ -414,26 +436,35 @@ def _compile_forwards(
         # For a pooling, we have only one input channel, so group_idx is always 0
         for group_idx in range(meta.krn_cs):
             for y_step, i_y in enumerate(
-                range(i_top_y, i_top_y + meta.krn_ys * meta.dil_y, meta.dil_y)
+                range(
+                    i_top_y,
+                    i_top_y + meta.krn_spatial[0] * meta.dilation[0],
+                    meta.dilation[0],
+                )
             ):
                 for x_step, i_x in enumerate(
                     range(
                         i_left_x,
-                        i_left_x + meta.krn_xs * meta.dil_x,
-                        meta.dil_x,
+                        i_left_x + meta.krn_spatial[1] * meta.dilation[1],
+                        meta.dilation[1],
                     )
                 ):
-                    if i_x < 0 or i_x >= meta.img_xs or i_y < 0 or i_y >= meta.img_ys:
+                    if (
+                        i_y < 0
+                        or i_y >= meta.img_spatial[0]
+                        or i_x < 0
+                        or i_x >= meta.img_spatial[1]
+                    ):
                         continue
 
                     # Need to explicitly use seperate variable, due to compiler error
 
                     if meta.mirror_kernel:
-                        k_x = meta.krn_xs - 1 - x_step
-                        k_y = meta.krn_ys - 1 - y_step
+                        k_y = meta.krn_spatial[0] - 1 - y_step
+                        k_x = meta.krn_spatial[1] - 1 - x_step
                     else:
-                        k_x = x_step
                         k_y = y_step
+                        k_x = x_step
 
                     i_c = group_number * meta.krn_cs + group_idx
                     img_val = img[b, i_c, i_y, i_x]
@@ -454,6 +485,7 @@ def _compile_backwards(
     debug: bool = False,
     cache_name: str = "",
     to_extension: bool = True,
+    kernel_inflation: int = 16,
 ):
     # noinspection PyArgumentList,DuplicatedCode
     @pnex.jit(
@@ -464,21 +496,37 @@ def _compile_backwards(
         cache_id=f"subtract_{cache_name}_{meta.cache_id()}",
     )
     def backwards(
-        img: pnex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
-        kernel: pnex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
-        gradient: pnex.In("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
+        img: pnex.In(
+            "f32", (None, meta.img_cs, meta.img_spatial[0], meta.img_spatial[1])
+        ),
+        kernel: pnex.In(
+            "f32", (meta.krn_os, meta.krn_cs, meta.krn_spatial[0], meta.krn_spatial[1])
+        ),
+        gradient: pnex.In(
+            "f32", ("img", meta.out_cs, meta.out_spatial[0], meta.out_spatial[1])
+        ),
         res_img: pnex.In("f32", "gradient"),
         out_img_grad: pnex.Out("f32", "img", init=0),
-        out_kernel_grad: pnex.Out("f32", "kernel", init=0),
+        out_kernel_grad: pnex.Out(
+            "f32",
+            (
+                meta.krn_os,
+                meta.krn_cs,
+                meta.krn_spatial[0],
+                meta.krn_spatial[1],
+                kernel_inflation,
+            ),
+            init=0,
+        ),
     ):
-        rem, o_x = divmod(cuda.grid(1), meta.out_xs)
-        rem, o_y = divmod(rem, meta.out_ys)
+        rem, o_x = divmod(cuda.grid(1), meta.out_spatial[1])
+        rem, o_y = divmod(rem, meta.out_spatial[0])
         b, o_c = divmod(rem, meta.out_cs)
         if b >= img.shape[0]:
             return
 
-        i_top_y = o_y * meta.str_y - meta.pad_y_beg
-        i_left_x = o_x * meta.str_x - meta.pad_x_beg
+        i_top_y = o_y * meta.stride[0] - meta.pad_begs[0]
+        i_left_x = o_x * meta.stride[1] - meta.pad_begs[1]
 
         res = semifield.undo_post(res_img[b, o_c, o_y, o_x])
         res_grad = gradient[b, o_c, o_y, o_x] * semifield.post_sum_bwd(res)
@@ -487,24 +535,33 @@ def _compile_backwards(
         k_o = o_c if not meta.group_broadcasting else o_c % meta.grp_o
         for group_idx in range(meta.krn_cs):
             for y_step, i_y in enumerate(
-                range(i_top_y, i_top_y + meta.krn_ys * meta.dil_y, meta.dil_y)
+                range(
+                    i_top_y,
+                    i_top_y + meta.krn_spatial[0] * meta.dilation[0],
+                    meta.dilation[0],
+                )
             ):
                 for x_step, i_x in enumerate(
                     range(
                         i_left_x,
-                        i_left_x + meta.krn_xs * meta.dil_x,
-                        meta.dil_x,
+                        i_left_x + meta.krn_spatial[1] * meta.dilation[1],
+                        meta.dilation[1],
                     )
                 ):
-                    if i_x < 0 or i_x >= meta.img_xs or i_y < 0 or i_y >= meta.img_ys:
+                    if (
+                        i_y < 0
+                        or i_y >= meta.img_spatial[0]
+                        or i_x < 0
+                        or i_x >= meta.img_spatial[1]
+                    ):
                         continue
 
                     if meta.mirror_kernel:
-                        k_x = meta.krn_xs - 1 - x_step
-                        k_y = meta.krn_ys - 1 - y_step
+                        k_y = meta.krn_spatial[0] - 1 - y_step
+                        k_x = meta.krn_spatial[1] - 1 - x_step
                     else:
-                        k_x = x_step
                         k_y = y_step
+                        k_x = x_step
 
                     i_c = group_number * meta.krn_cs + group_idx
                     img_val = img[b, i_c, i_y, i_x]
@@ -514,15 +571,16 @@ def _compile_backwards(
                     acc = semifield.subtract(res, val)
                     val_grad = semifield.d_add_d_right(acc, val) * res_grad
 
+                    inflate_pos = cuda.grid(1) % kernel_inflation
+                    cuda.atomic.add(
+                        out_kernel_grad,
+                        (k_o, group_idx, k_y, k_x, inflate_pos),
+                        semifield.d_times_d_kernel(img_val, kernel_val) * val_grad,
+                    )
                     cuda.atomic.add(
                         out_img_grad,
                         (b, i_c, i_y, i_x),
                         semifield.d_times_d_img(img_val, kernel_val) * val_grad,
-                    )
-                    cuda.atomic.add(
-                        out_kernel_grad,
-                        (k_o, group_idx, k_y, k_x),
-                        semifield.d_times_d_kernel(img_val, kernel_val) * val_grad,
                     )
 
     def backwards_setup(ctx, inputs, output):
@@ -533,6 +591,6 @@ def _compile_backwards(
 
     def backwards_entry(ctx, grad_output):
         g_img, g_kern = backwards(ctx.img, ctx.kernel, grad_output, ctx.res_img)
-        return g_img, g_kern
+        return g_img, g_kern.sum(-1)
 
     return backwards_entry, backwards_setup

@@ -2,7 +2,7 @@ import math
 import warnings
 from collections.abc import Callable, Mapping
 from functools import lru_cache
-from typing import Any, Literal, NamedTuple, Self
+from typing import Any, NamedTuple, Self
 
 import numba
 import numpy as np
@@ -144,28 +144,12 @@ class SelectSemifield(NamedTuple):
     def dynamic(
         self,
         thread_block_size: int = None,
-        to_extension: bool = True,
+        to_extension: bool = False,
         debug: bool = False,
-        impl: Literal["glb"] = "glb",
         kernel_inflation: int = 16,
     ) -> torch.nn.Module:
         """
         Create a *recompiling* convolution Module based on this `SelectSemifield`.
-
-        Parameters
-        ----------
-        thread_block_size : int, optional
-            The number of threads per CUDA block.
-            Defaults to 128 for the standard (``"glb"``) implementation.
-        to_extension : bool = True
-            Whether the resulting module should compile to a PyTorch extension.
-            Doing so increases compilation times, but reduces per-call overhead
-            when not using CUDA-Graphs.
-        debug : bool = False
-            Whether to print additional debugging and compilation information.
-        impl : "glb", optional
-            Which implementation to use.
-            Currently, the only implementation is ``glb``
 
         Returns
         -------
@@ -173,6 +157,24 @@ class SelectSemifield(NamedTuple):
             A convolution module, suitable for use in `GenericConv2D`.
             Note that the compilation process is not traceable, and recompilations
             **may cause errors when using `torch.compile`**.
+
+        Other Parameters
+        ----------
+        thread_block_size : int, optional
+            The number of threads per CUDA block.
+            Defaults to 128 for the standard (``"glb"``) implementation.
+        to_extension : bool = False
+            Whether the resulting module should compile to a PyTorch extension.
+            Doing so increases compilation times, but reduces per-call overhead
+            when not using CUDA-Graphs.
+        debug : bool = False
+            Whether to print additional debugging and compilation information.
+        kernel_inflation : int = 16
+            The factor to inflate the kernel gradient with, to better distribute
+            atomic operations.
+            A larger factor can improve performance when the number of output pixels
+            per kernel value is high, but only up to a point and at the cost of memory
+            efficiency.
         """
         return CompiledConv(
             self,
@@ -180,7 +182,6 @@ class SelectSemifield(NamedTuple):
                 "thread_block_size": thread_block_size,
                 "debug": debug,
                 "to_extension": to_extension,
-                "impl": impl,
                 "kernel_inflation": kernel_inflation,
             },
         )
@@ -188,28 +189,12 @@ class SelectSemifield(NamedTuple):
     def lazy_fixed(
         self,
         thread_block_size: int = None,
+        to_extension: bool = False,
         debug: bool = False,
-        to_extension: bool = True,
-        impl: Literal["glb"] = "glb",
         kernel_inflation: int = 16,
     ) -> torch.nn.Module:
         """
         Create a *once-compiling* convolution Module based on this `SelectSemifield`.
-
-        Parameters
-        ----------
-        thread_block_size : int, optional
-            The number of threads per CUDA block.
-            Defaults to 128 for the standard (``"glb"``) implementation
-        to_extension : bool = True
-            Whether the resulting module should compile to a PyTorch extension.
-            Doing so increases compilation times, but reduces per-call overhead
-            when not using CUDA-Graphs.
-        debug : bool = False
-            Whether to print additional debugging and compilation information.
-        impl : "glb", optional
-            Which implementation to use.
-            Currently, the only implementation is ``"glb"``
 
         Returns
         -------
@@ -218,6 +203,24 @@ class SelectSemifield(NamedTuple):
             Note that compilation will be based on the first inputs seen, after which
             the operation will be fixed: **only batch size may be changed afterwards**.
             The module is, however, traceable by e.g. `torch.compile`.
+
+        Other Parameters
+        ----------
+        thread_block_size : int, optional
+            The number of threads per CUDA block.
+            Defaults to 128 for the standard (``"glb"``) implementation
+        to_extension : bool = False
+            Whether the resulting module should compile to a PyTorch extension.
+            Doing so increases compilation times, but reduces per-call overhead
+            when not using CUDA-Graphs.
+        debug : bool = False
+            Whether to print additional debugging and compilation information.
+        kernel_inflation : int = 16
+            The factor to inflate the kernel gradient with, to better distribute
+            atomic operations.
+            A larger factor can improve performance when the number of output pixels
+            per kernel value is high, but only up to a point and at the cost of memory
+            efficiency.
         """
         return CompiledConvFixedLazy(
             self,
@@ -225,7 +228,6 @@ class SelectSemifield(NamedTuple):
                 "thread_block_size": thread_block_size,
                 "debug": debug,
                 "to_extension": to_extension,
-                "impl": impl,
                 "kernel_inflation": kernel_inflation,
             },
         )
@@ -321,28 +323,34 @@ def _compile_forwards_glb(  # noqa: C901
         cache_id=f"select_{cache_name}_{meta.cache_id()}",
     )
     def forwards(
-        img: pnex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
-        kernel: pnex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
-        out_img: pnex.Out("f32", ("img", meta.out_cs, meta.out_ys, meta.out_xs)),
+        img: pnex.In(
+            "f32", (None, meta.img_cs, meta.img_spatial[0], meta.img_spatial[1])
+        ),
+        kernel: pnex.In(
+            "f32", (meta.krn_os, meta.krn_cs, meta.krn_spatial[0], meta.krn_spatial[1])
+        ),
+        out_img: pnex.Out(
+            "f32", ("img", meta.out_cs, meta.out_spatial[0], meta.out_spatial[1])
+        ),
         out_prov: pnex.Out(
             prov_t.torch_type,
             (
                 "img.shape[0]",
                 meta.out_cs,
-                meta.out_ys,
-                meta.out_xs,
+                meta.out_spatial[0],
+                meta.out_spatial[1],
                 3 if meta.krn_cs > 1 else 2,
             ),
         ),
     ):
-        rem, o_x = divmod(cuda.grid(1), meta.out_xs)
-        rem, o_y = divmod(rem, meta.out_ys)
+        rem, o_x = divmod(cuda.grid(1), meta.out_spatial[1])
+        rem, o_y = divmod(rem, meta.out_spatial[0])
         b, o_c = divmod(rem, meta.out_cs)
         if b >= img.shape[0]:
             return
 
-        i_top_y = o_y * meta.str_y - meta.pad_y_beg
-        i_left_x = o_x * meta.str_x - meta.pad_x_beg
+        i_top_y = o_y * meta.stride[0] - meta.pad_begs[0]
+        i_left_x = o_x * meta.stride[1] - meta.pad_begs[1]
 
         prov_x = prov_y = prov_group_idx = prov_t.maxval
         selected_val = numba.float32(semifield.zero)
@@ -356,25 +364,34 @@ def _compile_forwards_glb(  # noqa: C901
         # For a pooling, we have only one input channel, so group_idx is always 0
         for group_idx in range(meta.krn_cs):
             for y_step, i_y in enumerate(
-                range(i_top_y, i_top_y + meta.krn_ys * meta.dil_y, meta.dil_y)
+                range(
+                    i_top_y,
+                    i_top_y + meta.krn_spatial[0] * meta.dilation[0],
+                    meta.dilation[0],
+                )
             ):
                 for x_step, i_x in enumerate(
                     range(
                         i_left_x,
-                        i_left_x + meta.krn_xs * meta.dil_x,
-                        meta.dil_x,
+                        i_left_x + meta.krn_spatial[1] * meta.dilation[1],
+                        meta.dilation[1],
                     )
                 ):
-                    if i_x < 0 or i_x >= meta.img_xs or i_y < 0 or i_y >= meta.img_ys:
+                    if (
+                        i_y < 0
+                        or i_y >= meta.img_spatial[0]
+                        or i_x < 0
+                        or i_x >= meta.img_spatial[1]
+                    ):
                         continue
 
                     # Need to explicitly use seperate variable, due to compiler error
                     if meta.mirror_kernel:
-                        k_x = meta.krn_xs - 1 - x_step
-                        k_y = meta.krn_ys - 1 - y_step
+                        k_y = meta.krn_spatial[0] - 1 - y_step
+                        k_x = meta.krn_spatial[1] - 1 - x_step
                     else:
-                        k_x = x_step
                         k_y = y_step
+                        k_x = x_step
 
                     i_c = group_number * meta.krn_cs + group_idx
                     img_val = img[b, i_c, i_y, i_x]
@@ -420,43 +437,42 @@ def _compile_backwards(
         cache_id=f"select_{cache_name}_{meta.cache_id()}",
     )
     def backwards(
-        img: pnex.In("f32", (None, meta.img_cs, meta.img_ys, meta.img_xs)),
-        kernel: pnex.In("f32", (meta.krn_os, meta.krn_cs, meta.krn_ys, meta.krn_xs)),
+        img: pnex.In(
+            "f32", (None, meta.img_cs, meta.img_spatial[0], meta.img_spatial[1])
+        ),
+        kernel: pnex.In(
+            "f32", (meta.krn_os, meta.krn_cs, meta.krn_spatial[0], meta.krn_spatial[1])
+        ),
         gradient: pnex.In(
             "f32",
-            ("img.shape[0]", meta.out_cs, meta.out_ys, meta.out_xs),
+            ("img.shape[0]", meta.out_cs, meta.out_spatial[0], meta.out_spatial[1]),
         ),
         prov: pnex.In(
             prov_t.torch_type,
             (
                 "img.shape[0]",
                 meta.out_cs,
-                meta.out_ys,
-                meta.out_xs,
+                meta.out_spatial[0],
+                meta.out_spatial[1],
                 3 if meta.krn_cs > 1 else 2,
             ),
         ),
-        out_img_grad: pnex.Out(
-            "f32",
-            "img",
-            init=0,
-        ),
+        out_img_grad: pnex.Out("f32", "img", init=0),
         out_kernel_grad: pnex.Out(
             "f32",
             (
                 meta.krn_os,
                 meta.krn_cs,
-                meta.krn_ys,
-                meta.krn_xs,
+                meta.krn_spatial[0],
+                meta.krn_spatial[1],
                 kernel_inflation,
             ),
-            # "kernel",
             init=0,
         ),
     ):
         idx = cuda.grid(1)
-        rem, o_x = divmod(idx, meta.out_xs)
-        rem, o_y = divmod(rem, meta.out_ys)
+        rem, o_x = divmod(idx, meta.out_spatial[1])
+        rem, o_y = divmod(rem, meta.out_spatial[0])
         b, o_c = divmod(rem, meta.out_cs)
         if b >= img.shape[0]:
             return
@@ -477,23 +493,23 @@ def _compile_backwards(
             return
 
         if meta.mirror_kernel:
-            x_steps = meta.krn_xs - 1 - k_prov_x
-            y_steps = meta.krn_ys - 1 - k_prov_y
+            y_steps = meta.krn_spatial[0] - 1 - k_prov_y
+            x_steps = meta.krn_spatial[1] - 1 - k_prov_x
         else:
-            x_steps = k_prov_x
             y_steps = k_prov_y
+            x_steps = k_prov_x
 
-        i_top_y = o_y * meta.str_y - meta.pad_y_beg
-        i_left_x = o_x * meta.str_x - meta.pad_x_beg
+        i_top_y = o_y * meta.stride[0] - meta.pad_begs[0]
+        i_left_x = o_x * meta.stride[1] - meta.pad_begs[1]
         i_prov_c = group_number * meta.krn_cs + prov_group_idx
-        i_prov_y = i_top_y + meta.dil_y * y_steps
-        i_prov_x = i_left_x + meta.dil_x * x_steps
+        i_prov_y = i_top_y + meta.dilation[0] * y_steps
+        i_prov_x = i_left_x + meta.dilation[0] * x_steps
 
         kernel_val = kernel[k_o, prov_group_idx, k_prov_y, k_prov_x]
         img_val = img[b, i_prov_c, i_prov_y, i_prov_x]
 
         d_kernel = semifield.d_times_d_kernel(img_val, kernel_val) * grad_val
-        inflate_pos = idx % kernel_inflation
+        inflate_pos = cuda.grid(1) % kernel_inflation
         cuda.atomic.add(
             out_kernel_grad,
             (k_o, prov_group_idx, k_prov_y, k_prov_x, inflate_pos),
@@ -512,7 +528,6 @@ def _compile_backwards(
 
     def backwards_entry(ctx, grad_output, _grad_prov):
         g_img, g_kern = backwards(ctx.img, ctx.kernel, grad_output, ctx.prov)
-        # return g_img, g_kern
         return g_img, g_kern.sum(-1)
 
     return backwards_entry, backwards_setup

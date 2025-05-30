@@ -256,27 +256,27 @@ class BroadcastConv(nn.Module):
 
         imgs_padded = torch.constant_pad_nd(
             imgs,
-            (meta.pad_x_beg, meta.pad_x_end, meta.pad_y_beg, meta.pad_y_end),
+            (meta.pad_begs[1], meta.pad_ends[1], meta.pad_begs[0], meta.pad_ends[1]),
             self.semifield.zero,
         )
 
         # [b, groups * krn_cs, krn_ys, krn_xs, out_ys, out_xs]
         windows_flat_channels = self.unfold(
             imgs_padded,
-            (meta.krn_ys, meta.krn_xs),
-            dilation=(meta.dil_y, meta.dil_x),
-            stride=(meta.str_y, meta.str_x),
+            (meta.krn_spatial[0], meta.krn_spatial[1]),
+            dilation=(meta.dilation[0], meta.dilation[1]),
+            stride=(meta.stride[0], meta.stride[1]),
         )
-        # print(windows_flat_channels.shape)
+        print(windows_flat_channels.shape)
         windows = windows_flat_channels.view(
             batch_size,
             meta.groups,
             1,  # Broadcast along grp_o
             meta.krn_cs,
-            meta.krn_ys,
-            meta.krn_xs,
-            meta.out_ys,
-            meta.out_xs,
+            meta.krn_spatial[0],
+            meta.krn_spatial[1],
+            meta.out_spatial[0],
+            meta.out_spatial[1],
         )
         if kind == "conv":
             # Very bad, but this is only a reference implementation
@@ -287,8 +287,8 @@ class BroadcastConv(nn.Module):
             1 if group_broadcasting else groups,  # Maybe broadcast along groups
             meta.grp_o,  # Number of kernels per group
             meta.krn_cs,  # 3: Neighbourhood Channels
-            meta.krn_ys,  # 4: Neighbourhood Ys
-            meta.krn_xs,  # 5: Neighbourhood Xs
+            meta.krn_spatial[0],  # 4: Neighbourhood Ys
+            meta.krn_spatial[1],  # 5: Neighbourhood Xs
             1,  # Broadcast along window Y
             1,  # Broadcast along window X
         )
@@ -302,8 +302,8 @@ class BroadcastConv(nn.Module):
         res = reduced.view(
             batch_size,
             meta.out_cs,
-            meta.out_ys,
-            meta.out_xs,
+            meta.out_spatial[0],
+            meta.out_spatial[1],
         )
         return res
 
