@@ -365,7 +365,7 @@ First, we will review some implementation notes on semifield convolutions and de
 
 \section{Semifield convolutions in a CNN}
 
-Previous sections described the theory underlying a semifield convolution and the additional parameters available in a CNN, but applying this in practice requires an efficient implementation. For this purpose, we wrote two packages: \verb pytorch-semifield-conv , which uses Just-In-Time (JIT) compilation to create convolutional operators, and \verb pytorch-numba-extension-jit , which automatically generates C++ bindings for the operators and aids in the JIT compilation process. More details on these packages can be found in the Extension report \cite{extension} and the documentation of the packages. For a simple verification of the learnability of the kernel parameters, see Appendix \ref{sec:poc}.
+Previous sections described the theory underlying a semifield convolution and the additional parameters available in a CNN, but applying this in practice requires an efficient implementation. For this purpose, we wrote two packages: \verb pytorch-nd-semiconv , which uses Just-In-Time (JIT) compilation to create convolutional operators, and \verb pytorch-numba-extension-jit , which automatically generates C++ bindings for the operators and aids in the JIT compilation process. More details on these packages can be found in the Extension report \cite{extension} and the documentation of the packages. For a simple verification of the learnability of the kernel parameters, see Appendix \ref{sec:poc}.
 
 While implementation details will be left to the Extension report, two notable differences exist between the semifield convolutions used in this report and the descriptions of similar operators in previous works \cite{thierrybsc, koenbsc}. 
 
@@ -565,11 +565,11 @@ Software & Version \\
 Python & 3.12.9 \\
 PyTorch & 2.7.0+cu128 \\
 TorchVision & 0.22.0+cu128 \\
-\small pytorch-semifield-conv & \comment{0.2.0?} \\
+\small pytorch-nd-semiconv & 0.1.0 \\
 \bottomrule
 \end{tabular}
 
-\caption{Hardware and software used for the experiments. The package \textsc{pytorch-semifield-conv} is described in the Extension report \cite{extension}.}
+\caption{Hardware and software used for the experiments. The package \textsc{pytorch-nd-semiconv} is described in the Extension report \cite{extension}.}
 \vspace{-0.3cm}
 \end{table}
 
