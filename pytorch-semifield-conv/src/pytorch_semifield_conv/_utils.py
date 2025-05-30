@@ -118,6 +118,8 @@ class TorchMaxPool2D(nn.Module):
 
 
 class ConvMeta(NamedTuple):
+    """TODO: short docs"""
+
     ndim: int  # Number of spatial dimensions
     img_cs: int  # Image channels
     img_spatial: tuple[int, ...]  # Image ...Z/Y/X
@@ -162,7 +164,7 @@ class ConvMeta(NamedTuple):
         )
         assert len(img_shape) > 2, (
             "An image in an ND-convolution must have Batch and Channel axes, as well as"
-            "at least one spatial axis (so at least three axes in total)."
+            " at least one spatial axis (so at least three axes in total)."
         )
         ndim = len(img_shape) - 2
         stride = _as_tup_n(stride, ndim)
@@ -229,14 +231,14 @@ class ConvMeta(NamedTuple):
         self,
         img_shape: tuple[int, ...],
         kernel_shape: tuple[int, ...],
-        stride: int | tuple[int, int] = 1,
+        stride: int | tuple[int, ...] = 1,
         padding: (
             int
-            | tuple[int, int]
-            | tuple[tuple[int, int], tuple[int, int]]
+            | tuple[int, ...]
+            | tuple[tuple[int, int], ...]
             | Literal["valid", "same"]
         ) = 0,
-        dilation: int | tuple[int, int] = 1,
+        dilation: int | tuple[int, ...] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",
@@ -250,7 +252,7 @@ class ConvMeta(NamedTuple):
         )
         assert len(img_shape) > 2, (
             "An image in an ND-convolution must have Batch and Channel axes, as well as"
-            "at least one spatial axis (so at least three axes in total)."
+            " at least one spatial axis (so at least three axes in total)."
         )
         ndim = len(img_shape) - 2
         assert kind in ("conv", "corr"), f"Invalid {kind=}"

@@ -25,8 +25,6 @@ with:
     )
 """
 
-import torch.nn
-
 from ._conv_modules import GenericClosing2D, GenericConv2D
 from ._quadratic import (
     CovCholesky2D,
@@ -68,6 +66,8 @@ __pdoc__ = {
     "TorchMaxPool2D.forward": False,
     "GenericClosing2D.forward": False,
     "QuadraticKernelIso2D.log_std": False,
+    "CovCholesky2D": False,
+    "CovSpectral2D": False,
 }
 
 for _tup in (BroadcastSemifield, SelectSemifield, SubtractSemifield):
@@ -79,6 +79,3 @@ for _export in __all__:
     __pdoc__[_export] = _mod.__doc__
     if "extra_repr" in _mod.__dict__:
         __pdoc__[f"{_export}.extra_repr"] = False
-
-__pdoc__["CovCholesky2D"] = False
-__pdoc__["CovSpectral2D"] = False

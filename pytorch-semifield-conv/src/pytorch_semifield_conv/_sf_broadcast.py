@@ -41,7 +41,7 @@ class BroadcastSemifield(typing.NamedTuple):
     add_reduce_channels : (Tensor, int) -> Tensor, optional
         An alternate reduction function (similar to `add_reduce`) that is applied along
         specifically the channel dimension.
-        This alternate function could be e.g. addition in a modified version of \(T_+\)
+        This alternate function could be e.g. addition, in a modified version of \(T_+\)
         (see `channels_add` parameter of `BroadcastSemifield.tropical_max`).
 
     Examples
@@ -54,7 +54,7 @@ class BroadcastSemifield(typing.NamedTuple):
 
     >>> log = BroadcastSemifield.log(-3.0).dynamic()
 
-    For examples of how to construct a `BroadcastSemifield` manually, see the source code.
+    For examples of how to construct a `BroadcastSemifield` manually, see the source.
     """
 
     # (multiplied, dims) -> `multipled` reduced with (+) along every dim in `dims`
@@ -166,7 +166,7 @@ class BroadcastSemifield(typing.NamedTuple):
                 lambda multiplied, dim: multiplied.pow(p).sum(dim=dim).pow(1 / p)
             ),
             multiply=lambda img, krn: img * krn,
-            zero=0,
+            zero=float(torch.finfo(torch.float32).eps),
         )
 
     @classmethod
@@ -232,14 +232,14 @@ class BroadcastConv(nn.Module):
         self,
         imgs: torch.Tensor,
         kernel: torch.Tensor,
-        stride: int | tuple[int, int] = 1,
+        stride: int | tuple[int, ...] = 1,
         padding: (
             int
-            | tuple[int, int]
-            | tuple[tuple[int, int], tuple[int, int]]
+            | tuple[int, ...]
+            | tuple[tuple[int, int], ...]
             | Literal["valid", "same"]
         ) = 0,
-        dilation: int | tuple[int, int] = 1,
+        dilation: int | tuple[int, ...] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",
@@ -291,8 +291,7 @@ class BroadcastConv(nn.Module):
             meta.grp_o,  # Number of kernels per group
             meta.krn_cs,  # 3: Neighbourhood Channels
             *meta.krn_spatial,  # (4, 5) for 2D img kernel
-            1,  # Broadcast along window Y
-            1,  # Broadcast along window X
+            *(1 for _ in range(meta.ndim)),  # Broadcast along windows
         )
         multiplied = self.semifield.multiply(windows, weights)
         if self.semifield.add_reduce_channels is None:
@@ -316,14 +315,14 @@ class BroadcastConv(nn.Module):
         self,
         imgs: torch.Tensor,
         kernel: torch.Tensor,
-        stride: int | tuple[int, int] = 1,
+        stride: int | tuple[int, ...] = 1,
         padding: (
             int
-            | tuple[int, int]
-            | tuple[tuple[int, int], tuple[int, int]]
+            | tuple[int, ...]
+            | tuple[tuple[int, int], ...]
             | Literal["valid", "same"]
         ) = 0,
-        dilation: int | tuple[int, int] = 1,
+        dilation: int | tuple[int, ...] = 1,
         groups: int = 1,
         group_broadcasting: bool = False,
         kind: Literal["conv", "corr"] = "conv",

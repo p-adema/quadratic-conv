@@ -52,7 +52,7 @@ class CompiledSubtractSemifield(NamedTuple):
             ),
             cuda.jit(semifield.subtract, device=True, inline="always", cache=True),
             cuda.jit(semifield.d_add_d_right, device=True, inline="always", cache=True),
-            semifield.zero,
+            float(semifield.zero),
             cuda.jit(post_sum, device=True, inline="always", cache=True),
             cuda.jit(undo_post, device=True, inline="always", cache=True),
             cuda.jit(post_bwd, device=True, inline="always", cache=True),
