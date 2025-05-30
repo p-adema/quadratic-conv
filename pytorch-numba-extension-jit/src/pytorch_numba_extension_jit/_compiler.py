@@ -87,7 +87,7 @@ def ptx_to_extension(
             msg = (
                 ("=" * 20) + "\nWARNING: interrupted compilations can result in "
                 "invalid intermediaries. If you encounter an error regarding Torch "
-                "being unable to open the appropriate shared object, please delete the "
+                "being unable to open the corresponding shared object, please delete the "
                 "cache folder in which Torch is looking for the shared object\n"
                 f"(something like ~/.cache/torch_extensions/<python>/pnex_jit_{name})\n"
                 + ("=" * 20)
@@ -201,7 +201,6 @@ def compile_array_api(
     name = pyfunc.__name__ + cache_id
     numba_kernel = cuda.jit(
         sig,
-        cache=True,
         max_registers=max_registers,
     )(pyfunc)
     kernel_py_code = kernel_wrapper(

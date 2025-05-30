@@ -1,19 +1,17 @@
 import math
-import warnings
 from collections.abc import Callable, Mapping
 from functools import lru_cache
 from typing import Any, NamedTuple, Self
 
-import numba
-import pytorch_numba_extension_jit as pnex
 import torch
-from numba import cuda
-from numba.cuda.dispatcher import CUDADispatcher
 
 from ._compiled_conv import CompiledConv, CompiledConvFixedLazy
+from ._sf_subtract_codegen import (
+    CompiledSubtractSemifield,
+    compile_backwards,
+    compile_forwards,
+)
 from ._utils import ConvMeta
-
-warnings.simplefilter("ignore", numba.NumbaPerformanceWarning, 536)
 
 
 class SubtractSemifield(NamedTuple):
@@ -201,8 +199,8 @@ class SubtractSemifield(NamedTuple):
         if impl not in ("glb",):
             raise ValueError(f"Unknown {impl=}")
 
-        cmp_semi = _CompiledSubtractSemifield.compile(self)
-        impls = {"glb": _compile_forwards}
+        cmp_semi = CompiledSubtractSemifield.compile(self)
+        impls = {"glb": compile_forwards}
 
         forwards = impls[impl](
             semifield=cmp_semi,
@@ -212,7 +210,7 @@ class SubtractSemifield(NamedTuple):
             cache_name="_temporary" if self.cache_name is None else self.cache_name,
             to_extension=compile_options.get("to_extension", False),
         )
-        backwards, backwards_setup = _compile_backwards(
+        backwards, backwards_setup = compile_backwards(
             semifield=cmp_semi,
             meta=meta,
             thread_block_size=compile_options.get("thread_block_size"),
@@ -344,253 +342,3 @@ class SubtractSemifield(NamedTuple):
     @staticmethod
     def _number_to_cache(n: float):
         return str(n).replace(".", "_").replace("-", "_minus_")
-
-
-class _CompiledSubtractSemifield(NamedTuple):
-    add: CUDADispatcher
-    times: CUDADispatcher
-    d_times_d_img: CUDADispatcher
-    d_times_d_kernel: CUDADispatcher
-    subtract: CUDADispatcher
-    d_add_d_right: CUDADispatcher
-    zero: float
-
-    # Optional:
-    post_sum: CUDADispatcher
-    undo_post: CUDADispatcher
-    post_sum_bwd: CUDADispatcher
-
-    @classmethod
-    def compile(cls, semifield: SubtractSemifield) -> Self:
-        if semifield.post_sum is None:
-            assert semifield.undo_post_sum is None, "post_sum not specified"
-            assert semifield.d_post_d_acc is None, "post_sum not specified"
-            post_sum, undo_post, post_bwd = lambda i: i, lambda i: i, lambda _: 1
-        else:
-            assert semifield.undo_post_sum is not None, "need inverse of post_sum"
-            assert semifield.d_post_d_acc is not None, "need derivative of post_sum"
-            post_sum = semifield.post_sum
-            undo_post = semifield.undo_post_sum
-            post_bwd = semifield.d_post_d_acc
-
-        return _CompiledSubtractSemifield(
-            cuda.jit(semifield.add, device=True, inline="always", cache=True),
-            cuda.jit(semifield.times, device=True, inline="always", cache=True),
-            cuda.jit(semifield.d_times_d_img, device=True, inline="always", cache=True),
-            cuda.jit(
-                semifield.d_times_d_kernel, device=True, inline="always", cache=True
-            ),
-            cuda.jit(semifield.subtract, device=True, inline="always", cache=True),
-            cuda.jit(semifield.d_add_d_right, device=True, inline="always", cache=True),
-            semifield.zero,
-            cuda.jit(post_sum, device=True, inline="always", cache=True),
-            cuda.jit(undo_post, device=True, inline="always", cache=True),
-            cuda.jit(post_bwd, device=True, inline="always", cache=True),
-        )
-
-
-def _compile_forwards(
-    semifield: _CompiledSubtractSemifield,
-    meta: ConvMeta,
-    thread_block_size: int = 256,
-    debug: bool = False,
-    cache_name: str = "",
-    to_extension: bool = True,
-):
-    # noinspection DuplicatedCode
-    @pnex.jit(
-        n_threads="out_img.numel()",
-        to_extension=to_extension,
-        verbose=debug,
-        threads_per_block=thread_block_size,
-        cache_id=f"subtract_{cache_name}_{meta.cache_id()}",
-    )
-    def forwards(
-        img: pnex.In(
-            "f32", (None, meta.img_cs, meta.img_spatial[0], meta.img_spatial[1])
-        ),
-        kernel: pnex.In(
-            "f32", (meta.krn_os, meta.krn_cs, meta.krn_spatial[0], meta.krn_spatial[1])
-        ),
-        out_img: pnex.Out(
-            "f32", ("img", meta.out_cs, meta.out_spatial[0], meta.out_spatial[1])
-        ),
-    ):
-        rem, o_x = divmod(cuda.grid(1), meta.out_spatial[1])
-        rem, o_y = divmod(rem, meta.out_spatial[0])
-        b, o_c = divmod(rem, meta.out_cs)
-        if b >= img.shape[0]:
-            return
-
-        i_top_y = o_y * meta.stride[0] - meta.pad_begs[0]
-        i_left_x = o_x * meta.stride[1] - meta.pad_begs[1]
-
-        acc = semifield.zero
-
-        group_number = o_c // meta.grp_o
-        # If we're not broadcasting, then we have a separate kernel
-        # for every output channel. If we are broadcasting, we instead loop
-        # around the kernels every k_os (which == krn_group_size)
-        k_o = o_c if not meta.group_broadcasting else o_c % meta.grp_o
-
-        # For a pooling, we have only one input channel, so group_idx is always 0
-        for group_idx in range(meta.krn_cs):
-            for y_step, i_y in enumerate(
-                range(
-                    i_top_y,
-                    i_top_y + meta.krn_spatial[0] * meta.dilation[0],
-                    meta.dilation[0],
-                )
-            ):
-                for x_step, i_x in enumerate(
-                    range(
-                        i_left_x,
-                        i_left_x + meta.krn_spatial[1] * meta.dilation[1],
-                        meta.dilation[1],
-                    )
-                ):
-                    if (
-                        i_y < 0
-                        or i_y >= meta.img_spatial[0]
-                        or i_x < 0
-                        or i_x >= meta.img_spatial[1]
-                    ):
-                        continue
-
-                    # Need to explicitly use seperate variable, due to compiler error
-
-                    if meta.mirror_kernel:
-                        k_y = meta.krn_spatial[0] - 1 - y_step
-                        k_x = meta.krn_spatial[1] - 1 - x_step
-                    else:
-                        k_y = y_step
-                        k_x = x_step
-
-                    i_c = group_number * meta.krn_cs + group_idx
-                    img_val = img[b, i_c, i_y, i_x]
-                    kernel_val = kernel[k_o, group_idx, k_y, k_x]
-
-                    val = semifield.times(img_val, kernel_val)
-                    acc = semifield.add(acc, val)
-
-        out_img[b, o_c, o_y, o_x] = semifield.post_sum(acc)
-
-    return forwards
-
-
-def _compile_backwards(
-    semifield: _CompiledSubtractSemifield,
-    meta: ConvMeta,
-    thread_block_size: int = 256,
-    debug: bool = False,
-    cache_name: str = "",
-    to_extension: bool = True,
-    kernel_inflation: int = 16,
-):
-    # noinspection PyArgumentList,DuplicatedCode
-    @pnex.jit(
-        n_threads="gradient.numel()",
-        to_extension=to_extension,
-        verbose=debug,
-        threads_per_block=thread_block_size,
-        cache_id=f"subtract_{cache_name}_{meta.cache_id()}",
-    )
-    def backwards(
-        img: pnex.In(
-            "f32", (None, meta.img_cs, meta.img_spatial[0], meta.img_spatial[1])
-        ),
-        kernel: pnex.In(
-            "f32", (meta.krn_os, meta.krn_cs, meta.krn_spatial[0], meta.krn_spatial[1])
-        ),
-        gradient: pnex.In(
-            "f32", ("img", meta.out_cs, meta.out_spatial[0], meta.out_spatial[1])
-        ),
-        res_img: pnex.In("f32", "gradient"),
-        out_img_grad: pnex.Out("f32", "img", init=0),
-        out_kernel_grad: pnex.Out(
-            "f32",
-            (
-                meta.krn_os,
-                meta.krn_cs,
-                meta.krn_spatial[0],
-                meta.krn_spatial[1],
-                kernel_inflation,
-            ),
-            init=0,
-        ),
-    ):
-        rem, o_x = divmod(cuda.grid(1), meta.out_spatial[1])
-        rem, o_y = divmod(rem, meta.out_spatial[0])
-        b, o_c = divmod(rem, meta.out_cs)
-        if b >= img.shape[0]:
-            return
-
-        i_top_y = o_y * meta.stride[0] - meta.pad_begs[0]
-        i_left_x = o_x * meta.stride[1] - meta.pad_begs[1]
-
-        res = semifield.undo_post(res_img[b, o_c, o_y, o_x])
-        res_grad = gradient[b, o_c, o_y, o_x] * semifield.post_sum_bwd(res)
-
-        group_number = o_c // meta.grp_o
-        k_o = o_c if not meta.group_broadcasting else o_c % meta.grp_o
-        for group_idx in range(meta.krn_cs):
-            for y_step, i_y in enumerate(
-                range(
-                    i_top_y,
-                    i_top_y + meta.krn_spatial[0] * meta.dilation[0],
-                    meta.dilation[0],
-                )
-            ):
-                for x_step, i_x in enumerate(
-                    range(
-                        i_left_x,
-                        i_left_x + meta.krn_spatial[1] * meta.dilation[1],
-                        meta.dilation[1],
-                    )
-                ):
-                    if (
-                        i_y < 0
-                        or i_y >= meta.img_spatial[0]
-                        or i_x < 0
-                        or i_x >= meta.img_spatial[1]
-                    ):
-                        continue
-
-                    if meta.mirror_kernel:
-                        k_y = meta.krn_spatial[0] - 1 - y_step
-                        k_x = meta.krn_spatial[1] - 1 - x_step
-                    else:
-                        k_y = y_step
-                        k_x = x_step
-
-                    i_c = group_number * meta.krn_cs + group_idx
-                    img_val = img[b, i_c, i_y, i_x]
-                    kernel_val = kernel[k_o, group_idx, k_y, k_x]
-
-                    val = semifield.times(img_val, kernel_val)
-                    acc = semifield.subtract(res, val)
-                    val_grad = semifield.d_add_d_right(acc, val) * res_grad
-
-                    inflate_pos = cuda.grid(1) % kernel_inflation
-                    cuda.atomic.add(
-                        out_kernel_grad,
-                        (k_o, group_idx, k_y, k_x, inflate_pos),
-                        semifield.d_times_d_kernel(img_val, kernel_val) * val_grad,
-                    )
-                    cuda.atomic.add(
-                        out_img_grad,
-                        (b, i_c, i_y, i_x),
-                        semifield.d_times_d_img(img_val, kernel_val) * val_grad,
-                    )
-
-    def backwards_setup(ctx, inputs, output):
-        img, kernel = inputs
-        ctx.img = img
-        ctx.kernel = kernel
-        ctx.res_img = output
-
-    def backwards_entry(ctx, grad_output):
-        g_img, g_kern = backwards(ctx.img, ctx.kernel, grad_output, ctx.res_img)
-        return g_img, g_kern.sum(-1)
-
-    return backwards_entry, backwards_setup

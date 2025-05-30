@@ -2059,6 +2059,7 @@ dev = [
     { name = "matplotlib", specifier = ">=3.10.1" },
     { name = "pdoc3", specifier = ">=0.11.6" },
     { name = "ruff", specifier = ">=0.11.7" },
+    { name = "tqdm", specifier = ">=4.67.1" },
 ]
 
 [[package]]

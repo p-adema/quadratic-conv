@@ -1,3 +1,4 @@
+import itertools
 import typing
 from collections.abc import Callable
 from typing import Literal
@@ -5,7 +6,7 @@ from typing import Literal
 import torch
 from torch import nn
 
-from ._unfold_view import unfold_copy as unfold_copy_fn
+from ._unfold_view import unfold_copy_2d as unfold_copy_fn
 from ._unfold_view import unfold_view as unfold_view_fn
 from ._utils import ConvMeta
 
@@ -256,54 +257,58 @@ class BroadcastConv(nn.Module):
 
         imgs_padded = torch.constant_pad_nd(
             imgs,
-            (meta.pad_begs[1], meta.pad_ends[1], meta.pad_begs[0], meta.pad_ends[1]),
+            tuple(
+                itertools.chain.from_iterable(
+                    (meta.pad_begs[s], meta.pad_ends[s])
+                    for s in reversed(range(meta.ndim))
+                )
+            ),
             self.semifield.zero,
         )
-
         # [b, groups * krn_cs, krn_ys, krn_xs, out_ys, out_xs]
         windows_flat_channels = self.unfold(
             imgs_padded,
-            (meta.krn_spatial[0], meta.krn_spatial[1]),
-            dilation=(meta.dilation[0], meta.dilation[1]),
-            stride=(meta.stride[0], meta.stride[1]),
+            meta.krn_spatial,
+            dilation=meta.dilation,
+            stride=meta.stride,
         )
-        print(windows_flat_channels.shape)
+        # print(windows_flat_channels.shape)
         windows = windows_flat_channels.view(
             batch_size,
             meta.groups,
             1,  # Broadcast along grp_o
             meta.krn_cs,
-            meta.krn_spatial[0],
-            meta.krn_spatial[1],
-            meta.out_spatial[0],
-            meta.out_spatial[1],
+            *meta.krn_spatial,
+            *meta.out_spatial,
         )
         if kind == "conv":
             # Very bad, but this is only a reference implementation
-            kernel = kernel.flip((2, 3))
+            kernel = kernel.flip(tuple(range(2, 2 + meta.ndim)))
 
         weights = kernel.view(
             1,  # Broadcast along batch dimension
             1 if group_broadcasting else groups,  # Maybe broadcast along groups
             meta.grp_o,  # Number of kernels per group
             meta.krn_cs,  # 3: Neighbourhood Channels
-            meta.krn_spatial[0],  # 4: Neighbourhood Ys
-            meta.krn_spatial[1],  # 5: Neighbourhood Xs
+            *meta.krn_spatial,  # (4, 5) for 2D img kernel
             1,  # Broadcast along window Y
             1,  # Broadcast along window X
         )
         multiplied = self.semifield.multiply(windows, weights)
         if self.semifield.add_reduce_channels is None:
-            reduced = self.semifield.add_reduce(multiplied, (3, 4, 5))
+            reduced = self.semifield.add_reduce(
+                multiplied, (3, *range(4, 4 + meta.ndim))
+            )
         else:
-            reduced_with_channels = self.semifield.add_reduce(multiplied, (4, 5))
+            reduced_with_channels = self.semifield.add_reduce(
+                multiplied, tuple(range(4, 4 + meta.ndim))
+            )
             reduced = self.semifield.add_reduce_channels(reduced_with_channels, 3)
 
         res = reduced.view(
             batch_size,
             meta.out_cs,
-            meta.out_spatial[0],
-            meta.out_spatial[1],
+            *meta.out_spatial,
         )
         return res
 

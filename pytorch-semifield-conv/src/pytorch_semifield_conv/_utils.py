@@ -1,8 +1,10 @@
 import math
-from typing import Any, Literal, NamedTuple, Self
+from typing import Literal, NamedTuple, Self
 
 import torch
 from torch import nn
+
+from ._unfold_view import _as_tup_n
 
 
 class TorchLinearConv2D(nn.Module):
@@ -36,7 +38,7 @@ class TorchLinearConv2D(nn.Module):
         if kind == "conv":
             kernel = kernel.flip((2, 3))
 
-        dilation = as_tup_n(dilation, 2)
+        dilation = _as_tup_n(dilation, 2)
         (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
             padding, 2, dilation, kernel.shape[2:]
         )
@@ -88,8 +90,8 @@ class TorchMaxPool2D(nn.Module):
         self,
         img: torch.Tensor,
     ):
-        dilation = as_tup_n(self.dilation, 2)
-        krn_spatial = as_tup_n(self.kernel_size, 2)
+        dilation = _as_tup_n(self.dilation, 2)
+        krn_spatial = _as_tup_n(self.kernel_size, 2)
         (pad_y_beg, pad_y_end), (pad_x_beg, pad_x_end) = get_padding(
             self.padding, 2, dilation, krn_spatial
         )
@@ -163,8 +165,8 @@ class ConvMeta(NamedTuple):
             "at least one spatial axis (so at least three axes in total)."
         )
         ndim = len(img_shape) - 2
-        stride = as_tup_n(stride, ndim)
-        dilation = as_tup_n(dilation, ndim)
+        stride = _as_tup_n(stride, ndim)
+        dilation = _as_tup_n(dilation, ndim)
 
         # === Check params
         assert all(s > 0 for s in stride), f"{stride=} must be positive"
@@ -253,8 +255,8 @@ class ConvMeta(NamedTuple):
         ndim = len(img_shape) - 2
         assert kind in ("conv", "corr"), f"Invalid {kind=}"
 
-        stride = as_tup_n(stride, ndim)
-        dilation = as_tup_n(dilation, ndim)
+        stride = _as_tup_n(stride, ndim)
+        dilation = _as_tup_n(dilation, ndim)
 
         padding = get_padding(padding, ndim, dilation, kernel_shape[2:])
 
@@ -288,19 +290,6 @@ class ConvMeta(NamedTuple):
             f"_{self.groups}_{self.grp_i}_{self.grp_o}"
             f"_{int(self.group_broadcasting)}_{int(self.mirror_kernel)}"
         )
-
-
-def as_tup_n(v: int | tuple[Any] | tuple[Any, ...], n: int):
-    if isinstance(v, int):
-        return tuple(v for _ in range(n))
-    if len(v) == n:
-        return v
-    if len(v) == 1:
-        return tuple(v[0] for _ in range(n))
-
-    raise ValueError(
-        f"Invalid {n}-int-tuple-like object {v=}\n(expected dimensionality {n})"
-    )
 
 
 def output_size(
@@ -338,9 +327,9 @@ def get_padding(
 
         raise ValueError(f"Invalid {padding=}")
 
-    padding = as_tup_n(padding, ndim)
+    padding = _as_tup_n(padding, ndim)
     # noinspection PyTypeChecker
-    return tuple(as_tup_n(p, 2) for p in padding)
+    return tuple(_as_tup_n(p, 2) for p in padding)
 
 
 def calculate_same(kernel_size: int, dilation: int) -> tuple[int, int]:

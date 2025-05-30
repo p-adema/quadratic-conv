@@ -273,7 +273,7 @@ def _standardise_thread_args(
 def jit(
     *,
     n_threads: str | tuple[str, str] | tuple[str, str, str],
-    to_extension: bool = True,
+    to_extension: bool = False,
     cache_id: str = None,
     verbose: bool = False,
     threads_per_block: int | tuple[int, int] | tuple[int, int, int] = None,
@@ -302,16 +302,25 @@ def jit(
         Expression(s) that evaluate to the total number of threads that the kernel
         should be launched with. Thread axes are filled in the order X, Y, Z: as such,
         passing only a single string `n_threads` is equivalent to passing
-        `(n_threads, 1, 1)`, with only the X thread-dimension being non-unit.
-    to_extension : bool = True
+        ``(n_threads, 1, 1)``, with only the X thread-dimension being non-unit.
+
+        In practice, this number is then divided by `threads_per_block` and rounded up
+        to get the number of blocks for a single kernel invocation (blocks per grid).
+    to_extension : bool = False
         Whether the function should be compiled to a PyTorch C++ extension or instead
         be left as a wrapped Numba-CUDA kernel. The signature of the returned function
         is identical in both cases, but compiling an extension can take 5+ seconds,
         while not compiling an extension incurs a small runtime overhead on every call.
+
+        For neural networks, it is best to keep `to_extension` as False and use
+        CUDA Graphs via `torch.compile(model, mode="reduce-overhead", fullgraph=True)`
+        to eliminate the wrapper code.
     cache_id : str, optional
         The name to save the compiled extension under: clashing `cache_id`s will
-        result in recompilations (clashing function will evict each-other
+        result in recompilations (clashing functions will evict each-other
         from the cache), but not miscompilations (the results will be correct).
+
+        Only used when `to_extension=True`
 
     Returns
     -------
@@ -338,6 +347,13 @@ def jit(
         - For 1 dimension: 256
         - For 2 dimensions: (16, 16)
         - For 3 dimensions: (8, 8, 4)
+    max_registers : int, optional
+        Specify the maximum number of registers to be used by the kernel, with excess
+        spilling over to local memory.
+        Typically, the compiler is quite good at guessing the number of registers it
+        should use, but limiting this to hit occupancy targets may help in some cases.
+        This option is only available with `to_extension=False`, due to the structure
+        of the Numba-CUDA API.
 
     Examples
     -------
@@ -351,7 +367,7 @@ def jit(
     >>> @pnex.jit(n_threads="result.numel()")
     ... def mymuladd_2d(
     ...     a: pnex.In(torch.float32, (None, None)),
-    ...     b: pnex.In("f32", ("a.shape[0]", "a")),
+    ...     b: pnex.In("f32", ("a.size(0)", "a.size(1)")),
     ...     c: float,  # : pnex.Scalar(float)
     ...     result: pnex.Out("float32", "a"),
     ... ):
@@ -372,26 +388,25 @@ def jit(
     local variables and the module is using `from __future__ import annotations`.
     This is because annotations are not considered part of the function proper, so they
     are not closed over during the construction of a function (no cell is created).
-    Using `jit` directly with the decorator syntax `@pnex.jit(n_threads=...)`
-    has no such problems, or one can alternatively disable `annotations` for the file
+    Using `jit` directly with the decorator syntax ``@pnex.jit(n_threads=...)``
+    has no such problems, or one can selectively disable ``annotations`` for the file
     where the function to be compiled is defined.
 
     See Also
     -------
     numba.cuda.compile_for_current_device :
-        used to compile the Python
-        function into PTX: all functions must
-        therefore also be [valid `numba.cuda` kernels](https://nvidia.github.io/numba-cuda/user/kernels.html).
+        used to compile the Python function into PTX: all functions must therefore also
+        be [valid `numba.cuda` kernels](https://nvidia.github.io/numba-cuda/user/kernels.html).
     numba.cuda.jit : used instead to allow `to_extension=False`
     torch.utils.cpp_extension.load_inline : used to compile the PyTorch C++ extension
     """
     if to_extension and max_registers is not None:
-        msg = (
+        msg_regs = (
             "Numba-CUDA does not support passing max_registers "
             "to normal compilation functions, only to cuda.jit"
             "\n(can't pass both to_extension=True and max_registers!=None)"
         )
-        raise ValueError(msg)
+        raise ValueError(msg_regs)
 
     n_threads, threads_per_block = _standardise_thread_args(
         n_threads, threads_per_block

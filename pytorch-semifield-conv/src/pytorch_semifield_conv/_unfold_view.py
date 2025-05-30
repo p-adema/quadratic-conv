@@ -1,109 +1,122 @@
 import math
-from collections.abc import Sequence
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import torch
 
 
 def unfold_view(
     imgs: torch.Tensor,
-    kernel_size: int | tuple[int, int],
-    dilation: int | tuple[int, int] = 1,
-    stride: int | tuple[int, int] = 1,
+    kernel_size: int | tuple[int, ...],
+    dilation: int | tuple[int, ...] = 1,
+    stride: int | tuple[int, ...] = 1,
 ):
     """
-    Returns an unfolded view of imgs, shaped:
-        [Batch, Channels, Kernel-Y, Kernel-X, Out-Y, Out-X]
+    Returns an unfolded view of imgs, without copying.
+
+    The view is shaped: [Batch, Channels, Kernel dims..., Output dims...]
+
+    where kernel and output dimensions are in the same order as they are in the image.
+    Example: a [B, C, Y, X] image will become [B, C, Ky, Kx, Oy, Ox].
 
     Does not support padding, as it returns a view.
 
-    :param imgs: [B, C, H, W] tensor to be unfolded
-    :param kernel_size: int or tuple of (Kernel-Y, Kernel-X)
-    :param dilation: int or tuple of (Dilation-Y, Dilation-X)
-    :param stride: int or tuple of (Stride-Y, Stride-X)
-    :return: [Batch, Channels, Kernel-Y, Kernel-X, Out-Y, Out-X] tensor view
+    Parameters
+    ----------
+    imgs : Tensor of (B, C, *Spatial)
+        Input to be unfolded
+    kernel_size : int or tuple of int
+        Size of the window, must be the same length as the number of spatial dimensions
+        in imgs if provided as a tuple, otherwise repeated that many times.
+    dilation : int or tuple of int
+    stride : int or tuple of int
 
-    Examples:
+    Returns
+    -------
+    view : Tensor of [Batch, Channels, Kernel dims..., Output dims...]
 
-    >>> images = torch.empty((1024, 5, 28, 28))
-    >>> unfold_view(images, (3, 3)).shape
+    Examples
+    -------
+
+    >>> images_2d = torch.empty((1024, 5, 28, 28))
+    >>> unfold_view(images_2d, 3).shape
     torch.Size([1024, 5, 3, 3, 26, 26])
-    >>> unfold_view(images, (7, 6), stride=(1, 2)).shape
+    >>> unfold_view(images_2d, (7, 6), stride=(1, 2)).shape
     torch.Size([1024, 5, 7, 6, 22, 12])
     """
-    meta = _UnfoldMeta.infer(imgs.shape, kernel_size, dilation, stride)
+    meta = _UnfoldMeta.infer(tuple(imgs.shape), kernel_size, dilation, stride)
 
     return imgs.as_strided(
-        (imgs.shape[0], imgs.shape[1], meta.krs_y, meta.krs_x, meta.out_y, meta.out_x),
+        (imgs.shape[0], imgs.shape[1], *meta.kernel_size, *meta.output_size),
         (
             imgs.stride(0),
             imgs.stride(1),
-            imgs.stride(2) * meta.dil_y,
-            imgs.stride(3) * meta.dil_x,
-            imgs.stride(2) * meta.str_y,
-            imgs.stride(3) * meta.str_x,
+            *(imgs.stride(2 + n) * meta.dilation[n] for n in range(meta.ndim)),
+            *(imgs.stride(2 + n) * meta.stride[n] for n in range(meta.ndim)),
         ),
     )
 
 
-def unfold_copy(
+def unfold_copy_2d(
     imgs: torch.Tensor,
     kernel_size: int | tuple[int, int],
     dilation: int | tuple[int, int] = 1,
     stride: int | tuple[int, int] = 1,
 ):
     """For comparison: unfold-view, but then via a copy with nn.functional.unfold"""
+    assert len(imgs.shape) == 4, "unfold_copy_2d only supports batch+channel+2D images"
     meta = _UnfoldMeta.infer(imgs.shape, kernel_size, dilation, stride)
 
     return torch.nn.functional.unfold(
         imgs,
-        kernel_size=(meta.krs_y, meta.krs_x),
-        dilation=(meta.dil_y, meta.dil_x),
-        stride=(meta.str_y, meta.str_x),
-    ).view(imgs.shape[0], imgs.shape[1], meta.krs_y, meta.krs_x, meta.out_y, meta.out_x)
+        kernel_size=meta.kernel_size,
+        dilation=meta.dilation,
+        stride=meta.stride,
+    ).view(imgs.shape[0], imgs.shape[1], *meta.kernel_size, *meta.output_size)
 
 
-def _as_tup(v: int | tuple[int] | tuple[int, int]):
+def _as_tup_n(v: int | tuple[Any] | tuple[Any, ...], n: int):
     if isinstance(v, int):
-        return v, v
-    if len(v) == 1:
-        return v[0], v[0]
-    if len(v) == 2:
+        return tuple(v for _ in range(n))
+    if len(v) == n:
         return v
+    if len(v) == 1:
+        return tuple(v[0] for _ in range(n))
 
-    raise ValueError(f"Invalid 2-tuple-like object {v=}")
+    raise ValueError(
+        f"Invalid {n}-int-tuple-like object {v=}\n(expected dimensionality {n})"
+    )
 
 
 class _UnfoldMeta(NamedTuple):
-    krs_y: int
-    krs_x: int
-    dil_y: int
-    dil_x: int
-    str_y: int
-    str_x: int
-    out_y: int
-    out_x: int
+    ndim: int
+    kernel_size: tuple[int, ...]
+    stride: tuple[int, ...]
+    dilation: tuple[int, ...]
+    output_size: tuple[int, ...]
 
     @classmethod
     def infer(
         cls,
-        imgs_shape: Sequence[int],
+        imgs_shape: tuple[int, ...],
         kernel_size: int | tuple[int, int],
         dilation: int | tuple[int, int] = 1,
         stride: int | tuple[int, int] = 1,
     ):
-        if len(imgs_shape) != 4:
-            raise ValueError("imgs must be in BCHW")
-        krs_y, krs_x = _as_tup(kernel_size)
-        dil_y, dil_x = _as_tup(dilation)
-        str_y, str_x = _as_tup(stride)
+        if len(imgs_shape) <= 2:
+            raise ValueError("imgs must have Batch and Channel as leading dimensions")
+        ndim = len(imgs_shape) - 2
+        kernel_size = _as_tup_n(kernel_size, ndim)
+        dilation = _as_tup_n(dilation, ndim)
+        stride = _as_tup_n(stride, ndim)
 
-        out_y = math.floor((imgs_shape[2] - dil_y * (krs_y - 1) - 1) / str_y + 1)
-        out_x = math.floor((imgs_shape[3] - dil_x * (krs_x - 1) - 1) / str_x + 1)
+        output_size = tuple(
+            math.floor((i - d * (k - 1) - 1) / s + 1)
+            for i, d, k, s in zip(
+                imgs_shape[2:], dilation, kernel_size, stride, strict=True
+            )
+        )
 
-        if out_y <= 0:
-            raise ValueError("Output collapsed in y-dimension")
-        if out_x <= 0:
-            raise ValueError("Output collapsed in x-dimension")
+        if any(o <= 0 for o in output_size):
+            raise ValueError(f"Output collapsed: {output_size}")
 
-        return cls(krs_y, krs_x, dil_y, dil_x, str_y, str_x, out_y, out_x)
+        return cls(ndim, kernel_size, stride, dilation, output_size)

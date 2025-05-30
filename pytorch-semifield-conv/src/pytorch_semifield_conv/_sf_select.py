@@ -1,20 +1,17 @@
 import math
-import warnings
 from collections.abc import Callable, Mapping
 from functools import lru_cache
 from typing import Any, NamedTuple, Self
 
-import numba
-import numpy as np
-import pytorch_numba_extension_jit as pnex
 import torch
-from numba import cuda
-from numba.cuda.dispatcher import CUDADispatcher
 
 from ._compiled_conv import CompiledConv, CompiledConvFixedLazy
+from ._sf_select_codegen import (
+    CompiledSelectSemifield,
+    compile_backwards,
+    compile_forwards,
+)
 from ._utils import ConvMeta
-
-warnings.simplefilter("ignore", numba.NumbaPerformanceWarning, 536)
 
 
 class SelectSemifield(NamedTuple):
@@ -112,25 +109,22 @@ class SelectSemifield(NamedTuple):
         if impl not in ("glb",):
             raise ValueError(f"Unknown {impl=}")
 
-        prov_t = _ProvType.smallest_required(meta)
-        cmp_semi = _CompiledSelectSemifield.compile(self)
+        cmp_semi = CompiledSelectSemifield.compile(self)
 
         impls = {
-            "glb": _compile_forwards_glb,
+            "glb": compile_forwards,
         }
         forwards = impls[impl](
             semifield=cmp_semi,
             meta=meta,
-            prov_t=prov_t,
             thread_block_size=compile_options.get("thread_block_size"),
             debug=compile_options.get("debug", False),
             cache_name="_temporary" if self.cache_name is None else self.cache_name,
             to_extension=compile_options.get("to_extension", False),
         )
-        backwards, backwards_setup = _compile_backwards(
+        backwards, backwards_setup = compile_backwards(
             semifield=cmp_semi,
             meta=meta,
-            prov_t=prov_t,
             thread_block_size=compile_options.get("thread_block_size"),
             debug=compile_options.get("debug", False),
             cache_name="_temporary" if self.cache_name is None else self.cache_name,
@@ -257,277 +251,3 @@ class SelectSemifield(NamedTuple):
     @staticmethod
     def _get_result(res: tuple[torch.Tensor, torch.Tensor]):
         return res[0]
-
-
-class _CompiledSelectSemifield(NamedTuple):
-    add_select: CUDADispatcher
-    times: CUDADispatcher
-    d_times_d_img: CUDADispatcher
-    d_times_d_kernel: CUDADispatcher
-    zero: float
-
-    @classmethod
-    def compile(cls, semifield: SelectSemifield) -> Self:
-        return _CompiledSelectSemifield(
-            cuda.jit(semifield.add_select, device=True, inline="always", cache=True),
-            cuda.jit(semifield.times, device=True, inline="always", cache=True),
-            cuda.jit(semifield.d_times_d_img, device=True, inline="always", cache=True),
-            cuda.jit(
-                semifield.d_times_d_kernel, device=True, inline="always", cache=True
-            ),
-            semifield.zero,
-        )
-
-
-class _ProvType(NamedTuple):
-    typename: str
-    maxval: int
-
-    @classmethod
-    def smallest_required(cls, meta: ConvMeta):
-        largest = max(meta.krn_xs, meta.krn_ys, meta.krn_cs)
-        if largest < np.iinfo(np.uint8).max:
-            return cls("uint8", np.iinfo(np.uint8).max)
-
-        assert largest < np.iinfo(np.uint16).max, "That's not going to fit in memory"
-        return cls("uint16", np.iinfo(np.uint16).max)
-
-    @property
-    def torch_type(self):
-        if self.typename == "uint8":
-            return torch.uint8
-        if self.typename == "uint16":
-            return torch.uint16
-
-        raise ValueError
-
-
-def _compile_forwards_glb(  # noqa: C901
-    semifield: _CompiledSelectSemifield,
-    meta: ConvMeta,
-    prov_t: _ProvType,
-    thread_block_size: int = None,
-    debug: bool = False,
-    cache_name: str = "",
-    to_extension: bool = True,
-):
-    if thread_block_size is None:
-        thread_block_size = 128
-
-    # noinspection DuplicatedCode
-    @pnex.jit(
-        n_threads="out_img.numel()",
-        to_extension=to_extension,
-        verbose=debug,
-        threads_per_block=thread_block_size,
-        cache_id=f"select_{cache_name}_{meta.cache_id()}",
-    )
-    def forwards(
-        img: pnex.In(
-            "f32", (None, meta.img_cs, meta.img_spatial[0], meta.img_spatial[1])
-        ),
-        kernel: pnex.In(
-            "f32", (meta.krn_os, meta.krn_cs, meta.krn_spatial[0], meta.krn_spatial[1])
-        ),
-        out_img: pnex.Out(
-            "f32", ("img", meta.out_cs, meta.out_spatial[0], meta.out_spatial[1])
-        ),
-        out_prov: pnex.Out(
-            prov_t.torch_type,
-            (
-                "img.shape[0]",
-                meta.out_cs,
-                meta.out_spatial[0],
-                meta.out_spatial[1],
-                3 if meta.krn_cs > 1 else 2,
-            ),
-        ),
-    ):
-        rem, o_x = divmod(cuda.grid(1), meta.out_spatial[1])
-        rem, o_y = divmod(rem, meta.out_spatial[0])
-        b, o_c = divmod(rem, meta.out_cs)
-        if b >= img.shape[0]:
-            return
-
-        i_top_y = o_y * meta.stride[0] - meta.pad_begs[0]
-        i_left_x = o_x * meta.stride[1] - meta.pad_begs[1]
-
-        prov_x = prov_y = prov_group_idx = prov_t.maxval
-        selected_val = numba.float32(semifield.zero)
-
-        group_number = o_c // meta.grp_o
-        # If we're not broadcasting, then we have a separate kernel
-        # for every output channel. If we are broadcasting, we instead loop
-        # around the kernels every k_os (which == krn_group_size)
-        k_o = o_c if not meta.group_broadcasting else o_c % meta.grp_o
-
-        # For a pooling, we have only one input channel, so group_idx is always 0
-        for group_idx in range(meta.krn_cs):
-            for y_step, i_y in enumerate(
-                range(
-                    i_top_y,
-                    i_top_y + meta.krn_spatial[0] * meta.dilation[0],
-                    meta.dilation[0],
-                )
-            ):
-                for x_step, i_x in enumerate(
-                    range(
-                        i_left_x,
-                        i_left_x + meta.krn_spatial[1] * meta.dilation[1],
-                        meta.dilation[1],
-                    )
-                ):
-                    if (
-                        i_y < 0
-                        or i_y >= meta.img_spatial[0]
-                        or i_x < 0
-                        or i_x >= meta.img_spatial[1]
-                    ):
-                        continue
-
-                    # Need to explicitly use seperate variable, due to compiler error
-                    if meta.mirror_kernel:
-                        k_y = meta.krn_spatial[0] - 1 - y_step
-                        k_x = meta.krn_spatial[1] - 1 - x_step
-                    else:
-                        k_y = y_step
-                        k_x = x_step
-
-                    i_c = group_number * meta.krn_cs + group_idx
-                    img_val = img[b, i_c, i_y, i_x]
-                    kernel_val = kernel[k_o, group_idx, k_y, k_x]
-
-                    val = semifield.times(img_val, kernel_val)
-                    if semifield.add_select(selected_val, val):
-                        selected_val = val
-                        prov_y, prov_x = k_y, k_x
-                        if meta.krn_cs > 1:
-                            prov_group_idx = group_idx
-
-        out_img[b, o_c, o_y, o_x] = selected_val
-
-        out_prov[b, o_c, o_y, o_x, 0] = prov_y
-        out_prov[b, o_c, o_y, o_x, 1] = prov_x
-        if meta.krn_cs > 1:
-            # out_prov is only size 3 if we require an index within the group
-            out_prov[b, o_c, o_y, o_x, 2] = prov_group_idx
-
-    return forwards
-
-
-def _compile_backwards(
-    semifield: _CompiledSelectSemifield,
-    meta: ConvMeta,
-    prov_t: _ProvType,
-    thread_block_size: int = None,
-    debug: bool = False,
-    cache_name: str = "",
-    to_extension: bool = True,
-    kernel_inflation: int = 16,
-):
-    if thread_block_size is None:
-        thread_block_size = 128
-
-    # noinspection PyArgumentList
-    @pnex.jit(
-        n_threads="gradient.numel()",
-        to_extension=to_extension,
-        verbose=debug,
-        threads_per_block=thread_block_size,
-        cache_id=f"select_{cache_name}_{meta.cache_id()}",
-    )
-    def backwards(
-        img: pnex.In(
-            "f32", (None, meta.img_cs, meta.img_spatial[0], meta.img_spatial[1])
-        ),
-        kernel: pnex.In(
-            "f32", (meta.krn_os, meta.krn_cs, meta.krn_spatial[0], meta.krn_spatial[1])
-        ),
-        gradient: pnex.In(
-            "f32",
-            ("img.shape[0]", meta.out_cs, meta.out_spatial[0], meta.out_spatial[1]),
-        ),
-        prov: pnex.In(
-            prov_t.torch_type,
-            (
-                "img.shape[0]",
-                meta.out_cs,
-                meta.out_spatial[0],
-                meta.out_spatial[1],
-                3 if meta.krn_cs > 1 else 2,
-            ),
-        ),
-        out_img_grad: pnex.Out("f32", "img", init=0),
-        out_kernel_grad: pnex.Out(
-            "f32",
-            (
-                meta.krn_os,
-                meta.krn_cs,
-                meta.krn_spatial[0],
-                meta.krn_spatial[1],
-                kernel_inflation,
-            ),
-            init=0,
-        ),
-    ):
-        idx = cuda.grid(1)
-        rem, o_x = divmod(idx, meta.out_spatial[1])
-        rem, o_y = divmod(rem, meta.out_spatial[0])
-        b, o_c = divmod(rem, meta.out_cs)
-        if b >= img.shape[0]:
-            return
-
-        group_number = o_c // meta.grp_o
-        k_o = o_c if not meta.group_broadcasting else o_c % meta.grp_o
-
-        grad_val = gradient[b, o_c, o_y, o_x]
-        k_prov_y = prov[b, o_c, o_y, o_x, 0]
-        k_prov_x = prov[b, o_c, o_y, o_x, 1]
-        # Index within our group, for which of the channels we ended up picking
-        # If krn_cs == 1, we can only pick the singular channel we have: always 0
-        prov_group_idx = prov[b, o_c, o_y, o_x, 2] if meta.krn_cs > 1 else 0
-
-        if k_prov_y == prov_t.maxval:
-            # We kept the original neutral element,
-            # so our gradient can't be related to the image
-            return
-
-        if meta.mirror_kernel:
-            y_steps = meta.krn_spatial[0] - 1 - k_prov_y
-            x_steps = meta.krn_spatial[1] - 1 - k_prov_x
-        else:
-            y_steps = k_prov_y
-            x_steps = k_prov_x
-
-        i_top_y = o_y * meta.stride[0] - meta.pad_begs[0]
-        i_left_x = o_x * meta.stride[1] - meta.pad_begs[1]
-        i_prov_c = group_number * meta.krn_cs + prov_group_idx
-        i_prov_y = i_top_y + meta.dilation[0] * y_steps
-        i_prov_x = i_left_x + meta.dilation[0] * x_steps
-
-        kernel_val = kernel[k_o, prov_group_idx, k_prov_y, k_prov_x]
-        img_val = img[b, i_prov_c, i_prov_y, i_prov_x]
-
-        d_kernel = semifield.d_times_d_kernel(img_val, kernel_val) * grad_val
-        inflate_pos = cuda.grid(1) % kernel_inflation
-        cuda.atomic.add(
-            out_kernel_grad,
-            (k_o, prov_group_idx, k_prov_y, k_prov_x, inflate_pos),
-            d_kernel,
-        )
-
-        d_img = semifield.d_times_d_img(img_val, kernel_val) * grad_val
-        cuda.atomic.add(out_img_grad, (b, i_prov_c, i_prov_y, i_prov_x), d_img)
-
-    def backwards_setup(ctx, inputs, output):
-        img, kernel = inputs
-        _out_img, prov = output
-        ctx.img = img
-        ctx.kernel = kernel
-        ctx.prov = prov
-
-    def backwards_entry(ctx, grad_output, _grad_prov):
-        g_img, g_kern = backwards(ctx.img, ctx.kernel, grad_output, ctx.prov)
-        return g_img, g_kern.sum(-1)
-
-    return backwards_entry, backwards_setup
