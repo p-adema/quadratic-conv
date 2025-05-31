@@ -24,7 +24,7 @@ this library also allows skipping the C++ compilation phase and only generating 
 boilerplate for a Custom Operator definition.
 
 For an example usage of this package, see my other
-package [pytorch-nd-semiconv](https://p-adema.github.io/quadratic-conv/pytorch-semifield-conv/html/pytorch_nd_semiconv/index.html)
+package [pytorch-nd-semiconv](https://p-adema.github.io/quadratic-conv/pytorch-nd-semiconv/docs.html)
 
 This package is [listed on PyPi](https://pypi.org/project/pytorch-numba-extension-jit/);
 it can be installed with
