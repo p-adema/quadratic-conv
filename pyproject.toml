@@ -24,8 +24,8 @@ dependencies = [
     "tqdm>=4.67.1",
     "pyarrow>=20.0.0",
     # Custom packages:
-    "pytorch-numba-extension-jit",
-    "pytorch-nd-semiconv",
+    "pytorch-numba-extension-jit>=0.1.0",
+    "pytorch-nd-semiconv>=0.1.0",
 ]
 
 
@@ -43,16 +43,7 @@ torchvision = [
     { index = "torch-cu128", marker = "sys_platform != 'darwin'" },
 ]
 
-pytorch-numba-extension-jit = [
-    { path = "./pytorch-numba-extension-jit" }
-]
-pytorch-nd-semiconv = [
-    { path = "./pytorch-nd-semiconv" }
-]
 morphological_torch = { path = "replicate/parabolic_pooling_investigation/morphology_package/dist/morphological_torch-0.1.0-cp312-cp312-linux_x86_64.whl", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" }
-
-[tool.uv]
-reinstall-package = ["pytorch-numba-extension-jit", "pytorch-nd-semiconv"]
 
 [dependency-groups]
 dev = [

@@ -1,6 +1,7 @@
 # Pytorch-Numba Extension JIT
 
 [Documentation](https://p-adema.github.io/quadratic-conv/pytorch-numba-extension-jit/docs.html)
+| [PyPi](https://pypi.org/project/pytorch-numba-extension-jit/)
 
 Writing custom CUDA operators in C and CPP can make certain operations significantly
 more efficient, but requires setting up a full C++ project and involves a great deal of
@@ -24,3 +25,8 @@ boilerplate for a Custom Operator definition.
 
 For an example usage of this package, see my other
 package [pytorch-nd-semiconv](https://p-adema.github.io/quadratic-conv/pytorch-semifield-conv/html/pytorch_nd_semiconv/index.html)
+
+This package is [listed on PyPi](https://pypi.org/project/pytorch-numba-extension-jit/);
+it can be installed with
+
+`pip install pytorch-numba-extension-jit`

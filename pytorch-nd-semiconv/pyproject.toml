@@ -12,7 +12,8 @@ dependencies = [
     "numba-cuda>=0.10.0",
     "torch>=2.7.0",
     "uuid>=1.30",
-    "pytorch_numba_extension_jit",
+    # Custom package:
+    "pytorch_numba_extension_jit>=0.1.0",
 ]
 
 
@@ -39,17 +40,3 @@ explicit = true
 torch = [
     { index = "torch-cu128", marker = "sys_platform != 'darwin'" },
 ]
-
-pytorch-numba-extension-jit = [
-    { path = "../pytorch-numba-extension-jit" }
-]
-
-
-[tool.uv]
-reinstall-package = ["pytorch-numba-extension-jit"]
-
-[[tool.uv.index]]
-name = "testpypi"
-url = "https://test.pypi.org/simple/"
-publish-url = "https://test.pypi.org/legacy/"
-explicit = true

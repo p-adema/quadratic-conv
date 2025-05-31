@@ -1,6 +1,7 @@
 # Pytorch N-Dimensional Semifield Convolutions
 
 [Documentation](https://p-adema.github.io/quadratic-conv/pytorch-nd-semiconv/docs.html)
+| [PyPi](https://pypi.org/project/pytorch-nd-semiconv/)
 
 PyTorch provides efficient implementations of linear convolution operators, as well
 as max-pooling operators. Both of these operators can be considered a kind of
@@ -35,3 +36,8 @@ pytorch-numba-extension-jit](https://p-adema.github.io/quadratic-conv/pytorch-nu
 Finally, all three implementations work in arbitrary dimensionality: they support 1D,
 2D or any dimensionality of inputs and kernels (though the example kernels provided
 are only 2D).
+
+This package is [listed on PyPi](https://pypi.org/project/pytorch-nd-semiconv/);
+it can be installed with
+
+`pip install pytorch-nd-semiconv`
