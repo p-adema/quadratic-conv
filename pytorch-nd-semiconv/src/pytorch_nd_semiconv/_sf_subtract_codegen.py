@@ -62,7 +62,7 @@ class CompiledSubtractSemifield(NamedTuple):
 def compile_forwards(
     semifield: CompiledSubtractSemifield,
     meta: ConvMeta,
-    thread_block_size: int = 256,
+    thread_block_size: int = 128,
     debug: bool = False,
     cache_name: str = "",
     to_extension: bool = True,
@@ -166,7 +166,7 @@ def forwards(
 def compile_backwards(
     semifield: CompiledSubtractSemifield,
     meta: ConvMeta,
-    thread_block_size: int = 256,
+    thread_block_size: int = 128,
     debug: bool = False,
     cache_name: str = "",
     to_extension: bool = True,

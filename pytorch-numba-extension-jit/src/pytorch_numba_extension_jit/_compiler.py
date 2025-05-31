@@ -87,8 +87,8 @@ def ptx_to_extension(
             msg = (
                 ("=" * 20) + "\nWARNING: interrupted compilations can result in "
                 "invalid intermediaries. If you encounter an error regarding Torch "
-                "being unable to open the corresponding shared object, please delete the "
-                "cache folder in which Torch is looking for the shared object\n"
+                "being unable to open the corresponding shared object, please delete "
+                "the cache folder in which Torch is looking for the shared object\n"
                 f"(something like ~/.cache/torch_extensions/<python>/pnex_jit_{name})\n"
                 + ("=" * 20)
             )

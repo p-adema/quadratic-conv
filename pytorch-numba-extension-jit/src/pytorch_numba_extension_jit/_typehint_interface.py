@@ -282,9 +282,9 @@ def jit(
     """
     Compile a Python function in the form of a Numba-CUDA kernel to a PyTorch operator
 
-    All parameters must be annotated with one of the classes exported by this module,
-    and the resulting operator will take `In`/`InMut`/`Scalar` parameters as arguments,
-    while returning `Out` parameters.
+    All parameters must be annotated with one of the argument types exported by this
+    module, and the resulting operator will take `In`/`InMut`/`Scalar` parameters
+    as arguments, while returning `Out` parameters.
 
     The keyword-only argument `n_threads` must be specified to indicate with how many
     threads the resulting kernel should be launched. The dimensionality of `n_threads`
@@ -315,6 +315,8 @@ def jit(
         For neural networks, it is best to keep `to_extension` as False and use
         CUDA Graphs via `torch.compile(model, mode="reduce-overhead", fullgraph=True)`
         to eliminate the wrapper code.
+        If this is not possible (due to highly dynamic code or irregular shapes), then
+        the next best option would be to use `to_extension` and minimise call overhead.
     cache_id : str, optional
         The name to save the compiled extension under: clashing `cache_id`s will
         result in recompilations (clashing functions will evict each-other
@@ -324,10 +326,10 @@ def jit(
 
     Returns
     -------
-    decorator
+    decorator : (kernel) -> torch.library.CustomOpDef
         The resulting decorator will transform a Python function
         (if properly annotated, and the function is a valid Numba-CUDA kernel) into a
-        `torch.library.CustomOpDef`, where the signature is such that all parameters
+        `CustomOpDef`, where the signature is such that all parameters
         annotated with `In`, `InMut` or `Scalar` must be provided as arguments, and
         all `Out` parameters are returned.
 
@@ -361,10 +363,11 @@ def jit(
     [Custom C++ and CUDA Operators](https://docs.pytorch.org/tutorials/advanced/cpp_custom_ops.html)
     documentation, where we take 2D inputs instead of flattening.
     A variety of methods for specifying dtype and shape are used in this example, but
-    keeping to one convention may be better for readability.
+    sticking to one convention may be better for readability.
 
     >>> import pytorch_numba_extension_jit as pnex
-    >>> @pnex.jit(n_threads="result.numel()")
+    >>> # Can be invoked as mymuladd_2d(A, B, C) to return RESULT
+    ... @pnex.jit(n_threads="result.numel()")
     ... def mymuladd_2d(
     ...     a: pnex.In(torch.float32, (None, None)),
     ...     b: pnex.In("f32", ("a.size(0)", "a.size(1)")),
@@ -373,7 +376,28 @@ def jit(
     ... ):
     ...     idx = cuda.grid(1)
     ...     y, x = divmod(idx, result.shape[0])
-    ...     if y < result.shape[1]:
+    ...     if y < result.shape[0]:
+    ...         result[y, x] = a[y, x] * b[y, x] + c
+
+    Here, we can see an alternate version that uses
+    [multidimensional blocks](https://nvidia.github.io/numba-cuda/user/kernels.html#multi-dimensional-blocks-and-grids)
+    to achieve the same task, while compiling the result to a C++ operator using
+    `to_extension`. Note that the `n_threads` argument is given sizes
+    in the X, Y, Z order (consistent with C++ CUDA kernels), and that `numba.cuda.grid`
+    also returns indices in this order, even if we might later use indices in e.g.
+    `y, x` order.
+
+    >>> @pnex.jit(n_threads=("result.size(1)", "result.size(0)"), to_extension=True)
+    ... def mymuladd_grid(
+    ...     a: pnex.In("f32", (None, None)),
+    ...     b: pnex.In("f32", ("a.size(0)", "a.size(1)")),
+    ...     c: float,
+    ...     result: pnex.Out("f32", "a"),
+    ... ):
+    ...     # always use this order for names to be consistent with CUDA terminology:
+    ...     x, y = cuda.grid(2)
+    ...
+    ...     if y < result.shape[0] and x < result.shape[1]:
     ...         result[y, x] = a[y, x] * b[y, x] + c
 
     Notes

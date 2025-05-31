@@ -1,14 +1,14 @@
 [project]
-name = "pytorch-semifield-conv"
+name = "pytorch-nd-semiconv"
 version = "0.1.0"
-description = "Add your description here"
+description = "N-dimensional convolutional operators for various semifields"
 readme = "README.md"
 authors = [
-    { name = "p-adema", email = "117938385+p-adema@users.noreply.github.com" }
+    { name = "Peter Adema", email = "p.j.adema@uva.nl" }
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "numba-cuda>=0.9.0",
+    "numba-cuda>=0.10.0",
     "torch>=2.7.0",
     "uuid>=1.30",
     "pytorch_numba_extension_jit",
@@ -24,7 +24,6 @@ dev = [
     "hatchling>=1.27.0",
     "matplotlib>=3.10.1",
     "pdoc3>=0.11.6",
-    #    "pdoc>=15.0.3",
     "ruff>=0.11.7",
     "tqdm>=4.67.1",
 ]
@@ -47,3 +46,9 @@ pytorch-numba-extension-jit = [
 
 [tool.uv]
 reinstall-package = ["pytorch-numba-extension-jit"]
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true

@@ -1,5 +1,5 @@
 import torch
-from pytorch_semifield_conv import SelectSemifield
+from pytorch_nd_semiconv import SelectSemifield
 
 torch.set_float32_matmul_precision("high")
 torch.manual_seed(0)

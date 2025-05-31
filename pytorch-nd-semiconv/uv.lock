@@ -816,6 +816,45 @@ wheels = [
 ]
 
 [[package]]
+name = "pytorch-nd-semiconv"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "numba-cuda" },
+    { name = "pytorch-numba-extension-jit" },
+    { name = "torch", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.7.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform != 'darwin'" },
+    { name = "uuid" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "hatchling" },
+    { name = "matplotlib" },
+    { name = "pdoc3" },
+    { name = "ruff" },
+    { name = "tqdm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "numba-cuda", specifier = ">=0.10.0" },
+    { name = "pytorch-numba-extension-jit", directory = "../pytorch-numba-extension-jit" },
+    { name = "torch", marker = "sys_platform != 'darwin'", specifier = ">=2.7.0", index = "https://download.pytorch.org/whl/cu128" },
+    { name = "torch", marker = "sys_platform == 'darwin'", specifier = ">=2.7.0" },
+    { name = "uuid", specifier = ">=1.30" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "hatchling", specifier = ">=1.27.0" },
+    { name = "matplotlib", specifier = ">=3.10.1" },
+    { name = "pdoc3", specifier = ">=0.11.6" },
+    { name = "ruff", specifier = ">=0.11.7" },
+    { name = "tqdm", specifier = ">=4.67.1" },
+]
+
+[[package]]
 name = "pytorch-numba-extension-jit"
 version = "0.1.0"
 source = { directory = "../pytorch-numba-extension-jit" }
@@ -839,47 +878,8 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "hatchling", specifier = ">=1.27.0" },
-    { name = "pdoc", specifier = ">=15.0.3" },
-    { name = "ruff", specifier = ">=0.11.7" },
-]
-
-[[package]]
-name = "pytorch-semifield-conv"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "numba-cuda" },
-    { name = "pytorch-numba-extension-jit" },
-    { name = "torch", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
-    { name = "torch", version = "2.7.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform != 'darwin'" },
-    { name = "uuid" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "hatchling" },
-    { name = "matplotlib" },
-    { name = "pdoc3" },
-    { name = "ruff" },
-    { name = "tqdm" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "numba-cuda", specifier = ">=0.9.0" },
-    { name = "pytorch-numba-extension-jit", directory = "../pytorch-numba-extension-jit" },
-    { name = "torch", marker = "sys_platform != 'darwin'", specifier = ">=2.7.0", index = "https://download.pytorch.org/whl/cu128" },
-    { name = "torch", marker = "sys_platform == 'darwin'", specifier = ">=2.7.0" },
-    { name = "uuid", specifier = ">=1.30" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "hatchling", specifier = ">=1.27.0" },
-    { name = "matplotlib", specifier = ">=3.10.1" },
     { name = "pdoc3", specifier = ">=0.11.6" },
     { name = "ruff", specifier = ">=0.11.7" },
-    { name = "tqdm", specifier = ">=4.67.1" },
 ]
 
 [[package]]

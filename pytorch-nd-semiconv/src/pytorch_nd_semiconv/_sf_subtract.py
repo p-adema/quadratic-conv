@@ -22,6 +22,11 @@ class SubtractSemifield(NamedTuple):
     from the result to get the arguments for the additive derivative.
     The resulting module is compiled and works only on CUDA devices.
 
+    Note that, while this implementation is more memory-efficient than
+    `BroadcastSemifield`, it is typically slower in execution speed.
+    If memory usage is not a concern but training speed is, then `BroadastSemifield`
+    should therefore be preferred.
+
     Parameters
     -------
     add : (float, float) -> float
@@ -38,6 +43,7 @@ class SubtractSemifield(NamedTuple):
         \[\frac{\delta (\textrm{img} \otimes \textrm{kernel}) }{\delta\textrm{kernel}}\]
     subtract : (float, float) -> float
         Given the final accumulator value `res` and a multiplied value `val`,
+        use the inverse of `add` and
 
         return an `acc` such that `add(acc, val) == res`.
         In other words: perform semifield subtraction.
@@ -111,7 +117,15 @@ class SubtractSemifield(NamedTuple):
 
     @classmethod
     def linear(cls) -> Self:
-        """Construct a linear `SubtractSemifield`"""
+        r"""
+        Construct a linear `SubtractSemifield`
+
+        The linear field is defined as:
+        \[(\mathbb{R}, +, \times)\]
+
+        Mainly for comparison purposes: the linear convolutions offered by PyTorch
+        use CUDNN, which is far better optimised for CUDA devices.
+        """
         return cls(
             add=lambda acc, val: acc + val,
             times=lambda img_val, kernel_val: img_val * kernel_val,
@@ -235,25 +249,33 @@ class SubtractSemifield(NamedTuple):
         Returns
         -------
         conv : nn.Module
-            A convolution module, suitable for use in `GenericConv2D`.
+            A convolution module, suitable for use in `GenericConv`.
             Note that the compilation process is not traceable, and recompilations
-            **may cause errors when using `torch.compile`**.
+            **may cause errors when using `torch.compile`** for backends other than
+            CUDA Graphs
 
         Other Parameters
         ----------
-        thread_block_size : int = 256
-            The number of threads per CUDA block
+        thread_block_size : int = 128
+            The number of threads per CUDA block.
         to_extension : bool = False
             Whether the resulting module should compile to a PyTorch extension.
             Doing so increases compilation times, but reduces per-call overhead
             when not using CUDA-Graphs.
+
+            For neural networks, it is best to keep `to_extension` as False and use
+            CUDA Graphs via `torch.compile(model, mode="reduce-overhead",
+            fullgraph=True)` to eliminate the wrapper code.
+            If this is not possible (due to highly dynamic code or irregular shapes),
+            then the next best option would be to use `to_extension`
+            and minimise call overhead.
         debug : bool = False
             Whether to print additional debugging and compilation information.
         kernel_inflation : int = 16
             The factor to inflate the kernel gradient with, to better distribute
             atomic operations.
             A larger factor can improve performance when the number of output pixels
-            per kernel value is high, but only up to a point and at the cost of memory
+            per kernel value is high, but only up to a point, and at the cost of memory
             efficiency.
         """
         return CompiledConv(
@@ -276,10 +298,15 @@ class SubtractSemifield(NamedTuple):
         """
         Create a *once-compiling* convolution Module based on this `SubtractSemifield`.
 
+        In general, `SubtractSemifield.dynamic` should be preferred for testing and also
+        for training if the model can be traced by CUDA Graphs.
+        If CUDA Graphs cannot capture the model code due to dynamic elements, then using
+        `SubtractSemifield.lazy_fixed` with `to_extension=True` will minimise overhead.
+
         Returns
         -------
         conv : nn.Module
-            A convolution module, suitable for use in `GenericConv2D`.
+            A convolution module, suitable for use in `GenericConv`.
             Note that compilation will be based on the first inputs seen, after which
             the operation will be fixed: **only batch size may be changed afterwards**.
             The module is, however, traceable by e.g. `torch.compile`.
@@ -292,13 +319,20 @@ class SubtractSemifield(NamedTuple):
             Whether the resulting module should compile to a PyTorch extension.
             Doing so increases compilation times, but reduces per-call overhead
             when not using CUDA-Graphs.
+
+            For neural networks, it is best to keep `to_extension` as False and use
+            CUDA Graphs via `torch.compile(model, mode="reduce-overhead",
+            fullgraph=True)` to eliminate the wrapper code.
+            If this is not possible (due to highly dynamic code or irregular shapes),
+            then the next best option would be to use `to_extension`
+            and minimise call overhead.
         debug : bool = False
             Whether to print additional debugging and compilation information.
         kernel_inflation : int = 16
             The factor to inflate the kernel gradient with, to better distribute
             atomic operations.
             A larger factor can improve performance when the number of output pixels
-            per kernel value is high, but only up to a point and at the cost of memory
+            per kernel value is high, but only up to a point, and at the cost of memory
             efficiency.
         """
         return CompiledConvFixedLazy(

@@ -68,7 +68,12 @@ class SelectSemifield(NamedTuple):
 
     @classmethod
     def tropical_max(cls) -> Self:
-        r"""Construct a \(T_+\) `SelectSemifield`."""
+        r"""
+        Construct a \(T_+\) `SelectSemifield`.
+
+        The tropical max semifield / semiring is defined as:
+        \[(\mathbb{R}\cup \{-\infty\}, \max, +)\]
+        """
         return cls(
             add_select=lambda left, right: left < right,
             times=lambda img_val, kernel_val: img_val + kernel_val,
@@ -81,9 +86,13 @@ class SelectSemifield(NamedTuple):
     @classmethod
     def tropical_min_negated(cls) -> Self:
         r"""
-        Construct a `SelectSemifield` similar to \(T_-\), where the kernel is negated
+        Construct a `SelectSemifield` similar to \(T_-\), where the kernel is negated.
 
-        While performing erosion using \(T_-\) requires first negating the kernel, this
+        The usual tropical min semifield / semiring is defined as:
+        \[(\mathbb{R}\cup \{\infty\}, \min, +)\]
+
+        This version is slightly modified:
+        while performing erosion using \(T_-\) requires first negating the kernel, this
         modified semifield has \(-\) instead of \(+\) as the semifield multiplication.
         As such, the resulting convolution will work with non-negated kernels as inputs,
         making the interface more similar to the dilation in \(T_+\).
@@ -148,26 +157,33 @@ class SelectSemifield(NamedTuple):
         Returns
         -------
         conv : nn.Module
-            A convolution module, suitable for use in `GenericConv2D`.
+            A convolution module, suitable for use in `GenericConv`.
             Note that the compilation process is not traceable, and recompilations
-            **may cause errors when using `torch.compile`**.
+            **may cause errors when using `torch.compile`** for backends other than
+            CUDA Graphs
 
         Other Parameters
         ----------
-        thread_block_size : int, optional
+        thread_block_size : int = 128
             The number of threads per CUDA block.
-            Defaults to 128 for the standard (``"glb"``) implementation.
         to_extension : bool = False
             Whether the resulting module should compile to a PyTorch extension.
             Doing so increases compilation times, but reduces per-call overhead
             when not using CUDA-Graphs.
+
+            For neural networks, it is best to keep `to_extension` as False and use
+            CUDA Graphs via `torch.compile(model, mode="reduce-overhead",
+            fullgraph=True)` to eliminate the wrapper code.
+            If this is not possible (due to highly dynamic code or irregular shapes),
+            then the next best option would be to use `to_extension`
+            and minimise call overhead.
         debug : bool = False
             Whether to print additional debugging and compilation information.
         kernel_inflation : int = 16
             The factor to inflate the kernel gradient with, to better distribute
             atomic operations.
             A larger factor can improve performance when the number of output pixels
-            per kernel value is high, but only up to a point and at the cost of memory
+            per kernel value is high, but only up to a point, and at the cost of memory
             efficiency.
         """
         return CompiledConv(
@@ -190,30 +206,41 @@ class SelectSemifield(NamedTuple):
         """
         Create a *once-compiling* convolution Module based on this `SelectSemifield`.
 
+        In general, `SelectSemifield.dynamic` should be preferred for testing and also
+        for training if the model can be traced by CUDA Graphs.
+        If CUDA Graphs cannot capture the model code due to dynamic elements, then using
+        `SelectSemifield.lazy_fixed` with `to_extension=True` will minimise overhead.
+
         Returns
         -------
         conv : nn.Module
-            A convolution module, suitable for use in `GenericConv2D`.
+            A convolution module, suitable for use in `GenericConv`.
             Note that compilation will be based on the first inputs seen, after which
             the operation will be fixed: **only batch size may be changed afterwards**.
-            The module is, however, traceable by e.g. `torch.compile`.
+            The module is, however, traceable by e.g. `torch.compile` on all backends.
 
         Other Parameters
         ----------
-        thread_block_size : int, optional
+        thread_block_size : int = 128
             The number of threads per CUDA block.
-            Defaults to 128 for the standard (``"glb"``) implementation
         to_extension : bool = False
             Whether the resulting module should compile to a PyTorch extension.
             Doing so increases compilation times, but reduces per-call overhead
             when not using CUDA-Graphs.
+
+            For neural networks, it is best to keep `to_extension` as False and use
+            CUDA Graphs via `torch.compile(model, mode="reduce-overhead",
+            fullgraph=True)` to eliminate the wrapper code.
+            If this is not possible (due to highly dynamic code or irregular shapes),
+            then the next best option would be to use `to_extension`
+            and minimise call overhead.
         debug : bool = False
             Whether to print additional debugging and compilation information.
         kernel_inflation : int = 16
             The factor to inflate the kernel gradient with, to better distribute
             atomic operations.
             A larger factor can improve performance when the number of output pixels
-            per kernel value is high, but only up to a point and at the cost of memory
+            per kernel value is high, but only up to a point, and at the cost of memory
             efficiency.
         """
         return CompiledConvFixedLazy(

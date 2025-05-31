@@ -33,6 +33,8 @@ class BroadcastSemifield(typing.NamedTuple):
     multiply : (Tensor, Tensor) -> Tensor
         To characterise semifield multiplication \(\otimes\), this function takes two
         tensors and performs a broadcasting, element-wise version of \(\otimes\).
+
+        Example: ``lambda img, krn: img * krn``
     zero : float
         The absorbing semifield zero.
 
@@ -71,6 +73,9 @@ class BroadcastSemifield(typing.NamedTuple):
         r"""
         Construct a \(T_+\) `BroadcastSemifield`.
 
+        The tropical max semifield / semiring is defined as:
+        \[(\mathbb{R}\cup \{-\infty\}, \max, +)\]
+
         Parameters
         ----------
         channels_add : bool = False
@@ -104,7 +109,11 @@ class BroadcastSemifield(typing.NamedTuple):
         r"""
         Construct a `BroadcastSemifield` similar to \(T_-\), where the kernel is negated
 
-        While performing erosion using \(T_-\) requires first negating the kernel, this
+        The usual tropical min semifield / semiring is defined as:
+        \[(\mathbb{R}\cup \{\infty\}, \min, +)\]
+
+        This version is slightly modified:
+        while performing erosion using \(T_-\) requires first negating the kernel, this
         modified semifield has \(-\) instead of \(+\) as the semifield multiplication.
         As such, the resulting convolution will work with non-negated kernels as inputs,
         making the interface more similar to the dilation in \(T_+\).
@@ -137,7 +146,15 @@ class BroadcastSemifield(typing.NamedTuple):
 
     @classmethod
     def linear(cls):
-        """Construct a linear `BroadcastSemifield`"""
+        r"""
+        Construct a linear `BroadcastSemifield`.
+
+        The linear field is defined as:
+        \[(\mathbb{R}, +, \times)\]
+
+        Mainly for comparison purposes: the linear convolutions offered by PyTorch
+        use CUDNN, which is far better optimised for CUDA devices.
+        """
         return cls(
             add_reduce=(lambda multiplied, dim: torch.sum(multiplied, dim=dim)),
             multiply=lambda img, krn: img * krn,
@@ -200,23 +217,29 @@ class BroadcastSemifield(typing.NamedTuple):
         """
         Create a convolution Module based on this `BroadcastSemifield`.
 
+        This method is named `dynamic`, because the Module it creates will dynamically
+        adjust itself based on new input types, unlike e.g. `SelectSemifield.lazy_fixed`
+
         Parameters
         ----------
         unfold_copy : bool = False
             Whether to use `nn.functional.unfold` during computation, which results in
             a copy of the data.
+            This is only supported for 2D convolutions 1D or 3+D convolutions cannot use
+            `nn.functional.unfold`.
+
             Mainly for comparison purposes: in tests, it always results in slowdown.
 
         Returns
         -------
         conv : nn.Module
-            A convolution module, suitable for use in `GenericConv2D`
+            A convolution module, suitable for use in `GenericConv`
         """
         return BroadcastConv(self, unfold_copy)
 
 
 class BroadcastConv(nn.Module):
-    """A convolution module, suitable for use in `GenericConv2D`"""
+    """A convolution module, suitable for use in `GenericConv`"""
 
     def __init__(
         self,

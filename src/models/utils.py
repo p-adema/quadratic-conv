@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Literal
 import numpy as np
 import polars as pl
 import torch
-from pytorch_semifield_conv import (
+from pytorch_nd_semiconv import (
     BroadcastSemifield,
-    GenericClosing2D,
-    GenericConv2D,
+    GenericClosing,
+    GenericConv,
     QuadraticKernelIso2D,
     QuadraticKernelSpectral2D,
     SelectSemifield,
@@ -144,7 +144,7 @@ def make_pooling_function(
                     channels_add=channel_add, spread_gradient=spread_gradient
                 ).dynamic()
             )
-            return GenericClosing2D(
+            return GenericClosing(
                 kernel=kernel,
                 conv_dilation=conv_dilation,
                 conv_erosion=conv_erosion,
@@ -154,7 +154,7 @@ def make_pooling_function(
                 group_broadcasting=group_broadcasting,
             )
 
-        return GenericConv2D(
+        return GenericConv(
             kernel=kernel,
             conv=conv_dilation,
             padding=padding,

@@ -5,7 +5,7 @@ import torch
 
 sys.path.extend(".")
 
-from pytorch_semifield_conv import BroadcastSemifield
+from pytorch_nd_semiconv import BroadcastSemifield
 
 from src import load_data
 

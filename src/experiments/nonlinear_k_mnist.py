@@ -5,10 +5,10 @@ from typing import Literal
 import numpy as np
 import polars as pl
 import torch
-from pytorch_semifield_conv import (
+from pytorch_nd_semiconv import (
     BroadcastSemifield,
-    GenericConv2D,
-    LearnedKernel,
+    GenericConv,
+    LearnedKernel2D,
     QuadraticKernelSpectral2D,
 )
 from tqdm import tqdm
@@ -55,11 +55,11 @@ for param in tqdm(param_space, desc="Param values"):
     result[f"aniso-7-log-{param}"] = LeNet.fit_many(
         description=f"aniso-7-log-{param}",
         convs=(
-            GenericConv2D(
+            GenericConv(
                 kernel=QuadraticKernelSpectral2D(1, 20, 5),
                 conv=BroadcastSemifield.log(param).dynamic(),
             ),
-            GenericConv2D(
+            GenericConv(
                 kernel=QuadraticKernelSpectral2D(20, 50, 5),
                 conv=BroadcastSemifield.log(param).dynamic(),
             ),
@@ -71,12 +71,12 @@ for param in tqdm(param_space, desc="Param values"):
     result[f"aniso-7-root-{param}"] = LeNet.fit_many(
         description=f"aniso-7-root-{param}",
         convs=(
-            GenericConv2D(
-                kernel=LearnedKernel(1, 20, 5),
+            GenericConv(
+                kernel=LearnedKernel2D(1, 20, 5),
                 conv=ClipRootConv(param),
             ),
-            GenericConv2D(
-                kernel=LearnedKernel(20, 50, 5),
+            GenericConv(
+                kernel=LearnedKernel2D(20, 50, 5),
                 conv=ClipRootConv(param),
             ),
         ),

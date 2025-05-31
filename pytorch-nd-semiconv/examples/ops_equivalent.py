@@ -5,7 +5,7 @@ from typing import Literal
 
 import numpy as np
 import torch
-from pytorch_semifield_conv import (
+from pytorch_nd_semiconv import (
     BroadcastSemifield,
     SelectSemifield,
     SubtractSemifield,

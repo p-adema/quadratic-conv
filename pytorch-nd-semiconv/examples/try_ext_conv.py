@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 import matplotlib.pyplot as plt
 import torch
-from pytorch_semifield_conv import SelectSemifield
+from pytorch_nd_semiconv import SelectSemifield
 
 plt.set_cmap("Spectral_r")
 

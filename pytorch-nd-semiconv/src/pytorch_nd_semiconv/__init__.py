@@ -1,9 +1,10 @@
 """
-This package offers a generalisation of 2D linear convolutions and max-poolings using
-semifields, with many common choices for semifields being available.
+This package offers a generalisation of linear convolutions and max-poolings using
+semifields and for an arbitrary number of spatial dimensions,
+with many common choices for semifields being available.
 
-Additionally, this package provides implementations of isotropic and anisotropic
-quadratic kernels for use in e.g. dilation.
+Additionally, this package provides example implementations of 2D isotropic and
+anisotropic quadratic kernels for use in e.g. dilation of 2-dimensional images.
 These implementations are efficient when run under `torch.compile`.
 
 As an example of anisotropic quadratic dilation, consider replacing:
@@ -12,9 +13,9 @@ As an example of anisotropic quadratic dilation, consider replacing:
 
 with:
 
-    import pytorch_semifield_conv as semiconv
+    import pytorch_nd_semiconv as semiconv
 
-    dilation = semiconv.GenericConv2D(
+    dilation = semiconv.GenericConv(
         semiconv.QuadraticKernelSpectral2D(
             in_channels=5, out_channels=5, kernel_size=3
         ),
@@ -25,7 +26,7 @@ with:
     )
 """
 
-from ._conv_modules import GenericClosing2D, GenericConv2D
+from ._conv_modules import GenericClosing, GenericConv
 from ._quadratic import (
     CovCholesky2D,
     CovSpectral2D,
@@ -36,18 +37,18 @@ from ._quadratic import (
 from ._sf_broadcast import BroadcastSemifield
 from ._sf_select import SelectSemifield
 from ._sf_subtract import SubtractSemifield
-from ._utils import LearnedKernel, TorchLinearConv2D, TorchMaxPool2D
+from ._utils import LearnedKernel2D, TorchLinearConv2D, TorchMaxPool2D
 
 __all__ = [  # noqa: RUF022
-    "GenericConv2D",
+    "GenericConv",
     "BroadcastSemifield",
     "SelectSemifield",
     "SubtractSemifield",
     "QuadraticKernelSpectral2D",
     "QuadraticKernelCholesky2D",
     "QuadraticKernelIso2D",
-    "GenericClosing2D",
-    "LearnedKernel",
+    "GenericClosing",
+    "LearnedKernel2D",
     "TorchLinearConv2D",
     "TorchMaxPool2D",
     # These two are exported but not documented: the internal covariance matrices
@@ -61,13 +62,11 @@ __pdoc__ = {
     "QuadraticKernelSpectral2D.forward": False,
     "QuadraticKernelCholesky2D.forward": False,
     "QuadraticKernelIso2D.forward": False,
-    "LearnedKernel.forward": False,
+    "LearnedKernel2D.forward": False,
     "TorchLinearConv2D.forward": False,
     "TorchMaxPool2D.forward": False,
-    "GenericClosing2D.forward": False,
+    "GenericClosing.forward": False,
     "QuadraticKernelIso2D.log_std": False,
-    "CovCholesky2D": False,
-    "CovSpectral2D": False,
 }
 
 for _tup in (BroadcastSemifield, SelectSemifield, SubtractSemifield):
@@ -79,3 +78,6 @@ for _export in __all__:
     __pdoc__[_export] = _mod.__doc__
     if "extra_repr" in _mod.__dict__:
         __pdoc__[f"{_export}.extra_repr"] = False
+
+__pdoc__["CovCholesky2D"] = False
+__pdoc__["CovSpectral2D"] = False

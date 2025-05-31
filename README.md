@@ -9,7 +9,7 @@ For the code used to generate it, please see:
 
 For the libraries backing the implementation, please see:
 
-- [semiconv: Efficient convolutions in semifields](pytorch-semifield-conv)
+- [semiconv: Efficient convolutions in semifields](pytorch-nd-semiconv)
 - [pnex: Compiler wrapper for PyTorch CUDA extensions](pytorch-numba-extension-jit)
 
 ## Experiments

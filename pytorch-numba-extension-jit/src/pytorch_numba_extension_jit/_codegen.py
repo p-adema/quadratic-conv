@@ -81,7 +81,7 @@ class InputTensor(NamedTuple):
 
         _add_tensor_args(self, args, declarations, len(shape), lang)
 
-    def sizes(self, tensor_ndims) -> tuple[str | None, ...]:
+    def sizes(self, tensor_ndims) -> tuple[int | str | None, ...]:
         if isinstance(self.shape, str):
             if self.shape not in tensor_ndims:
                 msg = (
@@ -381,9 +381,6 @@ def kernel_wrapper(
             .replace("\n", "    \\n\\t\\\n")
             .replace('"', '\\"')
         )
-
-    else:
-        assert isinstance(kernel_inner, Callable), "PY must be provided a Dispatcher"
 
     for param in kernel_params:
         if param.name in all_names:

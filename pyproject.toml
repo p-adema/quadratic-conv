@@ -1,8 +1,12 @@
 [project]
-name = "quadratic-convnet"
+name = "aniso-pooling"
 version = "0.1.0"
-description = "BSc Thesis project 'Quadratic Forms in Convolutional Neural Networks'"
+description = "BSc Thesis project 'Anisotropic Quadratic Forms for Pooling in Deep Learning'"
 requires-python = ">=3.10"
+readme = "README.md"
+authors = [
+    { name = "Peter Adema", email = "p.j.adema@uva.nl" }
+]
 dependencies = [
     "altair>=5.5.0",
     "jupyter>=1.1.1",
@@ -16,10 +20,11 @@ dependencies = [
     "seaborn>=0.13.2",
     "torch>=2.7.0",
     "torchvision>=0.22.0",
-    "pytorch-numba-extension-jit",
-    "pytorch-semifield-conv",
     "tqdm>=4.67.1",
     "pyarrow>=20.0.0",
+    # Custom packages:
+    "pytorch-numba-extension-jit",
+    "pytorch-nd-semiconv",
 ]
 
 
@@ -40,13 +45,13 @@ torchvision = [
 pytorch-numba-extension-jit = [
     { path = "./pytorch-numba-extension-jit" }
 ]
-pytorch-semifield-conv = [
-    { path = "./pytorch-semifield-conv" }
+pytorch-nd-semiconv = [
+    { path = "./pytorch-nd-semiconv" }
 ]
 morphological_torch = { path = "replicate/parabolic_pooling_investigation/morphology_package/dist/morphological_torch-0.1.0-cp312-cp312-linux_x86_64.whl", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" }
 
 [tool.uv]
-reinstall-package = ["pytorch-numba-extension-jit", "pytorch-semifield-conv"]
+reinstall-package = ["pytorch-numba-extension-jit", "pytorch-nd-semiconv"]
 
 [dependency-groups]
 dev = [

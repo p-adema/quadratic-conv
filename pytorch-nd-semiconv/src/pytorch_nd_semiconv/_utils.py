@@ -9,7 +9,7 @@ from ._unfold_view import _as_tup_n
 
 class TorchLinearConv2D(nn.Module):
     """
-    A utility that provides PyTorch Conv2D in a form compatible with `GenericConv2D`.
+    A utility that provides PyTorch Conv2D in a form compatible with `GenericConv`.
     """
 
     @staticmethod
@@ -65,7 +65,7 @@ class TorchLinearConv2D(nn.Module):
 
 class TorchMaxPool2D(nn.Module):
     """
-    A utility that provides torch.nn.MaxPool2d with padding like `GenericConv2D`.
+    A utility that provides torch.nn.MaxPool2d with padding like `GenericConv`.
     """
 
     def __init__(
@@ -351,9 +351,9 @@ def calculate_same(kernel_size: int, dilation: int) -> tuple[int, int]:
     return pad_beg, pad_end
 
 
-class LearnedKernel(nn.Module):
+class LearnedKernel2D(nn.Module):
     """
-    A utility that provides a fully learnable kernel compatible with `GenericConv2D`
+    A utility that provides a fully learnable kernel compatible with `GenericConv`
 
     Parameters
     -------

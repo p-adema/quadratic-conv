@@ -12,7 +12,7 @@ class QuadraticKernelSpectral2D(nn.Module):
     A kernel that evaluates \(x^T S^{-1} x\), with skew parameterised as an angle \(\theta\)
 
     This module takes no arguments in `forward` and produces a
-    `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv2D`.
+    `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv`.
 
     Parameters
     -------
@@ -109,7 +109,7 @@ class QuadraticKernelCholesky2D(nn.Module):
     A kernel that evaluates \(x^T S^{-1} x\), with skew parameterised as Pearson's R
 
     This module takes no arguments in `forward` and produces a
-    `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv2D`.
+    `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv`.
 
     Parameters
     -------
@@ -205,7 +205,7 @@ class QuadraticKernelIso2D(nn.Module):
     A kernel that evaluates \(x^T sI x\), representing an isotropic quadratic
 
     This module takes no arguments in `forward` and produces a
-    `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv2D`.
+    `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv`.
 
     Parameters
     -------

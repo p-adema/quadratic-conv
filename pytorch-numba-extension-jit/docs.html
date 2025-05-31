@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+    <meta name="generator" content="pdoc3 0.11.6">
+    <title>pytorch_numba_extension_jit API documentation</title>
+    <meta name="description" content="This library is aimed at simplifying the usage of
+[Numba-CUDA](https://github.com/NVIDIA/numba-cuda) kernels within projects
+using the …">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css"
+          integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA=="
+          crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css"
+          integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA=="
+          crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css"
+          crossorigin>
+    <style>:root {
+        --highlight-color: #fe9
+    }
+
+    .flex {
+        display: flex !important
+    }
+
+    body {
+        line-height: 1.5em
+    }
+
+    #content {
+        padding: 20px
+    }
+
+    #sidebar {
+        padding: 1.5em;
+        overflow: hidden
+    }
+
+    #sidebar > *:last-child {
+        margin-bottom: 2cm
+    }
+
+    .http-server-breadcrumbs {
+        font-size: 130%;
+        margin: 0 0 15px 0
+    }
+
+    #footer {
+        font-size: .75em;
+        padding: 5px 30px;
+        border-top: 1px solid #ddd;
+        text-align: right
+    }
+
+    #footer p {
+        margin: 0 0 0 1em;
+        display: inline-block
+    }
+
+    #footer p:last-child {
+        margin-right: 30px
+    }
+
+    h1, h2, h3, h4, h5 {
+        font-weight: 300
+    }
+
+    h1 {
+        font-size: 2.5em;
+        line-height: 1.1em
+    }
+
+    h2 {
+        font-size: 1.75em;
+        margin: 2em 0 .50em 0
+    }
+
+    h3 {
+        font-size: 1.4em;
+        margin: 1.6em 0 .7em 0
+    }
+
+    h4 {
+        margin: 0;
+        font-size: 105%
+    }
+
+    h1:target, h2:target, h3:target, h4:target, h5:target, h6:target {
+        background: var(--highlight-color);
+        padding: .2em 0
+    }
+
+    a {
+        color: #058;
+        text-decoration: none;
+        transition: color .2s ease-in-out
+    }
+
+    a:visited {
+        color: #503
+    }
+
+    a:hover {
+        color: #b62
+    }
+
+    .title code {
+        font-weight: bold
+    }
+
+    h2[id^="header-"] {
+        margin-top: 2em
+    }
+
+    .ident {
+        color: #900;
+        font-weight: bold
+    }
+
+    pre code {
+        font-size: .8em;
+        line-height: 1.4em;
+        padding: 1em;
+        display: block
+    }
+
+    code {
+        background: #f3f3f3;
+        font-family: "DejaVu Sans Mono", monospace;
+        padding: 1px 4px;
+        overflow-wrap: break-word
+    }
+
+    h1 code {
+        background: transparent
+    }
+
+    pre {
+        border-top: 1px solid #ccc;
+        border-bottom: 1px solid #ccc;
+        margin: 1em 0
+    }
+
+    #http-server-module-list {
+        display: flex;
+        flex-flow: column
+    }
+
+    #http-server-module-list div {
+        display: flex
+    }
+
+    #http-server-module-list dt {
+        min-width: 10%
+    }
+
+    #http-server-module-list p {
+        margin-top: 0
+    }
+
+    .toc ul, #index {
+        list-style-type: none;
+        margin: 0;
+        padding: 0
+    }
+
+    #index code {
+        background: transparent
+    }
+
+    #index h3 {
+        border-bottom: 1px solid #ddd
+    }
+
+    #index ul {
+        padding: 0
+    }
+
+    #index h4 {
+        margin-top: .6em;
+        font-weight: bold
+    }
+
+    @media (min-width: 200ex) {
+        #index .two-column {
+            column-count: 2
+        }
+    }
+
+    @media (min-width: 300ex) {
+        #index .two-column {
+            column-count: 3
+        }
+    }
+
+    dl {
+        margin-bottom: 2em
+    }
+
+    dl dl:last-child {
+        margin-bottom: 4em
+    }
+
+    dd {
+        margin: 0 0 1em 3em
+    }
+
+    #header-classes + dl > dd {
+        margin-bottom: 3em
+    }
+
+    dd dd {
+        margin-left: 2em
+    }
+
+    dd p {
+        margin: 10px 0
+    }
+
+    .name {
+        background: #eee;
+        font-size: .85em;
+        padding: 5px 10px;
+        display: inline-block;
+        min-width: 40%
+    }
+
+    .name:hover {
+        background: #e0e0e0
+    }
+
+    dt:target .name {
+        background: var(--highlight-color)
+    }
+
+    .name > span:first-child {
+        white-space: nowrap
+    }
+
+    .name.class > span:nth-child(2) {
+        margin-left: .4em
+    }
+
+    .inherited {
+        color: #999;
+        border-left: 5px solid #eee;
+        padding-left: 1em
+    }
+
+    .inheritance em {
+        font-style: normal;
+        font-weight: bold
+    }
+
+    .desc h2 {
+        font-weight: 400;
+        font-size: 1.25em
+    }
+
+    .desc h3 {
+        font-size: 1em
+    }
+
+    .desc dt code {
+        background: inherit
+    }
+
+    .source > summary, .git-link-div {
+        color: #666;
+        text-align: right;
+        font-weight: 400;
+        font-size: .8em;
+        text-transform: uppercase
+    }
+
+    .source summary > * {
+        white-space: nowrap;
+        cursor: pointer
+    }
+
+    .git-link {
+        color: inherit;
+        margin-left: 1em
+    }
+
+    .source pre {
+        max-height: 500px;
+        overflow: auto;
+        margin: 0
+    }
+
+    .source pre code {
+        font-size: 12px;
+        overflow: visible;
+        min-width: max-content
+    }
+
+    .hlist {
+        list-style: none
+    }
+
+    .hlist li {
+        display: inline
+    }
+
+    .hlist li:after {
+        content: ',\2002'
+    }
+
+    .hlist li:last-child:after {
+        content: none
+    }
+
+    .hlist .hlist {
+        display: inline;
+        padding-left: 1em
+    }
+
+    img {
+        max-width: 100%
+    }
+
+    td {
+        padding: 0 .5em
+    }
+
+    .admonition {
+        padding: .1em 1em;
+        margin: 1em 0
+    }
+
+    .admonition-title {
+        font-weight: bold
+    }
+
+    .admonition.note, .admonition.info, .admonition.important {
+        background: #aef
+    }
+
+    .admonition.todo, .admonition.versionadded, .admonition.tip, .admonition.hint {
+        background: #dfd
+    }
+
+    .admonition.warning, .admonition.versionchanged, .admonition.deprecated {
+        background: #fd4
+    }
+
+    .admonition.error, .admonition.danger, .admonition.caution {
+        background: lightpink
+    }</style>
+    <style media="screen and (min-width: 700px)">@media screen and (min-width: 700px) {
+        #sidebar {
+            width: 30%;
+            height: 100vh;
+            overflow: auto;
+            position: sticky;
+            top: 0
+        }
+
+        #content {
+            width: 70%;
+            max-width: 100ch;
+            padding: 3em 4em;
+            border-left: 1px solid #ddd
+        }
+
+        pre code {
+            font-size: 1em
+        }
+
+        .name {
+            font-size: 1em
+        }
+
+        main {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: flex-end
+        }
+
+        .toc ul ul, #index ul ul {
+            padding-left: 1em
+        }
+
+        .toc > ul > li {
+            margin-top: .5em
+        }
+    }</style>
+    <style media="print">@media print {
+        #sidebar h1 {
+            page-break-before: always
+        }
+
+        .source {
+            display: none
+        }
+    }
+
+    @media print {
+        * {
+            background: transparent !important;
+            color: #000 !important;
+            box-shadow: none !important;
+            text-shadow: none !important
+        }
+
+        a[href]:after {
+            content: " (" attr(href) ")";
+            font-size: 90%
+        }
+
+        a[href][title]:after {
+            content: none
+        }
+
+        abbr[title]:after {
+            content: " (" attr(title) ")"
+        }
+
+        .ir a:after, a[href^="javascript:"]:after, a[href^="#"]:after {
+            content: ""
+        }
+
+        pre, blockquote {
+            border: 1px solid #999;
+            page-break-inside: avoid
+        }
+
+        thead {
+            display: table-header-group
+        }
+
+        tr, img {
+            page-break-inside: avoid
+        }
+
+        img {
+            max-width: 100% !important
+        }
+
+        @page {
+            margin: 0.5cm
+        }
+
+        p, h2, h3 {
+            orphans: 3;
+            widows: 3
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            page-break-after: avoid
+        }
+    }</style>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"
+            integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ=="
+            crossorigin></script>
+    <script>window.addEventListener('DOMContentLoaded', () => {
+        hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+        hljs.highlightAll();
+        /* Collapse source docstrings */
+        setTimeout(() => {
+            [...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+                .filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+                .forEach(el => {
+                    let d = document.createElement('details');
+                    d.classList.add('hljs-string');
+                    d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+                    el.replaceWith(d);
+                });
+        }, 100);
+    })</script>
+</head>
+<body>
+<main>
+    <article id="content">
+        <header>
+            <h1 class="title">Package <code>pytorch_numba_extension_jit</code></h1>
+        </header>
+        <section id="section-intro">
+            <p>This package is aimed at simplifying the usage of
+                <a href="https://github.com/NVIDIA/numba-cuda">Numba-CUDA</a> kernels within projects
+                using the <a href="https://pytorch.org">PyTorch</a> deep learning framework.</p>
+            <p>By annotating a function written in the style of a
+                <a href="https://nvidia.github.io/numba-cuda/user/kernels.html">Numba-CUDA kernel</a>
+                with type hints from this package, <code><a title="pytorch_numba_extension_jit.jit"
+                                                            href="#pytorch_numba_extension_jit.jit">jit()</a></code> can
+                generate
+                <a href="https://docs.pytorch.org/tutorials/advanced/custom_ops_landing_page.html">PyTorch Custom
+                    Operator</a>
+                bindings that allow the kernel to be used within a traced (e.g. <code>torch.compile</code>)
+                environment.
+                Furthermore, by setting <code>to_extension=True</code>, the kernel can also be transformed into
+                PTX, and C++ code can be generated to invoke the kernel with minimal overhead.</p>
+            <p>As a toy example, consider the task of creating a copy of a 1D array:</p>
+            <pre><code class="language-python-repl">&gt;&gt;&gt; import pytorch_numba_extension_jit as pnex
+&gt;&gt;&gt; @pnex.jit(n_threads=&quot;a.numel()&quot;)
+... def copy(
+...     a: pnex.In(dtype=&quot;f32&quot;, shape=(None,)),
+...     result: pnex.Out(dtype=&quot;f32&quot;, shape=&quot;a&quot;),
+... ):
+...     x = cuda.grid(1)
+...     if x &lt; a.shape[0]:
+...         result[x] = a[x]
+&gt;&gt;&gt; A = torch.arange(5, dtype=torch.float32, device=&quot;cuda&quot;)
+&gt;&gt;&gt; copy(A)
+tensor([0., 1., 2., 3., 4.], device='cuda:0')
+</code></pre>
+            <p>For more examples of usage, see <code><a title="pytorch_numba_extension_jit.jit"
+                                                        href="#pytorch_numba_extension_jit.jit">jit()</a></code> and the
+                examples directory of the project.</p>
+        </section>
+        <section>
+        </section>
+        <section>
+        </section>
+        <section>
+            <h2 class="section-title" id="header-functions">Entrypoint</h2>
+            <dl>
+                <dt id="pytorch_numba_extension_jit.jit"><code class="name flex">
+                    <span>def <span class="ident">jit</span></span>(<span>*,<br>n_threads: str | tuple[str, str] | tuple[str, str, str],<br>to_extension: bool = False,<br>cache_id: str = None,<br>verbose: bool = False,<br>threads_per_block: int | tuple[int, int] | tuple[int, int, int] = None,<br>max_registers: int = None) ‑> Callable[[Callable[..., None]], torch._library.custom_ops.CustomOpDef]</span>
+                </code></dt>
+                <dd>
+                    <div class="desc"><p>Compile a Python function in the form of a Numba-CUDA kernel to a PyTorch
+                        operator</p>
+                        <p>All parameters must be annotated with one of the argument types exported by this module,
+                            and the resulting operator will take <code><a title="pytorch_numba_extension_jit.In"
+                                                                          href="#pytorch_numba_extension_jit.In">In</a></code>/<code><a
+                                    title="pytorch_numba_extension_jit.InMut" href="#pytorch_numba_extension_jit.InMut">InMut</a></code>/<code><a
+                                    title="pytorch_numba_extension_jit.Scalar"
+                                    href="#pytorch_numba_extension_jit.Scalar">Scalar</a></code> parameters as
+                            arguments,
+                            while returning <code><a title="pytorch_numba_extension_jit.Out"
+                                                     href="#pytorch_numba_extension_jit.Out">Out</a></code> parameters.
+                        </p>
+                        <p>The keyword-only argument <code>n_threads</code> must be specified to indicate with how many
+                            threads the resulting kernel should be launched. The dimensionality of
+                            <code>n_threads</code>
+                            indicates the dimensionality of the launched kernel, while <code>threads_per_block</code>
+                            controls the size of each block.</p>
+                        <p>With <code>to_extension=True</code>, this function will also compile the PTX generated by
+                            Numba
+                            to a PyTorch native C++ extension, thereby reducing the overhead per call. If the
+                            resulting compilation times (first several seconds, then cached) are not acceptable,
+                            this additional compilation step can be skipped with <code>to_extension=False</code>.</p>
+                        <h2 id="parameters">Parameters</h2>
+                        <dl>
+                            <dt><strong><code>n_threads</code></strong> :&ensp;<code>str, tuple[str, str], tuple[str,
+                                str, str]</code></dt>
+                            <dd>
+                                <p>Expression(s) that evaluate to the total number of threads that the kernel
+                                    should be launched with. Thread axes are filled in the order X, Y, Z: as such,
+                                    passing only a single string <code>n_threads</code> is equivalent to passing
+                                    <code>(n_threads, 1, 1)</code>, with only the X thread-dimension being non-unit.</p>
+                                <p>In practice, this number is then divided by <code>threads_per_block</code> and
+                                    rounded up
+                                    to get the number of blocks for a single kernel invocation (blocks per grid).</p>
+                            </dd>
+                            <dt><strong><code>to_extension</code></strong> :&ensp;<code>bool = False</code></dt>
+                            <dd>
+                                <p>Whether the function should be compiled to a PyTorch C++ extension or instead
+                                    be left as a wrapped Numba-CUDA kernel. The signature of the returned function
+                                    is identical in both cases, but compiling an extension can take 5+ seconds,
+                                    while not compiling an extension incurs a small runtime overhead on every call.</p>
+                                <p>For neural networks, it is best to keep <code>to_extension</code> as False and use
+                                    CUDA Graphs via <code>torch.compile(model, mode="reduce-overhead",
+                                        fullgraph=True)</code>
+                                    to eliminate the wrapper code.
+                                    If this is not possible (due to highly dynamic code or irregular shapes), then
+                                    the next best option would be to use <code>to_extension</code> and minimise call
+                                    overhead.</p>
+                            </dd>
+                            <dt><strong><code>cache_id</code></strong> :&ensp;<code>str</code>, optional</dt>
+                            <dd>
+                                <p>The name to save the compiled extension under: clashing <code>cache_id</code>s will
+                                    result in recompilations (clashing functions will evict each-other
+                                    from the cache), but not miscompilations (the results will be correct).</p>
+                                <p>Only used when <code>to_extension=True</code></p>
+                            </dd>
+                        </dl>
+                        <h2 id="returns">Returns</h2>
+                        <dl>
+                            <dt><strong><code>decorator</code></strong> :&ensp;<code>(kernel) -&gt;
+                                torch.library.CustomOpDef</code></dt>
+                            <dd>
+                                <p>The resulting decorator will transform a Python function
+                                    (if properly annotated, and the function is a valid Numba-CUDA kernel) into a
+                                    <code>CustomOpDef</code>, where the signature is such that all parameters
+                                    annotated with <code><a title="pytorch_numba_extension_jit.In"
+                                                            href="#pytorch_numba_extension_jit.In">In</a></code>, <code><a
+                                            title="pytorch_numba_extension_jit.InMut"
+                                            href="#pytorch_numba_extension_jit.InMut">InMut</a></code> or <code><a
+                                            title="pytorch_numba_extension_jit.Scalar"
+                                            href="#pytorch_numba_extension_jit.Scalar">Scalar</a></code> must be
+                                    provided as arguments, and
+                                    all <code><a title="pytorch_numba_extension_jit.Out"
+                                                 href="#pytorch_numba_extension_jit.Out">Out</a></code> parameters are
+                                    returned.</p>
+                                <p>All parameters must be annotated with
+                                    one of <code><a title="pytorch_numba_extension_jit.In"
+                                                    href="#pytorch_numba_extension_jit.In">In</a></code>, <code><a
+                                            title="pytorch_numba_extension_jit.InMut"
+                                            href="#pytorch_numba_extension_jit.InMut">InMut</a></code>, <code><a
+                                            title="pytorch_numba_extension_jit.Out"
+                                            href="#pytorch_numba_extension_jit.Out">Out</a></code>, <code><a
+                                            title="pytorch_numba_extension_jit.Scalar"
+                                            href="#pytorch_numba_extension_jit.Scalar">Scalar</a></code> or <code><a
+                                            title="pytorch_numba_extension_jit.Unused"
+                                            href="#pytorch_numba_extension_jit.Unused">Unused</a></code></p>
+                            </dd>
+                        </dl>
+                        <h2 id="other-parameters">Other Parameters</h2>
+                        <dl>
+                            <dt><strong><code>verbose</code></strong> :&ensp;<code>bool = False</code></dt>
+                            <dd>Whether to print additional information about the compilation process.
+                                Compilation errors are always printed.
+                            </dd>
+                            <dt><strong><code>threads_per_block</code></strong> :&ensp;<code>int, tuple[int, int],
+                                tuple[int, int, int] = None</code></dt>
+                            <dd>
+                                <p>The number of threads within a thread block across the various dimensions.</p>
+                                <p>Depending on the dimensionality of <code>n_threads</code>, this defaults to one of:
+                                </p>
+                                <ul>
+                                    <li>For 1 dimension: 256</li>
+                                    <li>For 2 dimensions: (16, 16)</li>
+                                    <li>For 3 dimensions: (8, 8, 4)</li>
+                                </ul>
+                            </dd>
+                            <dt><strong><code>max_registers</code></strong> :&ensp;<code>int</code>, optional</dt>
+                            <dd>Specify the maximum number of registers to be used by the kernel, with excess
+                                spilling over to local memory.
+                                Typically, the compiler is quite good at guessing the number of registers it
+                                should use, but limiting this to hit occupancy targets may help in some cases.
+                                This option is only available with <code>to_extension=False</code>, due to the structure
+                                of the Numba-CUDA API.
+                            </dd>
+                        </dl>
+                        <h2 id="examples">Examples</h2>
+                        <p>This is an example implementation of the <code>mymuladd</code> function from the PyTorch
+                            <a href="https://docs.pytorch.org/tutorials/advanced/cpp_custom_ops.html">Custom C++ and
+                                CUDA Operators</a>
+                            documentation, where we take 2D inputs instead of flattening.
+                            A variety of methods for specifying dtype and shape are used in this example, but
+                            sticking to one convention may be better for readability.</p>
+                        <pre><code class="language-python-repl">&gt;&gt;&gt; import pytorch_numba_extension_jit as pnex
+&gt;&gt;&gt; # Can be invoked as mymuladd_2d(A, B, C) to return RESULT
+... @pnex.jit(n_threads=&quot;result.numel()&quot;)
+... def mymuladd_2d(
+...     a: pnex.In(torch.float32, (None, None)),
+...     b: pnex.In(&quot;f32&quot;, (&quot;a.size(0)&quot;, &quot;a.size(1)&quot;)),
+...     c: float,  # : pnex.Scalar(float)
+...     result: pnex.Out(&quot;float32&quot;, &quot;a&quot;),
+... ):
+...     idx = cuda.grid(1)
+...     y, x = divmod(idx, result.shape[0])
+...     if y &lt; result.shape[0]:
+...         result[y, x] = a[y, x] * b[y, x] + c
+</code></pre>
+                        <p>Here, we can see an alternate version that uses
+                            <a href="https://nvidia.github.io/numba-cuda/user/kernels.html#multi-dimensional-blocks-and-grids">multidimensional
+                                blocks</a>
+                            to achieve the same task, while compiling the result to a C++ operator using
+                            <code>to_extension</code>. Note that the <code>n_threads</code> argument is given sizes
+                            in the X, Y, Z order (consistent with C++ CUDA kernels), and that
+                            <code>numba.cuda.grid</code>
+                            also returns indices in this order, even if we might later use indices in e.g.
+                            <code>y, x</code> order.</p>
+                        <pre><code class="language-python-repl">&gt;&gt;&gt; @pnex.jit(n_threads=(&quot;result.size(1)&quot;, &quot;result.size(0)&quot;), to_extension=True)
+... def mymuladd_grid(
+...     a: pnex.In(&quot;f32&quot;, (None, None)),
+...     b: pnex.In(&quot;f32&quot;, (&quot;a.size(0)&quot;, &quot;a.size(1)&quot;)),
+...     c: float,
+...     result: pnex.Out(&quot;f32&quot;, &quot;a&quot;),
+... ):
+...     # always use this order for names to be consistent with CUDA terminology:
+...     x, y = cuda.grid(2)
+...
+...     if y &lt; result.shape[0] and x &lt; result.shape[1]:
+...         result[y, x] = a[y, x] * b[y, x] + c
+</code></pre>
+                        <h2 id="notes">Notes</h2>
+                        <p>This function relies heavily on internals and undocumented behaviour of the
+                            Numba-CUDA PTX compiler. However, these internals have not changed in over 3 years,
+                            so it is reasonable to assume they will remain similar in future versions as well.
+                            Versions 0.9.0 and 0.10.0 of Numba-CUDA have been verified to work as expected.</p>
+                        <p>Additionally, it should be noted that storing the function to be compiled for
+                            compilation in a different stack frame may cause issues if some annotations use
+                            local variables and the module is using <code>from __future__ import annotations</code>.
+                            This is because annotations are not considered part of the function proper, so they
+                            are not closed over during the construction of a function (no cell is created).
+                            Using <code><a title="pytorch_numba_extension_jit.jit"
+                                           href="#pytorch_numba_extension_jit.jit">jit()</a></code> directly with the
+                            decorator syntax <code>@pnex.jit(n_threads=...)</code>
+                            has no such problems, or one can selectively disable <code>annotations</code> for the file
+                            where the function to be compiled is defined.</p>
+                        <h2 id="see-also">See Also</h2>
+                        <dl>
+                            <dt><code>numba.cuda.compile_for_current_device</code></dt>
+                            <dd>used to compile the Python function into PTX: all functions must therefore also be <a
+                                    href="https://nvidia.github.io/numba-cuda/user/kernels.html">valid
+                                <code>numba.cuda</code> kernels</a>.
+                            </dd>
+                            <dt><code>numba.cuda.jit</code></dt>
+                            <dd>used instead to allow <code>to_extension=False</code></dd>
+                            <dt><code>torch.utils.cpp_extension.load_inline</code></dt>
+                            <dd>used to compile the PyTorch C++ extension</dd>
+                        </dl>
+                    </div>
+                </dd>
+            </dl>
+        </section>
+        <section>
+            <h2 class="section-title" id="header-classes">Argument types</h2>
+            <dl>
+                <dt id="pytorch_numba_extension_jit.In"><code class="flex name class">
+                    <span>class <span class="ident">In</span></span>
+                    <span>(</span><span>dtype: torch.dtype | numpy.dtype | str,<br>shape: tuple[int | str | None, ...] | str)</span>
+                </code></dt>
+                <dd>
+                    <div class="desc"><p>A type annotation for immutable input tensor parameters in a <code><a
+                            title="pytorch_numba_extension_jit.jit"
+                            href="#pytorch_numba_extension_jit.jit">jit()</a></code> function</p>
+                        <p>An input tensor is part of the argument list in the final operator, meaning it must
+                            be provided by the caller. This variant is immutable, meaning the kernel must not
+                            modify the tensor.</p>
+                        <p>To use this annotation, use the syntax <code>param: In(dtype, shape)</code>.</p>
+                        <h2 id="parameters">Parameters</h2>
+                        <dl>
+                            <dt><strong><code>dtype</code></strong> :&ensp;<code>torch.dtype, np.dtype, str</code></dt>
+                            <dd>
+                                <p>The data type of the input tensor.</p>
+                                <p>Some equivalent examples: <code>torch.float32</code>, <code>float</code>, <code>"float32"</code>
+                                    or <code>"f32"</code></p>
+                            </dd>
+                            <dt><strong><code>shape</code></strong> :&ensp;<code>str, tuple</code> of <code>(int</code>
+                                or <code>str</code> or <code>None)</code></dt>
+                            <dd>
+                                <p>The shape of the input tensor.</p>
+                                <p>If <code>shape</code> is a string, it must be the name of a previously defined
+                                    tensor parameter, and the shape of this parameter must be equal to
+                                    the shape of the parameter named by <code>shape</code>.</p>
+                                <p>If <code>shape</code> is a tuple, every element in the tuple corresponds with one
+                                    axis in
+                                    the input tensor. For every such element:</p>
+                                <ul>
+                                    <li><code>int</code> constrains the axis to be exactly of the given dimension.</li>
+                                    <li><code>str</code> represents an expression that evaluates to an integer, and
+                                        constrains
+                                        the axis to be equal to the result of the expression. If the name of a tensor
+                                        parameter is provided, this is equivalent to
+                                        <code>param_name.shape[nth_dim]</code> where
+                                        <code>nth_dim</code> is the index of the current axis.
+                                    </li>
+                                    <li><code>None</code> does not constrain the size of the axis.</li>
+                                </ul>
+                            </dd>
+                        </dl>
+                    </div>
+                </dd>
+                <dt id="pytorch_numba_extension_jit.InMut"><code class="flex name class">
+                    <span>class <span class="ident">InMut</span></span>
+                    <span>(</span><span>dtype: torch.dtype | numpy.dtype | str,<br>shape: tuple[int | str | None, ...] | str)</span>
+                </code></dt>
+                <dd>
+                    <div class="desc"><p>A type annotation for <strong>mutable</strong> input tensor parameters in a
+                        <code><a title="pytorch_numba_extension_jit.jit"
+                                 href="#pytorch_numba_extension_jit.jit">jit()</a></code> function</p>
+                        <p>An input tensor is part of the argument list in the final operator, meaning it must
+                            be provided by the caller. This variant <strong>is mutable</strong>, meaning the kernel
+                            <strong>may</strong>
+                            modify the tensor.</p>
+                        <p>To use this annotation, use the syntax <code>param: InMut(dtype, shape)</code>.</p>
+                        <p>For information on the parameters, see <code><a title="pytorch_numba_extension_jit.In"
+                                                                           href="#pytorch_numba_extension_jit.In">In</a></code>.
+                        </p></div>
+                </dd>
+                <dt id="pytorch_numba_extension_jit.Out"><code class="flex name class">
+                    <span>class <span class="ident">Out</span></span>
+                    <span>(</span><span>dtype: torch.dtype | numpy.dtype | str,<br>shape: tuple[int | str, ...] | str,<br>init: float = None)</span>
+                </code></dt>
+                <dd>
+                    <div class="desc"><p>A type annotation for output tensor parameters in a <code><a
+                            title="pytorch_numba_extension_jit.jit"
+                            href="#pytorch_numba_extension_jit.jit">jit()</a></code> function</p>
+                        <p>An output tensor is not part of the argument list in the final operator, meaning the
+                            caller <em>must not</em> attempt to provide it. Instead, parameters marked as <code><a
+                                    title="pytorch_numba_extension_jit.Out"
+                                    href="#pytorch_numba_extension_jit.Out">Out</a></code> are
+                            created by the wrapper code before being passed to the kernel, and are returned to
+                            the caller afterwards as return values from the final operator. Since parameters
+                            marked <code><a title="pytorch_numba_extension_jit.Out"
+                                            href="#pytorch_numba_extension_jit.Out">Out</a></code> are returned, they
+                            can receive a gradient and can work with the PyTorch
+                            autograd system.</p>
+                        <p>To use this annotation, use the syntax <code>param: Out(dtype, shape[, init=init])</code>.
+                        </p>
+                        <h2 id="parameters">Parameters</h2>
+                        <dl>
+                            <dt><strong><code>dtype</code></strong> :&ensp;<code>torch.dtype, np.dtype, str</code></dt>
+                            <dd>
+                                <p>The data type of the output tensor.</p>
+                                <p>Some equivalent examples: <code>torch.float32</code>, <code>float</code>, <code>"float32"</code>
+                                    or <code>"f32"</code></p>
+                            </dd>
+                            <dt><strong><code>shape</code></strong> :&ensp;<code>str, tuple</code> of <code>(int</code>
+                                or <code>str)</code></dt>
+                            <dd>
+                                <p>The shape of the output tensor.</p>
+                                <p>If <code>shape</code> is a string, it must be the name of
+                                    a previously defined tensor parameter, and this tensor will be constructed to
+                                    have the same shape as the parameter named by <code>shape</code></p>
+                                <p>If <code>shape</code> is a tuple, every element in the tuple corresponds with one
+                                    axis in
+                                    the output tensor. For every such element:</p>
+                                <ul>
+                                    <li><code>int</code> sets the size to be exactly the provided value.</li>
+                                    <li><code>str</code> represents an expression that evaluates to an integer, and sets
+                                        the size
+                                        of the axis to be equal to the result of the expression. If the name of a
+                                        tensor parameter is provided, this is equivalent to
+                                        <code>param_name.shape[nth_dim]</code> where <code>nth_dim</code> is the index
+                                        of the current axis.
+                                    </li>
+                                </ul>
+                            </dd>
+                            <dt><strong><code>init</code></strong> :&ensp;<code>float</code> or <code>int</code>,
+                                optional
+                            </dt>
+                            <dd>
+                                <p>The initial value used to fill the output tensor with. If not provided, the
+                                    output tensor will contain uninitialised memory (in the style of
+                                    <a href="https://docs.pytorch.org/docs/stable/generated/torch.empty.html"><code>torch.empty</code></a>).
+                                </p>
+                                <p>Example: gradient tensors for the backward pass should be initialised with 0.</p>
+                            </dd>
+                        </dl>
+                    </div>
+                </dd>
+                <dt id="pytorch_numba_extension_jit.Scalar"><code class="flex name class">
+                    <span>class <span class="ident">Scalar</span></span>
+                    <span>(</span><span>dtype: torch.dtype | numpy.dtype | str)</span>
+                </code></dt>
+                <dd>
+                    <div class="desc"><p>A type annotation for scalar input parameters in a <code><a
+                            title="pytorch_numba_extension_jit.jit"
+                            href="#pytorch_numba_extension_jit.jit">jit()</a></code> function</p>
+                        <p>A scalar input is part of the argument list in the final operator, meaning the
+                            caller must provide it. It is not returned: for scalar outputs,
+                            use <code><a title="pytorch_numba_extension_jit.Out"
+                                         href="#pytorch_numba_extension_jit.Out">Out</a>(dtype, (1,))</code> instead.
+                        </p>
+                        <p>To use this annotation, use the syntax <code>param: Scalar(dtype)</code>,
+                            or the shorthand <code>param: dtype</code>.</p>
+                        <h2 id="parameters">Parameters</h2>
+                        <dl>
+                            <dt><strong><code>dtype</code></strong> :&ensp;<code>torch.dtype, np.dtype, str</code></dt>
+                            <dd>
+                                <p>The data type of the scalar.</p>
+                                <p>Some equivalent examples: <code>torch.float32</code>, <code>float</code>, <code>"float32"</code>
+                                    or <code>"f32"</code></p>
+                            </dd>
+                        </dl>
+                    </div>
+                </dd>
+                <dt id="pytorch_numba_extension_jit.Unused"><code class="flex name class">
+                    <span>class <span class="ident">Unused</span></span>
+                </code></dt>
+                <dd>
+                    <div class="desc"><p>A type annotation for ignored parameters in a <code><a
+                            title="pytorch_numba_extension_jit.jit"
+                            href="#pytorch_numba_extension_jit.jit">jit()</a></code> function</p>
+                        <p>This is a utility class for marking certain parameters to be skipped during
+                            compilation. An example of this would be a kernel which can optionally return an
+                            additional output (such as provenance indices for a maximum operation), allowing
+                            this output to be skipped programmatically.</p>
+                        <p>Note that all array accesses of a parameter marked <code><a
+                                title="pytorch_numba_extension_jit.Unused" href="#pytorch_numba_extension_jit.Unused">Unused</a></code>
+                            must be statically
+                            determined to be dead code (e.g. <code>if False</code>), as compilation will otherwise fail.
+                        </p>
+                        <p>To use this annotation, use e.g. <code>param: Out(...) if condition else Unused</code></p>
+                    </div>
+                </dd>
+            </dl>
+        </section>
+    </article>
+    <nav id="sidebar">
+        <div class="toc">
+            <ul></ul>
+        </div>
+        <ul id="index">
+            <li><h3><a href="#header-functions">Entrypoint</a></h3>
+                <ul class="">
+                    <li><code><a title="pytorch_numba_extension_jit.jit" href="#pytorch_numba_extension_jit.jit">jit</a></code>
+                    </li>
+                </ul>
+            </li>
+            <li><h3><a href="#header-classes">Argument types</a></h3>
+                <ul>
+                    <li>
+                        <h4><code><a title="pytorch_numba_extension_jit.In"
+                                     href="#pytorch_numba_extension_jit.In">In</a></code></h4>
+                    </li>
+                    <li>
+                        <h4><code><a title="pytorch_numba_extension_jit.InMut"
+                                     href="#pytorch_numba_extension_jit.InMut">InMut</a></code></h4>
+                    </li>
+                    <li>
+                        <h4><code><a title="pytorch_numba_extension_jit.Out"
+                                     href="#pytorch_numba_extension_jit.Out">Out</a></code></h4>
+                    </li>
+                    <li>
+                        <h4><code><a title="pytorch_numba_extension_jit.Scalar"
+                                     href="#pytorch_numba_extension_jit.Scalar">Scalar</a></code></h4>
+                    </li>
+                    <li>
+                        <h4><code><a title="pytorch_numba_extension_jit.Unused"
+                                     href="#pytorch_numba_extension_jit.Unused">Unused</a></code></h4>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    </nav>
+</main>
+<footer id="footer">
+    <p>Generated by <a href="https://pdoc3.github.io/pdoc"
+                       title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.6</a>.</p>
+</footer>
+</body>
+</html>
