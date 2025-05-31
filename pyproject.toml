@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "BSc Thesis project 'Anisotropic Quadratic Forms for Pooling in Deep Learning'"
 requires-python = ">=3.10"
 readme = "README.md"
+license = "MIT"
 authors = [
     { name = "Peter Adema", email = "p.j.adema@uva.nl" }
 ]

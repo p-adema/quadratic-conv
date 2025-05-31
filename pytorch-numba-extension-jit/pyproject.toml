@@ -1,8 +1,9 @@
 [project]
 name = "pytorch-numba-extension-jit"
-version = "0.1.0"
+version = "0.1.1"
 description = "Generate PyTorch Custom Operators from Numba-CUDA kernels"
 readme = "README.md"
+license = "MIT"
 authors = [
     { name = "Peter Adema", email = "p.j.adema@uva.nl" }
 ]
