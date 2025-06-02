@@ -109,7 +109,11 @@ def _mnist_like_normalisation(
         x_test = (torch.as_tensor(test.data, dtype=torch.float32) - low) / (high - low)
     y_train = torch.asarray(train.targets, dtype=torch.int64)
 
-    if has_channels and x_train.shape[3] == img_channels:
+    if (
+        has_channels
+        and x_train.shape[1] != img_channels
+        and x_train.shape[3] == img_channels
+    ):
         x_train = x_train.movedim(3, 1)
         x_test = x_test.movedim(3, 1)
     elif not has_channels:
@@ -175,3 +179,33 @@ def svhn():
     return _mnist_like_normalisation(
         train, test, has_channels=True, img_channels=3, num_classes=10
     )
+
+
+def imagenette():
+    def load_img(p: str) -> torch.Tensor:
+        img = torchvision.io.read_image(p)
+        if img.shape[1] == 160:
+            mid = (img.shape[2] - 160) // 2
+            return img[:, :, mid : mid + 160]
+
+        mid = (img.shape[1] - 160) // 2
+        return img[:, mid : mid + 160, :]
+
+    def parse(split: str):
+        split_set = torchvision.datasets.Imagenette(
+            root="./.data/", split=split, download=True, size="160px"
+        )
+        # noinspection PyProtectedMember
+        samples: list[tuple[str, int]] = split_set._samples
+        split_set.targets = torch.tensor(
+            [label for _name, label in samples], dtype=torch.int64
+        )
+        images = [load_img(path) for path, _label in samples]
+        split_set.data = torch.stack([img for img in images if img.shape[0] == 3])
+        split_set.classes = [options[0] for options in split_set.classes]
+        return split_set
+
+    train = parse("train")
+    test = parse("val")
+
+    return _mnist_like_normalisation(train, test, True, 3, 10)

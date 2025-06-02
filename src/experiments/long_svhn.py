@@ -20,20 +20,7 @@ base_kwargs = {
 }
 result = {}
 
-# for desc, config_kwargs in standard_configs(name="Basics (svhn)"):
-#     result[desc] = CIFAR10CNN.fit_many(
-#         data=svhn,
-#         description=desc,
-#         **base_kwargs,
-#         **config_kwargs,
-#     ).scores
-#
-# pl.DataFrame(result).write_parquet("./.data/long_svhn.pq")
-
-
-for desc, config_kwargs in lenet_configs(
-    progress_bar="Temp extra (svhn)", standard_sizes=(7, 11), kernel_sizes=(13,)
-):
+for desc, config_kwargs in standard_configs(name="Basics (svhn)"):
     result[desc] = CIFAR10CNN.fit_many(
         data=svhn,
         description=desc,
@@ -41,4 +28,4 @@ for desc, config_kwargs in lenet_configs(
         **config_kwargs,
     ).scores
 
-pl.DataFrame(result).write_parquet("./.data/extra_svhn.pq")
+pl.DataFrame(result).write_parquet("./.data/long_svhn.pq")

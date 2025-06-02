@@ -8,10 +8,7 @@ sys.path.extend(".")
 
 from src import load_data
 from src.models import LeNet
-from src.models.configurations.simple_lenet import (
-    group_configs,
-    standard_configs,
-)
+from src.models.configurations.simple_lenet import standard_configs
 
 k_mnist = load_data.k_mnist()
 
@@ -35,14 +32,3 @@ for desc, config_kwargs in standard_configs(name="Basics (k_mnist)"):
         **config_kwargs,
     ).scores
 pl.DataFrame(result).write_parquet("./.data/long_k_mnist.pq")
-
-# result = {}
-# for desc, config_kwargs in group_configs(name="Groups (k_mnist)"):
-#     result[desc] = LeNet.fit_many(
-#         data=k_mnist,
-#         description=desc,
-#         conv_channels=(24, 60),
-#         **base_kwargs,
-#         **config_kwargs,
-#     ).scores
-# pl.DataFrame(result).write_parquet("./.data/groups_k_mnist.pq")

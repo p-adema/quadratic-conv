@@ -1,7 +1,6 @@
 import sys
 
 import polars as pl
-import torch
 
 sys.path.extend(".")
 
@@ -29,4 +28,3 @@ for desc, config_kwargs in standard_configs(name="Basics (cifar10)"):
     ).scores
 
 pl.DataFrame(result).write_parquet("./.data/long_cifar10.pq")
-result.clear()

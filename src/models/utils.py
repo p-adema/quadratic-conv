@@ -64,14 +64,19 @@ def reports_to_df(reports: list[dict]) -> pl.DataFrame:
 
 
 class HistoryCallback:
-    def __init__(self, data: Dataset | tuple[torch.Tensor, torch.Tensor]):
+    def __init__(
+        self,
+        data: Dataset | tuple[torch.Tensor, torch.Tensor],
+        batch_size: int = 10_000,
+    ):
         self.losses = []
         self.reports = []
         self.data = data
+        self.batch_size = batch_size
 
     def __call__(self, model: Trainer, train_loss: float):
         self.losses.append(train_loss)
-        self.reports.append(model.evaluate(self.data))
+        self.reports.append(model.evaluate(self.data, batch_size=self.batch_size))
 
     def reset(self):
         self.losses.clear()

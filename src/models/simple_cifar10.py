@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from itertools import chain, pairwise
 
 import torch
 from torch import nn
@@ -20,7 +21,7 @@ class CIFAR10CNN(Trainer):
         pool_fn: Callable[[int, dict], nn.Module] | str,
         conv_kernel_size: int = 3,
         linear_units: int = 128,
-        conv_channels: tuple[int, int, int] = (32, 64, 128),
+        conv_channels: tuple[int, ...] = (32, 64, 128),
         init: dict[str, str | float] | None = None,
         init_seed: int | None = None,
         debug: bool = False,
@@ -28,7 +29,6 @@ class CIFAR10CNN(Trainer):
         super().__init__()
         if init_seed is not None:
             torch.manual_seed(init_seed)
-
         if isinstance(pool_fn, str):
             pool_fn = EXAMPLE_POOLING_FUNCTIONS[pool_fn]
 
@@ -45,9 +45,10 @@ class CIFAR10CNN(Trainer):
             )
 
         modules = [
-            *conv_block(img_channels, conv_channels[0], dropout=0.3),
-            *conv_block(conv_channels[0], conv_channels[1], dropout=0.5),
-            *conv_block(conv_channels[1], conv_channels[2], dropout=0.5),
+            *chain.from_iterable(
+                conv_block(c_in, c_out, dropout=0.3 if c_in == img_channels else 0.5)
+                for c_in, c_out in pairwise((img_channels, *conv_channels))
+            ),
             nn.Flatten(),
             nn.LazyLinear(linear_units),
             nn.ReLU(),
