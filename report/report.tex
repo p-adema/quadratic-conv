@@ -487,11 +487,11 @@ The datasets used are:
 	\item K-MNIST: grayscale, 10 classes, each a cursive Japanese character \cite{k-mnist}. 
 	\item Fashion-MNIST: grayscale, 10 classes, each a fashion item \cite{fashion-mnist}.
 	\item CIFAR10: RGB, 10 classes, containing various real-world objects \cite{cifar10}.
-	\item SVHN:  RGB, 10 classes, each a digit as seen in a house number \cite{svhn}.
+	\item Imgnette-160px:  RGB, 10 classes, medium-sized real-world images \cite{imagenette}.
 \end{itemize}
 The model architecture for the first two datasets is LeNet-5 \cite{lenet5}, just as in previous research \cite{thierrybsc}.
-The other two datasets use a typical CNN, taken from \cite{model-cifar}.
-For a visualisation of the datasets and the models, see Fig. \ref{fig:datasets}:
+The other two datasets use a typical CNN, taken from \cite{model-cifar}, with two additional blocks added at the end for the larger Imagenette-160px dataset. Additionally, Imagenette images were centre-cropped to a constant 160x160 pixels.
+For a visualisation of the datasets and models, see Fig. \ref{fig:datasets}:
 \begin{figure}[h!]
 	\center
   \includegraphics[width=1\textwidth]{figures/datasets.png}
@@ -531,12 +531,12 @@ Since the pooling layer is the only hyperparameter we wish to vary during experi
 \centering
 \begin{tabular}{l|*4c}
 \toprule
-Hyperparameter & K-MNIST & Fashion-MNIST & CIFAR-10 & SVHN\\
+Hyperparameter & K-MNIST & Fashion-MNIST & CIFAR-10 & Imagenette\\
 \midrule
-Batch size & \multicolumn{4}{c}{1024 (saturates GPU compute)}\\
+Batch size & 1024 & 1024 & 1024 & 64\\
 Optimiser   &  \multicolumn{4}{c}{Adam, default parameters except \textsc{lr}} \\
-Learning rate & 0.004 & 0.003 & 0.004 & 0.003 \\
-Epochs & 30 & 80 & 150 & 250 \\
+Learning rate & 0.004 & 0.003 & 0.004 & 0.001 \\
+Epochs & 30 & 80 & 150 & 15 \\
 \bottomrule
 \end{tabular}
 \caption{Hyperparameters used when training models on datasets.}
@@ -577,12 +577,12 @@ TorchVision & 0.22.0+cu128 \\
 \chapter{Results}
 \label{sec:results}
 As described in Sec. \ref{sec:setup}, the experiments performed involve testing variations of pooling layers using the models and datasets shown in Fig. \ref{fig:datasets} (experiments with $R_p$ and $L_\mu+$ can be found in Appendix \ref{sec:nonlinconv}).
-To obtain reliable results, every model configuration was trained repeatedly (100 times for K-MNIST and Fashion-MNIST, 40 times for CIFAR-10 and SVHN), and the results were aggregated. The primary metric that model configurations will be compared on is the mean test-set accuracy, while confidence intervals denoting the 5th and 95th percentiles\footnote{Using percentile-based confidence intervals deviates from previous work \cite{thierrybsc, koenbsc}, which used one standard deviation. This is intentional, as some unstable configurations might occasionally produce low-accuracy (e.g.\ 50\% or 70\%) results. Under the Gaussian assumption of standard deviations, this uncertainty would be modelled symmetrically, and the top of the error bar would be drawn overly high (above the highest observed value, at times).} of accuracy scores are displayed for context.
+To obtain reliable results, every model configuration was trained repeatedly (100 times for K-MNIST and Fashion-MNIST, 40 times for CIFAR-10 and Imagenette), and the results were aggregated. The primary metric that model configurations will be compared on is the mean test-set accuracy, while confidence intervals denoting the 5th and 95th percentiles\footnote{Using percentile-based confidence intervals deviates from previous work \cite{thierrybsc, koenbsc}, which used one standard deviation. This is intentional, as some unstable configurations might occasionally produce low-accuracy (e.g.\ 50\% or 70\%) results. Under the Gaussian assumption of standard deviations, this uncertainty would be modelled symmetrically, and the top of the error bar would be drawn overly high (above the highest observed value, at times).} of accuracy scores are displayed for context.
 
 The format of graphs in this chapter is such that all results are grouped per kernel type (standard/non-dilation, isotropic, anisotropic with scale-space initialisation or anisotropic with orientation-space initialisation), with a secondary hyperparameter being varied within the group. Within each group (kernel-kind), the best-performing configuration is highlighted, and the values for these best-performing configurations are repeated for comparison at the right of each subplot (above 'Best'). Note that most plots are zoomed in such that the total height is \textbf{two percentage points}: differences are minor.
 
 \section{K-MNIST and Fashion-MNIST}
-Examining Fig. \ref{fig:res-small}, we can see that swapping the standard pooling layer for a dilation consistently improves performance for a LeNet-5 on K-MNIST. Anisotropic kernels outperform isotropic kernels, with both methods for initialisation attaining similar peak results for $11\times11$ kernels and somewhat differing results for the other kernel sizes.
+Examining Fig. \ref{fig:res-small}, we can see that swapping the standard pooling layer for a dilation consistently improves performance for a LeNet-5 on K-MNIST. Anisotropic kernels outperform isotropic kernels, with both methods for initialisation attaining similar peak results for $7\times7$ kernels and somewhat differing results for the other kernel sizes.
 
 However, the situation changes considerably when we examine model performance on Fashion-MNIST. Here, the standard max-poolings consistently outperform dilations, with only small orientation-space anisotropic kernels approaching the performance of a standard max-pooling. These results are consistent across runs, but the cause is unclear. Two possible explanations are that a larger model would be required to effectively use dilation-based poolings and/or that the images from Fashion-MNIST are poorly suited for dilations. 
 
@@ -593,25 +593,26 @@ Notably, all pooling types remain better than subsampling ($1\times1$ pooling).
 \begin{figure}[ht!]
 	\center
   \includegraphics[width=1\textwidth]{figures/results-small.png}
-  \caption{Accuracy (mean of 100) for model configurations on small datasets}
+  \caption{Accuracy (mean of 100) for model configurations on small datasets.}
   \label{fig:res-small}
 \end{figure}
 
 \vspace{-0.7cm}
-\section{CIFAR-10 and SVHN}
-In Fig. \ref{fig:res-large}, we can see that the best kernel sizes for dilations outperform standard max-pooling layers for both datasets. For CIFAR-10, dilations outperform max-poolings at all kernel sizes save $2\times2$, with anisotropic kernels slightly outperforming the correspondingly sized isotropic kernels. When training on SVHN, we can see that standard max-poolings are better up to $5\times5$ kernels, whereafter dilations take the lead. Additionally, though anisotropic poolings scale similarly with kernel size to isotropic poolings, it appears as if anisotropic poolings perform slightly worse than their isotropic counterparts.
+\section{CIFAR-10 and Imagenette}
+In Fig. \ref{fig:res-large}, we can see that the best kernel sizes for dilations outperform standard max-pooling layers for both datasets. For CIFAR-10, dilations outperform max-poolings at all kernel sizes save $2\times2$, with anisotropic kernels slightly outperforming the correspondingly sized isotropic kernels. 
+When training on Imagenette, we see that dilations almost universally outperform max-poolings, but that the only difference between isotropic and anisotropic kernels lies in the $11\times11$ case for orientation-space initialisation. It should be noted that the model used may be to small, as the accuracies are somewhat low.
 
 %It appears as if anisotropic dilations are slightly worse than isotropic dilations for both initialisation types, though the scaling with kernel size shows the same pattern.
 
 Regarding the scaling with kernel size, we can see that larger kernels seem to improve performance up to a point. An advantage of dilation-based poolings appears to be that the size at which larger kernels begin to degrade model performance is greater, allowing for dilations to incorporate more context.
 
-It should also be noted that while one might initially expect a larger kernel size to be no worse than a smaller size for dilations with quadratic kernels (as the kernel can simply keep the scale at a lower value), this is not the case in the CIFAR-10 experiment. An explanation for this is that the model might rely on the clipping of a $5\times5$ or $7\times7$ kernel to produce the correct results, and expanding the kernel size prevents the clipping from occurring at the optimal position. Such clipping does have the downside of reducing the theoretical advantages of quadratic dilation (smooth and rotationally symmetric results).
+It should also be noted that while one might initially expect a larger kernel size to be no worse than a smaller size for dilations with quadratic kernels (as the kernel can simply keep the scale at a lower value), this is not the case for both large datasets. An explanation for this could be that the model might rely on the clipping of a $5\times5$ or $7\times7$ kernel to produce the correct results, and expanding the kernel size prevents the clipping from occurring at the optimal position. Such clipping does have the downside of reducing the theoretical advantages of quadratic dilation (smooth and rotationally symmetric results).
 
 
 \begin{figure}[hb!]
 	\center
   \includegraphics[width=1\textwidth]{figures/results-large.png}
-  \caption{Accuracy (mean of 40) for model configurations on large datasets}
+  \caption{Accuracy (mean of 40) for model configurations on large datasets.}
   \label{fig:res-large}
 \end{figure}
 \newpage
@@ -632,7 +633,7 @@ Though the execution speed and efficiency of the pooling layers is primarily dis
 \begin{figure}[ht!]
 	\center
   \includegraphics[width=1\textwidth]{figures/timings.png}
-  \caption{Seconds per model trained for Fashion-MNIST and \comment{SVHN}\ datasets}
+  \caption{Seconds per model trained for Fashion-MNIST and Imagenette.}
   \label{fig:res-timings}
 \end{figure}
 \chapter{Conclusions}
@@ -693,7 +694,7 @@ To briefly summarise the original contributions of this research, we have:
 \end{itemize}
 
 \section{Reproducibility}
-All code to reproduce the results is available in a \href{https://github.com/p-adema/quadratic-conv}{\color{cyan}GitHub repository}; rerunning all experiments took approximately \comment{50?}\ hours on an NVIDIA RTX 5090.
+All code to reproduce the results is available in a \href{https://github.com/p-adema/quadratic-conv}{\color{cyan}GitHub repository}; rerunning all experiments took approximately 30 hours on an NVIDIA RTX 5090.
 
 Code for generating the graphs is also available, including the SVG files for all illustrations in the report and a copy of the report's \LaTeX \  code.
 \section{Ethics}
@@ -823,7 +824,7 @@ A potential reason to prefer the parameterisation described in this section for 
 \section{Hyperparameter tuning }
 \label{sec:hyperparameters}
 To determine an appropriate learning rate and epoch count for training the models, a validation split was made for each dataset from the training data. 70\% of the training data was marked for training models in the tuning process, while the remaining 30\% would be used to select the best learning rate and epoch count.
-In Fig. \ref{fig:tuning}, we can see the results, showing that a learning rate around 0.003 or 0.004 is typically best, with the number of epochs required for training varying greatly based on the complexity of the dataset and task. 
+In Fig. \ref{fig:tuning}, we can see the results, showing that a learning rate between 0.001 and 0.004 is typically best, with the number of epochs required for training varying greatly based on the complexity of the dataset and task. 
 
 For convenience, Table \ref{table:hyperparameters} is repeated here and shows the selected values:
 
@@ -831,12 +832,12 @@ For convenience, Table \ref{table:hyperparameters} is repeated here and shows th
 \centering
 \begin{tabular}{l|*4c}
 \toprule
-Hyperparameter & K-MNIST & Fashion-MNIST & CIFAR-10 & SVHN\\
+Hyperparameter & K-MNIST & Fashion-MNIST & CIFAR-10 & Imagenette\\
 \midrule
-Batch size & \multicolumn{4}{c}{1024 (saturates GPU compute)}\\
+Batch size & 1024 & 1024 & 1024 & 64 \\
 Optimiser   &  \multicolumn{4}{c}{Adam, default parameters except \textsc{lr}} \\
-Learning rate & 0.004 & 0.003 & 0.004 & 0.003 \\
-Epochs & 30 & 80 & 150 & 250 \\
+Learning rate & 0.004 & 0.003 & 0.004 & 0.001 \\
+Epochs & 30 & 80 & 150 & 15 \\
 \bottomrule
 \end{tabular}
 \caption{Hyperparameters used when training models on datasets (copy).}
@@ -857,7 +858,7 @@ More complex hyperparameter tuning, such as adjusting the type of optimiser or t
 \section{Experiments with $R_p$ and $L_{\mu+}$ convolutions }
 \label{sec:nonlinconv}
 As a brief foray into the use of alternate semifields for standard (linear) convolutional layers, a simple experiment using the K-MNIST dataset was conducted. Here, two variations on two highly-scoring models were attempted. The two base models were both LeNet-5 models, with the first having a $3\times3$ standard max-pooling, while the second had a $7\times7$ anisotropic (orientation space) pooling. The two variations were to replace the linear convolution layers in the LeNet model with either $\textcircled{$*$}_{R_p}$ or $\textcircled{$*$}_{L_\mu}$, while also varying the parameter $p$ / $\mu$ (see Sec. \ref{sec:non-morph}).
-However, changing only the semifield would not allow the model to train: $\textcircled{$*$}_{R_p}$ acts on $\mathbb{R}_+$, not $\mathbb{R}$, so the convolution inputs were clipped to $[0.001, \infty)$ and batch normalisation was applied to the outputs. Additionally, $\textcircled{$*$}_{L_\mu}$ generally could not learn a fully parameterised kernel, so it was chosen to use a quadratic kernel (as with dilations). In Fig. \ref{fig:nonlinconv} we can see the results, where convolutions in $R_p$ appear to work best in a range around 1 (linear). Convolutions in $L_\mu$, however, appear to work better for higher values of $\mu$, as they better approximate a $T_+$ convolution. These experiments do not show performance better than the linear case, but can serve to show possibilities.
+However, changing only the semifield would not allow the model to train: $\textcircled{$*$}_{R_p}$ acts on $\mathbb{R}_+$, not $\mathbb{R}$, so the convolution inputs were clipped to $[0.001, \infty)$ and batch normalisation was applied to the outputs. Additionally, $\textcircled{$*$}_{L_\mu}$ generally could not learn a fully parameterised kernel, so it was chosen to use a quadratic kernel (as with dilations). In Fig. \ref{fig:nonlinconv} we can see the results, where convolutions in $R_p$ appear to work best in a range around 1 (linear). Convolutions in $L_\mu$, however, appear to work better for higher values of $\mu$, as they better approximate a $T_+$ convolution. These experiments do not show performance better than the linear case, but show possible opportunites.
 
 \begin{figure}[h!]
 	\center
