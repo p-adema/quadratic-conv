@@ -365,7 +365,7 @@ First, we will review some implementation notes on semifield convolutions and de
 
 \section{Semifield convolutions in a CNN}
 
-Previous sections described the theory underlying a semifield convolution and the additional parameters available in a CNN, but applying this in practice requires an efficient implementation. For this purpose, we wrote two packages: \verb pytorch-nd-semiconv , which uses Just-In-Time (JIT) compilation to create convolutional operators, and \verb pytorch-numba-extension-jit , which automatically generates C++ bindings for the operators and aids in the JIT compilation process. More details on these packages can be found in the Extension report \cite{extension} and the documentation of the packages. For a simple verification of the learnability of the kernel parameters, see Appendix \ref{sec:poc}.
+Previous sections described the theory underlying a semifield convolution and the additional parameters available in a CNN, but applying this in practice requires an efficient implementation. For this purpose, two packages were written: \verb pytorch-nd-semiconv , which uses Just-In-Time (JIT) compilation to create convolutional operators, and \verb pytorch-numba-extension-jit , which automatically generates C++ bindings for the operators and aids in the JIT compilation process. More details on these packages can be found in the Extension report \cite{extension} and the documentation of the packages. For a simple verification of the learnability of the kernel parameters, see Appendix \ref{sec:poc}.
 
 While implementation details will be left to the Extension report, two notable differences exist between the semifield convolutions used in this report and the descriptions of similar operators in previous works \cite{thierrybsc, koenbsc}. 
 
@@ -606,7 +606,7 @@ When training on Imagenette, we see that dilations almost universally outperform
 
 Regarding the scaling with kernel size, we can see that larger kernels seem to improve performance up to a point. An advantage of dilation-based poolings appears to be that the size at which larger kernels begin to degrade model performance is greater, allowing for dilations to incorporate more context.
 
-It should also be noted that while one might initially expect a larger kernel size to be no worse than a smaller size for dilations with quadratic kernels (as the kernel can simply keep the scale at a lower value), this is not the case for both large datasets. An explanation for this could be that the model might rely on the clipping of a $5\times5$ or $7\times7$ kernel to produce the correct results, and expanding the kernel size prevents the clipping from occurring at the optimal position. Such clipping does have the downside of reducing the theoretical advantages of quadratic dilation (smooth and rotationally symmetric results).
+It should also be noted that while one might initially expect a larger kernel size to be no worse than a smaller size for dilations with quadratic kernels (as the kernel can simply keep the scale at a lower value), this does not appear to be the case. An explanation for this could be that the model might rely on the clipping of a $5\times5$ or $7\times7$ kernel to produce the correct results, and expanding the kernel size prevents the clipping from occurring at the optimal position. Such clipping does have the downside of reducing the theoretical advantages of quadratic dilation (smooth and rotationally symmetric results).
 
 
 \begin{figure}[hb!]
@@ -655,7 +655,7 @@ The primary point of discussion for the results of this report would be the unex
 
 Fashion-MNIST was also not included in the previous iterations of this research, where the datasets selected all showed positive results for dilation-based poolings. This suggests the existence of other datasets that may induce poor performance from dilation-based models and emphasises the importance of using varied datasets for evaluating a novel technique such as this.
 
-Aside from using alternate datasets for gathering more insights into the behaviour of dilations, using structurally larger models and datasets (e.g.\ ImageNet) would also be important. Furthermore, many alternative parameterisations exist even within the space of models discussed in this report. It may be that using an alternative covariance parameterisation (e.g.\ Appendix \ref{sec:pearson}) may change the results, and it may be that alternative initialisation strategies could yield better outcomes (e.g.\ combining scale-space and orientation-space)
+Aside from using alternate datasets for gathering more insights into the behaviour of dilations, using structurally larger models and datasets (e.g.\ full ImageNet) would also be important. Furthermore, many alternative parameterisations exist even within the space of models discussed in this report. It may be that using an alternative covariance parameterisation (e.g.\ Appendix \ref{sec:pearson}) may change the results, and it may be that alternative initialisation strategies could yield better outcomes (e.g.\ combining scale-space and orientation-space)
 
 Due to the immense scope of possible model configurations, it may be that some important hyperparameters were missed. However, the steps taken in Sec. \ref{sec:setup} and \ref{sec:hyperparameters} have led to a baseline understanding of dilations for CNNs.
 
@@ -690,7 +690,7 @@ To briefly summarise the original contributions of this research, we have:
 	\item Described two learnable parameterisations for covariance matrices $\Sigma$.
 	\item Implemented efficient and replicable versions of the models described.
 	\item Executed a clear performance analysis of anisotropic kernels for CNNs.
-	\item Implemented highly efficient semifield convolutions (Extension \cite{extension}).
+	\item Implemented fast, N-dimensional semifield convolutions (Extension \cite{extension}).
 \end{itemize}
 
 \section{Reproducibility}
