@@ -155,18 +155,18 @@ Science Park 900\\
 
 \chapter{Convolutional derivatives}
 To perform semifield convolutions within the context of a deep-learning application, we must ensure that we can take the gradient with respect to our inputs in an efficient manner for all operations we seek to perform. 
-The primary challenge in this case is not necessarily the gradient for $\otimes$, as this is a scalar function applied once within each path in the computational graph. Instead, the challenge lies in calculating the derivative of the semifield summation $\bigoplus$, as all terms within this reduction could influence the gradient of all others. While it would be possible to simply perform backpropagation through every instance of $\oplus$ separately, this would be very computationally expensive and likely numerically unstable. As such, we would like to define semifield operators for the cases when we can find a more efficient method to calculate the derivative of $\oplus$.
+The primary challenge in this case is not necessarily the gradient for $\otimes$, as this is a scalar function applied once within each path in the computational graph. Instead, the challenge lies in calculating the derivative of the semifield summation $\bigoplus$, as all terms within this reduction could influence the gradient of all others. While it would be possible to simply perform backpropagation through every instance of $\oplus$ separately, this would be very computationally expensive and likely numerically unstable. As such, we would like to define semifield operators for cases where a more efficient method for calculating the derivative of $\oplus$ can be found.
 
-We have identified three cases in which this is possible, and will discuss them in order of increasing implementation complexity. First, we will examine the possibility of using operators provided by PyTorch to implement semifield convolutions. Afterwards, we will show the two common cases for which a reduction has a simple analytical derivative, namely for those operators $\oplus$ which act like $\max$, and those which are invertible.
+We have identified three cases in which this is possible and will discuss them in order of increasing implementation complexity. First, we will examine the possibility of using operators provided by PyTorch to implement semifield convolutions. Afterwards, we will show the two common cases for which a reduction has a simple analytical derivative, namely for those operators $\oplus$ which act like $\max$ and those which are invertible.
 
 \section{PyTorch reduction operators}
-The most straight-forward method for implementing semifield convolutions for PyTorch models is clearly to use reduction operators provided by PyTorch itself. These operators have their derivatives provided by PyTorch, and are integrated into the PyTorch automatic differentiation system such that writing a backward pass is not required.
+The most straightforward method for implementing semifield convolutions for PyTorch models is clearly to use reduction operators provided by PyTorch itself. These operators have their derivatives provided by PyTorch and are integrated into the PyTorch automatic differentiation system such that writing a backward pass is not required.
 
-The challenge when using PyTorch operators lies then not in their derivative, but in how to apply them in the correct fashion: the axes we would wish to reduce over are not the image axes present in the input itself, but instead the window axes of every sliding window we extract during the convolution.
+The challenge when using PyTorch operators lies not in their derivatives but in their correct application. The axes we wish to reduce over are not the image axes present in the input itself but instead the window axes of every sliding window we extract during the convolution.
 
 A built-in method for accomplishing this is \verb nn.Unfold , an operator which examines sliding windows from the input and copies each separately to a new buffer, allowing subsequent operators to work with the window axes of the new buffer. This copying is rather suboptimal, however: if we take a relatively small $32\times32$ image and extract relatively small $5\times5$ windows from it, then the result is more than 19 times the size of the image: even ignoring the cost of copying, larger inputs or kernel sizes would quickly lead to memory issues.
 
-As such, we would wish to perform a similar operation (transforming the input image such that we have access to sliding window axes to reduce over), but without performing a copy. This is possible by creating an adjusted view of the input image: some other libraries include this feature by default, but it is not exceedingly complex to replicate.
+As such, we would like to perform a similar operation --- transforming the input image such that we have access to sliding window axes to reduce over --- but without performing a copy. This transformation is possible by creating an adjusted view of the input image: some other libraries include this feature by default, but it is not exceedingly complex to replicate.
 
 The main idea of using such a view is to adjust the strides (step sizes within the underlying data array) such that, when moving to the next window, the view takes a step equal to the convolutional $\textsc{stride}$ instead of the full size of the window. In Fig. \ref{fig:strides}, we can see how a view into a 1D-array with $\textsc{stride}=1$ and size-4 kernels causes subsequent windows to overlap:
 
@@ -181,20 +181,99 @@ The main idea of using such a view is to adjust the strides (step sizes within t
 By applying a broadcasting version of $\otimes$ to the strided view and the convolutional kernels, we can obtain the intermediaries to be reduced.
 Subsequently, we can apply the reduction operator along the window axes (axis 1 in Fig. \ref{fig:strides}) to efficiently calculate $\bigoplus$ for all cases where $\bigoplus$ and $\otimes$ can be expressed as one or more PyTorch operators.
 
-However, this approach still has a major downside in terms of memory usage and cache locality: there is currently no method for fusing the $\otimes$ and $\bigoplus$ operations in PyTorch, and the intermediary results of $\otimes$ must therefore be manifested in their entirety. As a result, this method still suffers from greatly increased memory use and also accesses memory inefficiently. Since all results of $\otimes$ are stored an calculated before $\bigoplus$ begins, the initial results of $\otimes$ are flushed from the cache by the beginning of $\bigoplus$, causing further slowdowns from cache-misses.
+However, this approach still has a major downside in terms of memory usage and cache locality: there is currently no method for fusing the $\otimes$ and $\bigoplus$ operations in PyTorch, and the intermediary results of $\otimes$ must therefore be manifested in their entirety. As a result, this method still suffers from greatly increased memory use and also accesses memory inefficiently. Since all results of $\otimes$ are stored before $\bigoplus$ begins, the initial results of $\otimes$ are usually flushed from the cache by the beginning of $\bigoplus$, causing cache-misses and further slowdown.
 
-In order to mitigate this, we must devise custom, fused kernels that combine $\otimes$ and $\bigoplus$ into a single operation. This, however, also requires calculating the derivative rules manually; the next two sections will discuss two such rulesets.
+In order to mitigate this, we must devise custom, fused kernels that combine $\otimes$ and $\bigoplus$ into a single operation. Such kernels, however, also require calculating the derivative rules manually. As such, the following two sections will discuss two methods for deriving the reduction $\bigoplus$ when $\oplus$ is a selection or is invertible.
 
-\section{Selection-based semifield addition \comment{TODO}}
-If it acts like $\max$, we can memoize the provenance (which value was selected).
-\section{Invertible semifield addition \comment{TODO}}
-If we can undo it, we can use \cite{ppad}.
+\section{Efficient derivatives for custom kernels}
+If we consider the operations that take place within the convolutional operation, then the computational graph for any one point in the result is an unbalanced binary tree, with a sequence of $\oplus$ operations along the spine constituting the reduction. If we would truly wish to derive this computational graph as-is, then the gradients propagated to the bottom of the tree may suffer from numerical instability due to the overly high number of operations to backpropagate through. Instead, we would prefer cases in which we could skip deriving through the reduction and calculate the derivative of the result with respect to any term in the reduction directly. This difference is illustrated in Fig. \ref{fig:der-sketch}, where the right computational graph shows these direct derivatives:
 
-\chapter{CUDA semifield convolutions \comment{TODO}}
-Armed with an understanding of the types of semifield convolutions where a gradient can be calculated in a reasonably efficient manner, we now turn to the task of efficiently implementing these operations as programs that can run on a (NVIDIA) GPU: CUDA kernels.
+\begin{figure}[ht!]
+	\center
+  \includegraphics[width=1\textwidth]{extension-figures/derivative-sketch.png}
+  \caption{Two examples of computational graphs for a semifield convolution at a single point, with the left graph showing a naive implementation of the backwards graph, and the right graph showing a more efficient, desired version. The right graph is only relevant if $\frac{\delta r}{\delta s_n}$ is easily computable for any $n$.}
+  \label{fig:der-sketch}
+\end{figure}
 
-\chapter{PyTorch C++ Extensions \comment{TODO}}
-Now that we have working implementations of semifield convolutions in the form of CUDA kernels, it is important to examine how these kernels can best be used within the context of a deep-learning model created with the PyTorch machine learning framework.
+\noindent
+Unfortunately, $\frac{\delta r}{\delta s_n}$ is not easily computable for any $n$ in all semifields. In order to attain the desired behaviour for the backward pass, we must therefore place additional constraints on the operator $\oplus$; it must either: \begin{itemize}
+	\item Act as a selection --- similar to max and min --- where $r$ is always takes on the value of exactly one of the inputs $s$. See Sec. \ref{sec:select-derive} for details.
+	\item Be invertible (as well as commutative and associative), such that if $r=x\oplus s$, then $x$ can be found given $r$ and $s$. See Sec. \ref{sec:invert-derive} for details.
+\end{itemize}
+These two cases are the only cases for which a custom kernel is implemented in the package written alongside this report, corresponding with \verb SelectSemifield  and \verb SubtractSemifield  respectively.
+\newpage
+\section{Selection-based semifield addition}
+\label{sec:select-derive}
+When $\oplus$ acts as a selection operator, its result is always equal to one of its two operands. The typical examples of selection operators are $\max$ and $\min$, which always select the higher and lower operands, respectively. However, it is conceivable that one may wish to perform a maximum-like operation using an alternative ordering, hence this generalisation.
+
+The advantage of selection-based semifield addition is that the result of the reduction $\bigoplus$ must also be equal to one of its inputs (an $s$ from Fig. \ref{fig:der-sketch}) while having no relation to any of the other inputs. As such, we can see that the derivative $\frac{\delta r}{\delta s_n}$ is equal to 1 for the $s_c$, which $r$ takes its value from, and 0 for all $s_i$ where $i\ne c$. As such, letting the backpropagation 'skip over' the reduction would only require knowing the value of $c$ (the index of the selected $s_c$).
+
+While it is possible to recompute this $c$ using a second forward pass during backpropagation, we can --- using a small amount of auxiliary memory --- memoise this index $c$ during the initial forward pass. By storing this $c$ (also known as the provenance index), the backward pass only needs to update the gradient of the value at index $c$ and can ignore all other terms in the reduction. The backward pass, therefore, only requires recomputing $s_c$, not the other $s$'s.
+
+
+\section{Invertible semifield addition}
+\label{sec:invert-derive}
+For all other operators that we would wish to use as $\oplus$, simple memoisation of the result will not suffice. There is, however, still a class of operators which leads to relatively simple backward graphs. If we examine again the naive backwards graph from Fig. \ref{fig:der-sketch}, we can see that, although the path of the gradient is relatively long for most $s_i$, the path for $s_1$ is relatively short. The last value added in the reduction only requires the derivative of one instance of $\oplus$, greatly simplifying the calculation. However, for any specific ordering of the values $s_1\ldots s_n$, there is only one instance of this 'easy case'. To solve this, we could require an associative and commutative $\oplus$, and write for any $s_i$ \cite{ppad}:
+\begin{align}
+	r= s_1\oplus s_2 \oplus \ldots s_{i-1}\ \oplus\ &\mathbf{s_i} \oplus s_{i+1} \oplus \ldots s_{n-1} \oplus s_n \label{eq:invert-start}\\
+	 =(s_1\oplus s_2 \oplus \ldots s_{i-1})\ \oplus\ &\mathbf{s_i} \oplus (s_{i+1} \oplus \ldots s_{n-1} \oplus s_n)\\
+	  =\;&\mathbf{s_i} \oplus (s_1\oplus s_2 \oplus \ldots s_{i-1} \oplus s_{i+1} \oplus \ldots s_{n-1} \oplus s_n)\\
+	  =\;&\mathbf{s_i} \oplus x_{\backslash i} \label{eq:invert-end}
+\end{align}
+In other words, we can rewrite the reduction for any $s_i$ into this 'easy case', where the result is equal to $s_i$ combined with the accumulation of all other values. The challenge then becomes finding this $x_{\backslash i}$: simply performing the reduction for every $i$ separately would be highly inefficient, so a better solution would be required. If $\oplus$ is invertible, then the solution is straightforward: by Eq. \ref{eq:invert-end} we know that $r=s_i \oplus x_{\backslash i}$, so if we recalculate $s_i$ and memoise $r$ (from the forward pass), then $x_{\backslash i}$ can be found using the inverse of $\oplus$: $x_{\backslash i}=r\oplus^{inv}s_i$
+
+In practice, the restriction of invertibility is not overly constraining. All fields are necessarily invertible (we can calculate $x_{\backslash i}$ by taking the element which is the additive inverse of $s_i$ and seeing that $x_{\backslash i}=r\oplus s_i^{inv}$). Furthermore, even many semifields which are not themselves fields have inverses, such as the log semifields $L_{\pm\mu}$ and the root semifields $R_p$. In these cases, by replacing the + within the semifield addition with $-$, we can obtain the inverse. In the accompanying package, the inverse is also referred to as 'semifield subtraction'.
+
+\chapter{CUDA semifield convolutions}
+Armed with an understanding of the types of semifield convolutions where a gradient can be calculated in a reasonably efficient manner, we now turn to the task of efficiently implementing these operations as programs that can run on a modern NVIDIA GPU as CUDA kernels. First, we will discuss how programs that can run on an NVIDIA GPU are represented, as well as how such programs can be written in Python using Numba-CUDA. Subsequently, we will show how the overhead involved in dispatching GPU programs ('kernels') can be reduced, and we will discuss some features of CUDA used to improve performance.
+
+\section{Compute Unified Device Architecture}
+Commonly referred to as CUDA, this programming model allows for describing operations in an inherently parallel fashion. Typically, CUDA programming involves splitting the parallelisable task into its smallest parts and spawning a thread for every individual task (for machine learning, often one thread per position in the target array). Threads are then hierarchically grouped, with 32 threads forming a 'warp' and a variable\footnote{On most hardware, a block may have between 1 and 32 warps (i.e. 32 to 1024 threads).} number of warps forming a 'block'\footnote{Also called a 'thread block', or a 'cooperative thread array' in PTX documentation.}.
+
+Within a warp, threads can communicate using special instructions that transfer data between registers of a warp. For more structured cooperation, threads within a block can access 'shared memory', which is most similar to a fast version of heap-allocated memory for CPU threads. Blocks can further be arranged into 'clusters' if more warps are required to work on the problem than fit within one block, but this is rarely used (also not for this report).
+
+In terms of actual execution, an operation (such as a semifield convolution) consists of blocks arranged into a 'grid'. When a grid is executed, some of its blocks are assigned to a Streaming Multiprocessor (SM), where all their threads are run from start to finish. In an SM, warps are issued instructions, with all threads in a warp receiving (and potentially skipping) the same instructions. In a sense, warp instructions are highly optimised and flexible versions of predicated SIMD instructions\footnote{The model of warps is also referred to as Single Instruction Multiple Threads (SIMT)}. However, besides using this data parallelism to accelerate computation, CUDA devices can also leverage concurrency (akin to CPU hyperthreading) to hide memory latencies. Every computational unit ('scheduler', 4 per SM) can house several (up to 16) warps and can retain optimal performance so long as one of the warps is always eligible for execution. 
+
+\newpage
+\section{Parallel Thread Execution and SASS}
+Besides describing a device architecture, the term 'CUDA' is often used to refer to the CUDA C extension to the C programming language, which allows users to write programs that run on CUDA devices in a dialect of C or C++. However, just like C does not run directly on a CPU, CUDA C itself cannot run on CUDA devices: it must first be compiled to machine instructions.
+
+The assembly format of choice for CUDA devices is Streaming Assembler (SASS), which compiles into executable bytecode. Most compiler frontends that target CUDA devices do not output SASS directly, however. Instead, a more cross-compatible assembly format named Parallel Thread Execution (PTX) is used, and an NVIDIA transpiler (\verb ptxas ) is used to convert PTX into SASS at runtime. The idea behind this construction is similar to that of VM-based languages, where developers can write programs in a high-level language (such as CUDA C), compile to a backwards- and forwards-compatible format for distribution and have their code run on a wide range of devices.
+
+\section{Numba-CUDA Just-In-Time compilation}
+CUDA C is not the only frontend for PTX; the Numba-CUDA package provides an alternative based on Python. By providing the same intrinsics that CUDA C offers, Numba-CUDA enables writing programs for CUDA devices in relatively standard Python. Unlike CUDA C, applications using Numba-CUDA are not distributed with their GPU code compiled to PTX but instead leave this compilation step as a runtime task as well (in addition to the task of transpiling the PTX to SASS and assembling the SASS).
+
+Just-In-Time (JIT) compilation refers to the above technique of delaying compilation to be a one-off runtime cost instead of being a preparatory step. JIT compilers and applications have the advantage of being able to specialise at runtime --- certain aspects of the input can be assumed to be constant (such as the shape of an image or the dilation of a convolution), providing more room for optimising compilers to improve performance. The primary downside of JIT compilers is usually taken to be the increased start-up times associated with runtime compilation. However, these costs are negligible in machine-learning contexts, where training can consist of thousands or millions of iterations.
+
+Due to the reduced complexity of programming in Python, as well as the increased flexibility of runtime specialisation, it was chosen to write the packages for this report using Numba-CUDA as the frontend instead of CUDA C.
+
+The full compilation pipeline is visualised for clarity in Fig. \ref{fig:compilation}:
+
+\begin{figure}[ht!]
+	\center
+  \includegraphics[width=1\textwidth]{extension-figures/compilation.png}
+  \caption{Compilation pipeline from Python source code to SASS bytecode.}
+  \label{fig:compilation}
+\end{figure}
+
+
+
+\newpage
+\section{Dispatch overhead  \comment{TODO}}
+
+\section{Atomics  \comment{TODO}}
+
+\section{Shared Memory  \comment{TODO}}
+
+\chapter{Results \comment{TODO}}
+
+\section{Verification \comment{TODO}}
+
+\newpage
+\section{Timing setup \comment{TODO}}
+
+\newpage
+\section{Performance \comment{TODO}}
 
 \chapter{Conclusions \comment{TODO}}
 
