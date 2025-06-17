@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import contextlib
+import itertools
 import os
-import sys
+import site
 import warnings
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -31,11 +32,18 @@ warnings.filterwarnings(
 
 
 def _find_cudart() -> Path:
-    py_lib = Path(sys.exec_prefix) / "lib"
-    site_packages = next(py_lib.glob("python3.*")) / "site-packages"
-    cuda_lib = site_packages / "nvidia" / "cuda_runtime" / "lib"
-    if not cuda_lib.exists():
-        raise FileNotFoundError(f"Seem to be missing runtime: looked for {cuda_lib=}")
+    tried_paths = []
+    for s in itertools.chain(site.getsitepackages(), site.getusersitepackages()):
+        site_packages = Path(s)
+        assert site_packages.exists(), "site returned invalid site_packages directory?"
+        cuda_lib = site_packages / "nvidia" / "cuda_runtime" / "lib"
+        if cuda_lib.exists():
+            break
+
+        tried_paths.append(cuda_lib)
+    else:
+        raise FileNotFoundError(f"Seem to be missing runtime: looked in {tried_paths=}")
+
     cudart = cuda_lib / "libcudart.so"
     if not cudart.exists():
         cudart_versioned = next(cuda_lib.glob("libcudart.so.*"), None)
@@ -163,7 +171,6 @@ def compile_extension(
         lineinfo=False,
         output="ptx",
     )[0]
-    cuda.jit()
     kernel = ptx_to_extension(
         ptx,
         name,

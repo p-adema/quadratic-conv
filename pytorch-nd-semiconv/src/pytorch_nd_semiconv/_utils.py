@@ -393,6 +393,7 @@ def plot_kernels(kernels: torch.Tensor, at_most: int = 5) -> None:
         sharey=True,
         layout="compressed",
         squeeze=False,
+        figsize=(5, 5 + at_most * 2),
     )
     for o, axs in enumerate(axss):
         for i, ax in enumerate(axs):

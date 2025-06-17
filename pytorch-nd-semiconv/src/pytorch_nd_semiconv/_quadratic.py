@@ -9,7 +9,7 @@ from ._utils import make_pos_grid, plot_kernels
 
 class QuadraticKernelSpectral2D(nn.Module):
     r"""
-    A kernel that evaluates \(x^T S^{-1} x\), with skew parameterised as an angle \(\theta\)
+    A kernel that evaluates \(x^T S^{-1} x\), with skew as an angle \(\theta\)
 
     This module takes no arguments in `forward` and produces a
     `Tensor` of `OIHW`, making this Module suitable as a kernel for `GenericConv`.
@@ -21,7 +21,7 @@ class QuadraticKernelSpectral2D(nn.Module):
     out_channels : int
         The number of output channels: the `O` in `OIHW`.
     kernel_size : int
-        The height `H` and width `W` of the kernel (rectangular kernels are not supported).
+        The height `H` and width `W` of the kernel (rectangular kernels not supported).
     init : dict, optional
         The initialisation stratergy for the underlying covariance matrices.
         If provided, the dictionary must have keys:
@@ -94,14 +94,14 @@ class QuadraticKernelSpectral2D(nn.Module):
         log_std : Tensor of (O, I, 2)
             The logathirms of the standard deviations in both axes for all kernels
         theta : Tensor of (O, I)
-            The counter-clockwise angles between the first axis and the X-axis for all kernels
+            The counter-clockwise angles between the first axis and the X-axis
         """
         return self.covs.log_std, self.covs.theta
 
     @torch.no_grad()
-    def plot(self):
+    def plot(self, at_most: int = 5):
         """Provide a simple visualisation of some kernels. Requires `seaborn`."""
-        plot_kernels(self.forward())
+        plot_kernels(self.forward(), at_most)
 
 
 class QuadraticKernelCholesky2D(nn.Module):
@@ -118,7 +118,7 @@ class QuadraticKernelCholesky2D(nn.Module):
     out_channels : int
         The number of output channels: the `O` in `OIHW`.
     kernel_size : int
-        The height `H` and width `W` of the kernel (rectangular kernels are not supported).
+        The height `H` and width `W` of the kernel (rectangular kernels not supported).
     init : dict, optional
         The initialisation stratergy for the underlying covariance matrices.
         If provided, the dictionary must have the key `"var"`, which can take values:
@@ -195,9 +195,9 @@ class QuadraticKernelCholesky2D(nn.Module):
         return self.covs.log_std.moveaxis(0, 2), self.covs.corr
 
     @torch.no_grad()
-    def plot(self):
+    def plot(self, at_most: int = 5):
         """Provide a simple visualisation of some kernels. Requires `seaborn`."""
-        plot_kernels(self.forward())
+        plot_kernels(self.forward(), at_most)
 
 
 class QuadraticKernelIso2D(nn.Module):
@@ -214,7 +214,7 @@ class QuadraticKernelIso2D(nn.Module):
     out_channels : int
         The number of output channels: the `O` in `OIHW`.
     kernel_size : int
-        The height `H` and width `W` of the kernel (rectangular kernels are not supported).
+        The height `H` and width `W` of the kernel (rectangular kernels not supported).
     init : dict, optional
         The initialisation stratergy for the variances / scale parameters.
         If provided, the dictionary must have the key `"var"`, which can take values:
@@ -296,6 +296,6 @@ class QuadraticKernelIso2D(nn.Module):
         return f"{self.in_channels}, {self.out_channels}, {kernel_size=}"
 
     @torch.no_grad()
-    def plot(self):
+    def plot(self, at_most: int = 5):
         """Provide a simple visualisation of some kernels. Requires `seaborn`."""
-        plot_kernels(self.forward())
+        plot_kernels(self.forward(), at_most)

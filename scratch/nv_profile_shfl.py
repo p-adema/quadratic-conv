@@ -6,12 +6,12 @@ import torch
 from numba import cuda
 
 STRIDE = 2
-WINDOW_SIZE = 12
+WINDOW_SIZE = 11 * 11
 
 
 # noinspection PyArgumentList
-@cuda.jit("void(float32[:], float32[:])")
-def pool_basic(vals, out):
+@cuda.jit("void(float32[:], float32[:], float32[:])")
+def pool_basic(vals, krn, out):
     idx = cuda.grid(1)
     if idx > out.size:
         return
@@ -20,13 +20,43 @@ def pool_basic(vals, out):
 
     begin_x = ox * STRIDE
     acc = numba.float32(-100.0)
-    for x in range(begin_x, begin_x + WINDOW_SIZE):
-        if x >= vals.size:
-            continue
-        val = vals[x]
-        val_2 = val + numba.float32(1.0)
-        if val_2 > acc:
-            acc = val_2
+    for bx in range(begin_x, begin_x + 10):
+        for i, x in enumerate(range(bx, bx + WINDOW_SIZE)):
+            if x >= vals.size:
+                continue
+            val = vals[x]
+            val_2 = val + krn[i]
+            if val_2 > acc:
+                acc = val_2
+
+    out[ox] = acc
+
+
+# noinspection PyArgumentList
+@cuda.jit("void(float32[:], float32[:], float32[:])")
+def pool_basic2(vals, krn, out):
+    krn_cache = cuda.shared.array(WINDOW_SIZE, numba.float32)
+    for i in range(cuda.threadIdx.x, WINDOW_SIZE, 256):
+        krn_cache[i] = krn[i]
+
+    numba.cuda.syncthreads()
+
+    idx = cuda.grid(1)
+    if idx > out.size:
+        return
+
+    ox = idx
+
+    begin_x = ox * STRIDE
+    acc = numba.float32(-100.0)
+    for bx in range(begin_x, begin_x + 10):
+        for i, x in enumerate(range(bx, bx + WINDOW_SIZE)):
+            if x >= vals.size:
+                continue
+            val = vals[x]
+            val_2 = val + krn_cache[i]
+            if val_2 > acc:
+                acc = val_2
 
     out[ox] = acc
 
@@ -97,18 +127,19 @@ def pool_strided(vals, out):
     acc = numba.float32(-100.0)
     for i in range(math.ceil(WINDOW_SIZE / STRIDE)):
         step = stride_step + i * STRIDE
-        window_valid = step < WINDOW_SIZE
         x = begin_x + step
-        x_valid = x < vals.shape[-1]
-        val = cuda.selp(window_valid and x_valid, vals[x], numba.float32(-1000))
+        if step < WINDOW_SIZE and x < vals.shape[-1]:
+            val = vals[x]
+        else:
+            val = numba.float32(-1000)
         val_2 = val + numba.float32(1.0)
-        other_val_2 = cuda.shfl_down_sync(numba.uint32(0xFFFF), val_2, 1)
-
-        if other_val_2 > val_2:
-            val_2 = other_val_2
 
         if val_2 > acc:
             acc = val_2
+
+    other_acc = cuda.shfl_down_sync(numba.uint32(0xFFFF), acc, 1)
+    if other_acc > acc:
+        acc = other_acc
 
     if stride_leader:
         out[ox] = acc
@@ -124,16 +155,18 @@ lg_vals_1d = torch.rand(IN_SIZE, device="cuda")
 check_out = (
     torch.max_pool1d(lg_vals_1d.unsqueeze(0), WINDOW_SIZE, STRIDE).add(1).squeeze()
 )
-
+zero_krn = torch.ones(WINDOW_SIZE, device="cuda")
 lg_out_1 = torch.empty(OUT_SIZE, device="cuda")
 n_blocks = (OUT_SIZE + BLOCK_SIZE - 1) // BLOCK_SIZE
-pool_basic[n_blocks, BLOCK_SIZE](lg_vals_1d, lg_out_1)
+pool_basic[n_blocks, BLOCK_SIZE](lg_vals_1d, zero_krn, lg_out_1)
+pool_basic2[n_blocks, BLOCK_SIZE](lg_vals_1d, zero_krn, lg_out_1)
 
-n_blocks = (IN_SIZE + 0 + BLOCK_SIZE - 1) // (
-    (BLOCK_SIZE // 32) * (32 // WINDOW_SIZE * WINDOW_SIZE)
-)
+assert 32 % STRIDE == 0
+n_blocks = (OUT_SIZE * STRIDE + BLOCK_SIZE - 1) // BLOCK_SIZE
+
 lg_out_2 = torch.empty(OUT_SIZE, device="cuda")
 pool_strided[n_blocks, BLOCK_SIZE](lg_vals_1d, lg_out_2)
+
 
 # print("Part close:")
 # torch.testing.assert_close(check_out[::2], lg_out_1[::2])

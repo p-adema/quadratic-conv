@@ -3,6 +3,7 @@ import torch
 from numba import cuda
 
 
+@pnex.jit(n_threads="result.numel()", to_extension=True)
 def mymuladd_2d(
     a: pnex.In("f32", (None, None)),
     # Within the generated code, .size can be called to retrieve the shape.

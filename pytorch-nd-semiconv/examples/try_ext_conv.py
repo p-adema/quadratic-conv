@@ -115,8 +115,8 @@ with torch.device("cuda"):
 
 
 ss_adj = Adjunction(
-    SelectSemifield.tropical_max().dynamic(20),
-    SelectSemifield.tropical_min().dynamic(20),
+    SelectSemifield.tropical_max().dynamic(),
+    SelectSemifield.tropical_min_negated().dynamic(),
     "Select",
 )
 

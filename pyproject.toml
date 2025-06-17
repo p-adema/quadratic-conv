@@ -43,12 +43,10 @@ torchvision = [
     { index = "torch-cu128", marker = "sys_platform != 'darwin'" },
 ]
 
-morphological_torch = { path = "replicate/parabolic_pooling_investigation/morphology_package/dist/morphological_torch-0.1.0-cp312-cp312-linux_x86_64.whl", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" }
 
 [dependency-groups]
 dev = [
     "hatchling>=1.27.0",
     "ruff>=0.11.8",
-    "morphological_torch ; sys_platform == 'linux' and platform_machine == 'x86_64'",
     "pyrefly>=0.17.0",
 ]

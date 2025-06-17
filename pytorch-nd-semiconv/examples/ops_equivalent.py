@@ -159,8 +159,8 @@ def check_params(
         ("max", broadcast_max, ext_max, numba_max),
         ("min", broadcast_min, ext_min, numba_min),
     ):
-        test_same_conv(f"{name}-B-E", op_b, op_e, **test_kwargs)
-        test_same_conv(f"{name}-E-N", op_e, op_n, **test_kwargs)
+        test_same_conv(f"{name}-B-N", op_b, op_n, **test_kwargs)
+        test_same_conv(f"{name}-N-E", op_n, op_e, **test_kwargs)
 
         torch.library.opcheck(op_e.op, (imgs.clone().requires_grad_(True), kernels))
         torch.library.opcheck(op_n.op, (imgs, kernels.clone().requires_grad_(True)))
