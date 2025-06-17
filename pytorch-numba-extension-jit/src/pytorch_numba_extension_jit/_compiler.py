@@ -33,7 +33,7 @@ warnings.filterwarnings(
 
 def _find_cudart() -> Path:
     tried_paths = []
-    for s in itertools.chain(site.getsitepackages(), site.getusersitepackages()):
+    for s in (*site.getsitepackages(), site.getusersitepackages()):
         site_packages = Path(s)
         cuda_lib = site_packages / "nvidia" / "cuda_runtime" / "lib"
         if cuda_lib.exists():
