@@ -93,7 +93,7 @@ Science Park 900 \\
 \vspace{1.5cm}
 
 % [DO NOT CHANGE]
-Honours Thesis extension\\
+Honours Thesis Extension\\
 Credits: 6 EC
 
 \vspace{0.5cm}
@@ -220,9 +220,9 @@ For all other operators that we would wish to use as $\oplus$, simple memoisatio
 	  =\;&\mathbf{s_i} \oplus (s_1\oplus s_2 \oplus \ldots s_{i-1} \oplus s_{i+1} \oplus \ldots s_{n-1} \oplus s_n)\\
 	  =\;&\mathbf{s_i} \oplus x_{\backslash i} \label{eq:invert-end}
 \end{align}
-In other words, we can rewrite the reduction for any $s_i$ into this 'easy case', where the result is equal to $s_i$ combined with the accumulation of all other values. The challenge then becomes finding this $x_{\backslash i}$: simply performing the reduction for every $i$ separately would be highly inefficient, so a better solution would be required. If $\oplus$ is invertible, then the solution is straightforward: by Eq. \ref{eq:invert-end} we know that $r=s_i \oplus x_{\backslash i}$, so if we recalculate $s_i$ and memoise $r$ (from the forward pass), then $x_{\backslash i}$ can be found using the inverse of $\oplus$: $x_{\backslash i}=r\oplus^{inv}s_i$
+In other words, we can rewrite the reduction for any $s_i$ into this 'easy case', where the result is equal to $s_i$ combined with the accumulation of all other values. The challenge then becomes finding this $x_{\backslash i}$: simply performing the reduction for every $i$ separately would be highly inefficient, so a better solution would be required. If $\oplus$ is invertible, then the solution is straightforward: by Eq. \ref{eq:invert-end} we know that $r=s_i \oplus x_{\backslash i}$, so if we recalculate $s_i$ and memoise $r$ (from the forward pass), then $x_{\backslash i}$ can be found using the inverse of $\oplus$: $x_{\backslash i}=r\oplus^{inv}s_i$. Given both $s_i$ and  $x_{\backslash i}$, we can then easily calculate the gradient of Eq.\ \ref{eq:invert-end}.
 
-In practice, the restriction of invertibility is not overly constraining. All fields are necessarily invertible (we can calculate $x_{\backslash i}$ by taking the element which is the additive inverse of $s_i$ and seeing that $x_{\backslash i}=r\oplus s_i^{inv}$). Furthermore, even many semifields which are not themselves fields have inverses, such as the log semifields $L_{\pm\mu}$ and the root semifields $R_p$. In these cases, by replacing the + within the semifield addition with $-$, we can obtain the inverse. In the accompanying package, the inverse is also referred to as 'semifield subtraction'.
+In practice, the restriction of invertibility is not overly constraining. All fields are necessarily invertible (we can calculate $x_{\backslash i}$ by taking the element which is the additive inverse of $s_i$ and seeing that $x_{\backslash i}=r\oplus s_i^{inv}$). Furthermore, even many semifields which are not themselves fields have inverses, such as the log semifields $L_{\pm\mu}$ and the root semifields $R_p$. In these cases, by replacing the + within the semifield addition with $-$, we can obtain the inverse.
 
 \chapter{CUDA semifield convolutions}
 Armed with an understanding of the types of semifield convolutions where a gradient can be calculated in a reasonably efficient manner, we now turn to the task of efficiently implementing these operations as programs that can run on a modern NVIDIA GPU as CUDA kernels. First, we will discuss how programs that can run on an NVIDIA GPU are represented, as well as how such programs can be written in Python using Numba-CUDA. Subsequently, we will show how the overhead involved in dispatching GPU programs ('kernels') can be reduced, and we will discuss some features of CUDA used to improve performance.
@@ -259,21 +259,54 @@ The full compilation pipeline is visualised for clarity in Fig. \ref{fig:compila
 
 
 \newpage
-\section{Dispatch overhead  \comment{TODO}}
+\section{PyTorch Integration}
+Many projects --- including this one --- performing research in machine-learning use the PyTorch framework to arrange operations into a computational graph for backpropagation or compilation. However, while a sequence of PyTorch built-in operators can typically be traced to form such a graph, this is not the case for custom CUDA operators. In these cases, more care is required in order to use these operators within the PyTorch automatic differentiation system. 
 
-\section{Atomics  \comment{TODO}}
+Using \verb torch.library , custom operators can be defined such that PyTorch tracing systems (\verb dynamo ) can properly integrate the operators in their graphs. However, writing such code in Python can lead to a large per-call dispatch overhead for these operators; due to various conversions and checks taking place in the process of invoking a custom Python operator, these can be much slower than their built-in counterparts. Furthermore, while Numba-CUDA supports the CUDA Array Interface and can interact with PyTorch data, using this Python interface also causes slowdowns. The total additional overhead can cause operators to be significantly slower (by up to an order of magnitude, see Sec.\ \ref{sec:perf}). As such, resolving this slowdown is also an important factor to consider before attempting to use these operators to train models.
 
-\section{Shared Memory  \comment{TODO}}
+\section{Dispatch overhead}
+One approach to resolving this slowdown is to rewrite the operators as compiled (C++) extensions to the PyTorch framework. The primary downside of this approach would be that it would require source code for the operators to be available for compilation, but the generic nature of semifield convolutions are very challenging to express for ahead-of-time compilation. This can be resolved by instead making the C++ extensions also JIT-compiled; by using Numba-CUDA to compile dynamic Python code, the resulting PTX can be embedded in a C++ function without much knowledge of its workings. This construct, where Numba-CUDA is used to JIT-compile PyTorch extensions, is implemented by the \verb pytorch-numba-extension-jit  package written for this report, and can eliminate much of the Python-induced overhead from custom operators in PyTorch computation graphs.
 
-\chapter{Results \comment{TODO}}
+However, a better method is available for the purposes of training models. In general, the nature of any overhead within the training process originates from the CPU being unable to start GPU programs faster than the GPU is able to complete them. While this cannot be avoided in cases where the programs to be executed are different between runs, training models in machine-learning typically involves running a fairly static forward- and backward-pass for many iterations. In such cases, an alternative approach named CUDAGraphs can allow a CUDA GPU to record a series of operations, and then repeat them with only a single invocation (like a 'macro' from productivity software). Using CUDAGraphs, dispatch overhead from custom operators can be eliminated entirely, without even resorting to JIT-compilation of C++ extensions.
 
-\section{Verification \comment{TODO}}
+Since the main report is primarily concerned with training and evaluating various machine-learning models, CUDAGraphs is used without additional C++ compilation to reduce dispatch overhead. For other cases, where the process of CUDAGraphs tracing is too costly, C++ extension compilation may still be an effective method.
+\section{Atomics}
+Within a CUDA GPU, there are many features designed to accelerate a variety of computational tasks. Most of these features cannot effectively be applied for the purpose of semifield convolutions, save the feature of atomic additions. While the forward pass of both a select-based semifield and a invertible semifield can be written with standard Python constructs, the backward pass of both requires aggregating the gradients for various positions in the image and kernel. It is possible to do this aggregation using a convolution-like operation in reversie, i.e.\ for every position in the input, sum over the gradients with respect to every output position that could have accessed it. However, this is suboptimal in the case of select-based semifields, as every output position only corresponds with at most one input position. Atomic additions allow threads to cooperate on a summation: multiple threads can concurrently perform an addition on a memory address (e.g.\ a part of the gradient for the input), and the hardware will guarantee that all summations are performed in some order. This is important, as  several threads attempting to add a value to a specific address might otherwise overwrite each-other's work. By leveraging atomics, the backward pass for select-based semifields can be performed efficiently, in cases even as fast as a built-in PyTorch max-pooling (see \comment{TODO graph}).
+
+\section{Shared Memory}
+Besides atomic operations, another feature which is often used for CUDA programs is 'shared memory', whereby threads in a block can access a shared block of memory to cooperate on a task. Often, shared memory is used to store intermediate results or to cache input values for more efficient access.
+
+For semifield convolutions, however, shared memory is challenging to apply effectively. The first use-case --- caching intermediates --- does not especially play a role within semifield convolutions, as there are no clear intermediate steps within the calculation. Breaking up the window and assigning multiple threads per output position is an option, but decreased performance during testing. As such, the only possible use-case for shared memory would be in caching inputs. 
+
+The argument in favour of this use case is that accessing uncached, global memory is slow if all memory accesses are not clustered together (within 128 bytes), while a slightly laxer set of limitations apply for shared memory accesses. As such, storing the input image or kernel might allow for more efficient access to it. While this seems reasonable, it is not the case in practice; it is possible to write the convolution in a manner where memory access is mostly linear and predictable, whereafter the automatic caching system (akin to CPU L1/L2 cache) can correctly keep all relevant data in the cache. As such, while many variations on shared memory caching were tried --- from copying the entire relevant parts of the image/kernel to maintaining a local sliding window of the image --- but none could outperform the basic version which relies on automatic caching, and most performed significantly worse.
+
+Considering the above, it was chosen to not use any shared memory or other synchronisation tools within the implementations of the semifield convolutions, using only atomic addition as non-standard feature.
+
+\chapter{Results}
+Created using the derivative schemas from Chapter 2 and the technical tools described in Chapter 3, the package \verb pytorch-nd-semiconv  implements the three types of semifield convolutions discussed and provides integrations for use with the PyTorch machine-learning framework. The operators work with arbitrary dimensionality (e.g. 1D signals / 2D images / 3D imaging data). Using this package, some verification experiments were conducted and timings were done to examine correctness and performance of the resulting code.
+
+\section{Verification}
+In order to ensure that the results for the main report are not misrepresenting the characteristics of semifield convolutions, it was essential to ensure that the operators in \verb pytorch-nd-semiconv  are correct and abide by expectations.
+
+Verification of these operators was done in three parts. First, a set of simple experiments were done using fixed data, with results and gradients verified to be identical to their manually calculated counterparts. Secondly, theoretical characteristics of morphology were used to verify the correctness of dilations ($T_+$) and erosions (negated $T_-$) specifically. Finally, a variety of random inputs were used to verify that the CUDA implementations behaved identically to their PyTorch broadcasting counterparts.
+
+Regarding the fixed data experiments, interested readers may consult the Jupyter Notebook \verb groups_test.ipynb  to view the results of the operators on some simple data and using convolutional groups.
+
+For the morphological characteristics, it was chosen to focus on verifying the extensivity of closings (that the results of a closing is always $\ge$ the input) as well as the dual anti-extensivity of openings (\ldots $\leq$). Using both random and fixed data, these characteristics were verified to hold in \verb plot_adjunction.ipynb .
+
+Finally, an extensive test covering 100 random configurations for input dimensionality, input and kernel size, stride, dilation and padding was run, where the results and gradients of the PyTorch broadcasting implementation were verified to be identical to the corresponding implementation using CUDA code. \verb ops_equivalent.py  showed that the implementations were equivalent in nearly all\footnote{The derivative of semifield multiplication does not always consider the absorbing nature of the semifield zero: $\frac{\delta(x+\infty)}{\delta x}=1$ in PyTorch, even when changing $x$ would not change the result of $x+\infty$. As such, when the kernel contains a semifield zero (due to it being set as such) or the input does (due to e.g. padding), the gradient can differ between implementations.} cases, strengthening the case for the correctness of the operators.
+
 
 \newpage
-\section{Timing setup \comment{TODO}}
-
-\newpage
-\section{Performance \comment{TODO}}
+\section{Timing setup}
+\label{sec:perf}
+After performing some tests to verify the correctness of the implementations in \verb pytorch-nd-semiconv , additional experiments were run to determine the speed of various versions of the same semifield convolution. Two sets of trials were run --- using the selection based semifield $T_+$ and the invertible semifield $R_3$ --- under the assumption that other semifields would have performance characteristics similar to one of the two. For both sets of trials, performance was investigated for the following four configurations: \begin{enumerate}
+\setlength{\itemsep}{1pt}
+	\item $32\times32$ input, $3\times3$ kernel
+	\item $32\times32$ input, $3\times3$ kernel with stride 2
+	\item $32\times32$ input, $7\times7$ kernel with stride 2
+	\item $256\times256$ input, $7\times7$ kernel with stride 2
+\end{enumerate}
 
 \chapter{Conclusions \comment{TODO}}
 
