@@ -507,6 +507,27 @@ dilation = semiconv.GenericConv(
 </code></pre>
             <p>See also the <a href="https://github.com/p-adema/quadratic-conv/blob/main/pytorch-nd-semiconv">GitHub
                 page</a> and the <a href="https://pypi.org/project/pytorch-nd-semiconv/">PyPi page</a></p>
+            <div class="admonition note">
+                <p class="admonition-title">Note:&ensp;Correct CUDA toolkit versions</p>
+                <p>When this package is installed via Pip, a version of nvidia-cuda-nvcc and
+                    nvidia-cuda-runtime will likely be installed.
+                    However, depending on the weather outside, this version may not be correct.
+                    As such, if you experience issues during compilation (especially if you see the
+                    error <code>cuModuleLoadData(&amp;cuModule, ptx) failed with error
+                        CUDA_ERROR_UNSUPPORTED_PTX_VERSION</code>), then it may be worth verifying your
+                    installation.
+                    This can be done by running <code>nvidia-smi</code> to find your CUDA version, and then
+                    <code>pip list</code> to find the currently installed versions of the
+                    relevant NVIDIA libraries.
+                    These libraries should begin with your CUDA version, e.g. for CUDA 12.8 the expected
+                    output might look like:</p>
+                <pre><code>$ pip list | grep nvidia-cuda-
+nvidia-cuda-cupti-cu12    12.8.57
+nvidia-cuda-nvcc-cu12     12.8.61
+nvidia-cuda-nvrtc-cu12    12.8.61
+nvidia-cuda-runtime-cu12  12.8.57
+</code></pre>
+            </div>
         </section>
         <section>
         </section>

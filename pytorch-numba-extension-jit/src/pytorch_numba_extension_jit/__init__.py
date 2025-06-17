@@ -28,6 +28,26 @@ As a toy example, consider the task of creating a copy of a 1D array:
 tensor([0., 1., 2., 3., 4.], device='cuda:0')
 
 For more examples of usage, see `jit` and the examples directory of the project.
+
+.. note:: Correct CUDA toolkit versions
+    When this package is installed via Pip, a version of nvidia-cuda-nvcc and
+    nvidia-cuda-runtime will likely be installed.
+    However, depending on the weather outside, this version may not be correct.
+    As such, if you experience issues during compilation (especially if you see the
+    error `cuModuleLoadData(&cuModule, ptx) failed with error
+    CUDA_ERROR_UNSUPPORTED_PTX_VERSION`), then it may be worth verifying your
+    installation.
+    This can be done by running `nvidia-smi` to find your CUDA version, and then
+    `pip list` to find the currently installed versions of the
+    relevant NVIDIA libraries.
+    These libraries should begin with your CUDA version, e.g. for CUDA 12.8 the expected
+    output might look like:
+
+        $ pip list | grep nvidia-cuda-
+        nvidia-cuda-cupti-cu12    12.8.57
+        nvidia-cuda-nvcc-cu12     12.8.61
+        nvidia-cuda-nvrtc-cu12    12.8.61
+        nvidia-cuda-runtime-cu12  12.8.57
 """
 
 from ._typehint_interface import In, InMut, Out, Scalar, Unused, jit

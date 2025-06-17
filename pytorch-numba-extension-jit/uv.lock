@@ -255,10 +255,32 @@ wheels = [
 
 [[package]]
 name = "numba-cuda"
+version = "0.14.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform == 'darwin'",
+    "python_full_version == '3.11.*' and sys_platform == 'darwin'",
+    "python_full_version < '3.11' and sys_platform == 'darwin'",
+]
+dependencies = [
+    { name = "numba", marker = "sys_platform == 'darwin'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bd/9e/bcefd0afc5b61a71c8b4274dff1db5f205f8782d67852fb4a0e5f0e36d0b/numba_cuda-0.14.0.tar.gz", hash = "sha256:943c34cc4f406a74a1358b13429e9be3c64bf2662c54f278111c66705094be1a", size = 491787 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/28/76/2c21a513d85d4611ddb5c723162d0fd296f4b3b30d4277dd493f41234afb/numba_cuda-0.14.0-py3-none-any.whl", hash = "sha256:fdb884f5bb06ef732e2e5e1f1ac73c895511a52d78b5635fbe49c3e6b9941f16", size = 590917 },
+]
+
+[[package]]
+name = "numba-cuda"
 version = "0.15.1"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and sys_platform != 'darwin'",
+    "python_full_version == '3.11.*' and sys_platform != 'darwin'",
+    "python_full_version < '3.11' and sys_platform != 'darwin'",
+]
 dependencies = [
-    { name = "numba" },
+    { name = "numba", marker = "sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/56/d7/f8dd134b7896b30d69e5b29af27264b1143458d43e088f210abc16cba91e/numba_cuda-0.15.1.tar.gz", hash = "sha256:219771179a396ba2a6911648b908609c1373d2055373d5fb8294f0a1947c4690", size = 491996 }
 wheels = [
@@ -356,9 +378,7 @@ name = "nvidia-cuda-runtime-cu12"
 version = "12.8.57"
 source = { registry = "https://pypi.org/simple" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cd/9d/e77ec4227e70c6006195bdf410370f2d0e5abfa2dc0d1d315cacd57c5c88/nvidia_cuda_runtime_cu12-12.8.57-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:534ccebd967b6a44292678fa5da4f00666029cb2ed07a79515ea41ef31fe3ec7", size = 965264 },
     { url = "https://files.pythonhosted.org/packages/16/f6/0e1ef31f4753a44084310ba1a7f0abaf977ccd810a604035abb43421c057/nvidia_cuda_runtime_cu12-12.8.57-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:75342e28567340b7428ce79a5d6bb6ca5ff9d07b69e7ce00d2c7b4dc23eff0be", size = 954762 },
-    { url = "https://files.pythonhosted.org/packages/16/ee/52508c74bee2a3de8d59c6fd9af4ca2f216052fa2bc916da3a6a7bb998af/nvidia_cuda_runtime_cu12-12.8.57-py3-none-win_amd64.whl", hash = "sha256:89be637e3ee967323865b85e0f147d75f9a5bd98360befa37481b02dd57af8f5", size = 944309 },
 ]
 
 [[package]]
@@ -497,12 +517,12 @@ wheels = [
 
 [[package]]
 name = "pytorch-numba-extension-jit"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "." }
 dependencies = [
     { name = "cuda-bindings", marker = "sys_platform != 'darwin'" },
-    { name = "numba-cuda" },
-    { name = "nvidia-cuda-runtime-cu12", marker = "sys_platform != 'darwin'" },
+    { name = "numba-cuda", version = "0.14.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
+    { name = "numba-cuda", version = "0.15.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'darwin'" },
     { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform == 'darwin'" },
     { name = "torch", version = "2.7.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform != 'darwin'" },
     { name = "uuid" },
@@ -517,9 +537,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cuda-bindings", marker = "sys_platform != 'darwin'", specifier = "==12.*" },
-    { name = "numba-cuda", specifier = ">=0.9.0" },
-    { name = "nvidia-cuda-runtime-cu12", marker = "sys_platform != 'darwin'" },
+    { name = "cuda-bindings", marker = "sys_platform != 'darwin'", specifier = ">=11" },
+    { name = "numba-cuda", marker = "sys_platform != 'darwin'", specifier = ">=0.9.0" },
+    { name = "numba-cuda", marker = "sys_platform == 'darwin'", specifier = ">=0.9.0,<0.15.0" },
     { name = "torch", marker = "sys_platform != 'darwin'", specifier = ">=2.6.0", index = "https://download.pytorch.org/whl/cu128" },
     { name = "torch", marker = "sys_platform == 'darwin'", specifier = ">=2.6.0" },
     { name = "uuid", specifier = ">=1.30" },
