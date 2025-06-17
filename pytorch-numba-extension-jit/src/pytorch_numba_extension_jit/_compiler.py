@@ -35,7 +35,6 @@ def _find_cudart() -> Path:
     tried_paths = []
     for s in itertools.chain(site.getsitepackages(), site.getusersitepackages()):
         site_packages = Path(s)
-        assert site_packages.exists(), "site returned invalid site_packages directory?"
         cuda_lib = site_packages / "nvidia" / "cuda_runtime" / "lib"
         if cuda_lib.exists():
             break
