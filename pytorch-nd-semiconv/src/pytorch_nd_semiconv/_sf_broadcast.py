@@ -173,7 +173,7 @@ class BroadcastSemifield(typing.NamedTuple):
 
         Parameters
         ----------
-        p : int
+        p : float
             The power to use in \(\oplus_p\).
             May not be zero.
         """
@@ -200,7 +200,7 @@ class BroadcastSemifield(typing.NamedTuple):
 
         Parameters
         ----------
-        mu : int
+        mu : float
             The base to use in \(\oplus_mu\).
             May not be zero.
         """
